@@ -44,7 +44,7 @@ const BottomTabBar = ({activeTab, onTabPress}) => {
             <View style={styles.iconContainer}>
               <Icon
                 name={tab.icon}
-                size={24}
+                size={20}
                 color={isActive ? '#FFFFFF' : '#BBBBBB'}
               />
             </View>
@@ -65,31 +65,31 @@ const BottomTabBar = ({activeTab, onTabPress}) => {
 const styles = StyleSheet.create({
   bottomTabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingVertical: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingVertical: 6,
+    paddingBottom: 12,
+    paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
   },
   tabButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 3,
     flex: 1,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '600',
     textAlign: 'center',
     letterSpacing: 0.2,

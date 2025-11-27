@@ -31,9 +31,24 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(false);
+  const [lastTap, setLastTap] = useState(0);
 
   // Check if this news has reporter info
   const hasReporter = news.reporter && news.reporter.name;
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
+    
+    if (lastTap && (now - lastTap) < DOUBLE_PRESS_DELAY) {
+      // Double tap detected
+      setFullScreenImage(true);
+    } else {
+      // Single tap
+      setLastTap(now);
+    }
+  };
 
   const handleShare = e => {
     if (e && e.stopPropagation) {
@@ -111,36 +126,38 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     <TouchableWithoutFeedback onPress={onPress}>
       <View style={styles.card}>
         {/* Image Section */}
-        <View style={styles.imageSection}>
-          <Image source={{uri: news.image}} style={styles.image} />
-          
-          {/* Reporter Section with Gradient */}
-          {hasReporter && (
-            <>
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.reporterGradient}
-                locations={[0, 1]}
-              />
-              
-              <View style={styles.reporterSection}>
-                <Image
-                  source={{uri: news.reporter.image}}
-                  style={styles.reporterImage}
+        <TouchableWithoutFeedback onPress={handleDoubleTap}>
+          <View style={styles.imageSection}>
+            <Image source={{uri: news.image}} style={styles.image} />
+            
+            {/* Reporter Section with Gradient */}
+            {hasReporter && (
+              <>
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.8)']}
+                  style={styles.reporterGradient}
+                  locations={[0, 1]}
                 />
-                <View style={styles.reporterInfo}>
-                  <Text style={styles.reporterName}>{news.reporter.name}</Text>
-                  <View style={styles.reporterLocationRow}>
-                    <Icon name="map-marker" size={14} color="#FFFFFFCC" />
-                    <Text style={styles.reporterLocation}>
-                      {news.reporter.location}
-                    </Text>
+                
+                <View style={styles.reporterSection}>
+                  <Image
+                    source={{uri: news.reporter.image}}
+                    style={styles.reporterImage}
+                  />
+                  <View style={styles.reporterInfo}>
+                    <Text style={styles.reporterName}>{news.reporter.name}</Text>
+                    <View style={styles.reporterLocationRow}>
+                      <Icon name="map-marker" size={14} color="#FFFFFFCC" />
+                      <Text style={styles.reporterLocation}>
+                        {news.reporter.location}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            </>
-          )}
-        </View>
+              </>
+            )}
+          </View>
+        </TouchableWithoutFeedback>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -267,6 +284,32 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
+        </Modal>
+
+        {/* Full Screen Image Modal */}
+        <Modal
+          visible={fullScreenImage}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setFullScreenImage(false)}>
+          <View style={styles.fullScreenContainer}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setFullScreenImage(false)}
+              activeOpacity={0.8}>
+              <Icon name="close" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <Image
+              source={{uri: news.image}}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+            
+            <View style={styles.imageInfo}>
+              <Text style={styles.imageTitle}>{news.title}</Text>
+            </View>
+          </View>
         </Modal>
       </View>
     </TouchableWithoutFeedback>
@@ -437,6 +480,41 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E8EAED',
     marginHorizontal: 16,
+  },
+  // Full Screen Image Styles
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? STATUS_BAR_HEIGHT + 10 : 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  fullScreenImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  imageInfo: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 16,
+    borderRadius: 12,
+  },
+  imageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    lineHeight: 22,
   },
 });
 

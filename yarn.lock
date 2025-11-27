@@ -2337,10 +2337,29 @@
     use-latest-callback "^0.2.4"
     use-sync-external-store "^1.5.0"
 
+"@react-navigation/drawer@^7.1.1":
+  version "7.7.5"
+  resolved "https://registry.yarnpkg.com/@react-navigation/drawer/-/drawer-7.7.5.tgz#6e13444cb27a50a7dbc3b3d16c91ab355d0fe5ff"
+  integrity sha512-y/prLCc9NcvfFGHO+kKYw4rDmIcF3RvTw3YmBLD3EEy2H/I3kLsgyDK28blpQPOQp7oUhG+6GV726i3gM/VxCQ==
+  dependencies:
+    "@react-navigation/elements" "^2.8.4"
+    color "^4.2.3"
+    react-native-drawer-layout "^4.2.0"
+    use-latest-callback "^0.2.4"
+
 "@react-navigation/elements@^2.8.3":
   version "2.8.3"
   resolved "https://registry.yarnpkg.com/@react-navigation/elements/-/elements-2.8.3.tgz#d8f15b3d1ed2a1a5c8bf766a97382505e39851be"
   integrity sha512-0c5nSDPP3bUFujgkSVqqMShaAup3XIxNe1KTK9LSmwKgWEneyo6OPIjIdiEwPlZvJZKi7ag5hDjacQLGwO0LGA==
+  dependencies:
+    color "^4.2.3"
+    use-latest-callback "^0.2.4"
+    use-sync-external-store "^1.5.0"
+
+"@react-navigation/elements@^2.8.4":
+  version "2.8.4"
+  resolved "https://registry.yarnpkg.com/@react-navigation/elements/-/elements-2.8.4.tgz#2b0c7396adece25038bd2243c73bd61e8d48a9f7"
+  integrity sha512-AKqJ4kjDLlWBuF2kPFalw1bcQglPqmhFMQnwuPpaD23M5dDbW620JBv89qsSNM3LRIERjvuluv1yguqBmBdTBA==
   dependencies:
     color "^4.2.3"
     use-latest-callback "^0.2.4"
@@ -6765,6 +6784,14 @@ react-native-date-picker@^5.0.12:
   version "5.0.13"
   resolved "https://registry.yarnpkg.com/react-native-date-picker/-/react-native-date-picker-5.0.13.tgz#fe05f58652aaeee9e67f73cf7436c32a623ff3a4"
   integrity sha512-qCLUODZVsJetO5zuoXjw1D39K527XWqBG8sOfhWdHyPzf13h8RXR1/RSKd1N0fdRDi5GdyizYmB0lPAK12/hbw==
+
+react-native-drawer-layout@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/react-native-drawer-layout/-/react-native-drawer-layout-4.2.0.tgz#8b178c883aa6496b8259b2b7e72e296308dcf975"
+  integrity sha512-XFGK5RMcVhEqr2F4iH/cTXrcTm1uK3gIBNFPqHNO7rCXuXZTPBbQYA5yc9/Lqgw2KNQ3sAeHKvW6/WoTURo/eA==
+  dependencies:
+    color "^4.2.3"
+    use-latest-callback "^0.2.4"
 
 react-native-dropdown-picker@^5.4.6:
   version "5.4.6"

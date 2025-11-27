@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import React, {useState, useRef} from 'react';
 import {
   Modal,
@@ -16,6 +17,7 @@ const MODAL_HEIGHT = height * 0.8;
 
 const CategoriesModal = ({visible, onClose}) => {
   const [searchText, setSearchText] = useState('');
+  const navigation = useNavigation()
   const [activeSection, setActiveSection] = useState('news');
   const scrollViewRef = useRef(null);
   const sectionRefs = useRef({});
@@ -83,6 +85,11 @@ const CategoriesModal = ({visible, onClose}) => {
     // Reset flag when user stops scrolling
     isScrollingToSection.current = false;
   };
+
+  const handleReporterNavigation = () =>{
+    onClose()
+    navigation.navigate('Reporter')
+  }
 
   return (
     <Modal
@@ -285,7 +292,9 @@ const CategoriesModal = ({visible, onClose}) => {
               </View>
 
               {/* Reporter Section */}
-              <TouchableOpacity style={styles.reporterCard}>
+              <TouchableOpacity
+              onPress={handleReporterNavigation}
+              style={styles.reporterCard}>
                 <Icon name="microphone" size={32} color="#FFFFFF" />
                 <View style={styles.reporterContent}>
                   <Text style={styles.reporterLabel}>Reporter</Text>

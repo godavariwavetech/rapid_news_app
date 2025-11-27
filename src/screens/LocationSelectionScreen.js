@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT =
+  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const LocationSelectionScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
@@ -35,16 +36,18 @@ const LocationSelectionScreen = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
-      {/* Header */}
-      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8}]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={26} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>మీ ప్రదేశాన్ని ఎంచుకోడి</Text>
-        <View style={styles.placeholder} />
+
+      {/* Header Wrapper */}
+      <View style={styles.headerWrapper}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>మీ ప్రదేశాన్ని ఎంచుకోడి</Text>
+          <View style={styles.placeholder} />
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -55,7 +58,12 @@ const LocationSelectionScreen = ({navigation}) => {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Icon name="map-marker" size={24} color="#666" style={styles.searchIcon} />
+          <Icon
+            name="map-marker"
+            size={22}
+            color="#666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="మీ ఊరు పేరు లేదా విరుణామాతో వెతకండి"
@@ -63,7 +71,7 @@ const LocationSelectionScreen = ({navigation}) => {
             value={searchText}
             onChangeText={setSearchText}
           />
-          <Icon name="magnify" size={24} color="#666" />
+          <Icon name="magnify" size={22} color="#666" />
         </View>
 
         {/* District Chips */}
@@ -79,23 +87,33 @@ const LocationSelectionScreen = ({navigation}) => {
           <Text style={styles.locationTitle}>
             మీ చుట్టూ ఉన్న పౌంతాల వార్తలు పొందేందుకు లొకేషన్ అనుమతివ్వండి
           </Text>
-          
+
           <TouchableOpacity style={styles.locationButton} activeOpacity={0.8}>
-            <Icon name="crosshairs-gps" size={24} color="#FFFFFF" />
-            <Text style={styles.locationButtonText}>లొకేషన్ అనుమతివ్వండి</Text>
+            <Icon name="crosshairs-gps" size={22} color="#FFFFFF" />
+            <Text style={styles.locationButtonText}>
+              లొకేషన్ అనుమతివ్వండి
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Favourites Section */}
         <View style={styles.favouritesSection}>
           <View style={styles.favouritesHeader}>
-            <Icon name="star" size={24} color="#E74C3C" />
+            <Icon name="star" size={22} color="#E74C3C" />
             <Text style={styles.favouritesTitle}>Favourites</Text>
           </View>
 
           {favorites.map(fav => (
-            <TouchableOpacity key={fav.id} style={styles.favouriteCard} activeOpacity={0.7}>
-              <Icon name="clock-outline" size={24} color="#999" style={styles.clockIcon} />
+            <TouchableOpacity
+              key={fav.id}
+              style={styles.favouriteCard}
+              activeOpacity={0.7}>
+              <Icon
+                name="clock-outline"
+                size={22}
+                color="#999"
+                style={styles.clockIcon}
+              />
               <View style={styles.favouriteInfo}>
                 <Text style={styles.favouriteName}>{fav.name}</Text>
                 <Text style={styles.favouriteLocation}>{fav.location}</Text>
@@ -115,12 +133,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F6F8',
   },
+  headerWrapper: {
+    // paddingTop: STATUS_BAR_HEIGHT,
+    backgroundColor: '#FFFFFF',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
@@ -132,14 +154,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1A1A1A',
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   placeholder: {
-    width: 34,
+    width: 28,
   },
   content: {
     flex: 1,
@@ -159,14 +181,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E8EAED',
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
@@ -205,12 +227,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#E74C3C',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
-    gap: 10,
+    gap: 8,
   },
   locationButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -220,11 +242,11 @@ const styles = StyleSheet.create({
   favouritesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    gap: 6,
+    marginBottom: 12,
   },
   favouritesTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#1A1A1A',
   },
@@ -232,18 +254,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   clockIcon: {
-    marginRight: 14,
+    marginRight: 12,
   },
   favouriteInfo: {
     flex: 1,
   },
   favouriteName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 4,
