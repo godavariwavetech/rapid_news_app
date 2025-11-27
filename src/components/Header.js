@@ -2,7 +2,7 @@ import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-function Header({onProfilePress, onTogglePress}) {
+function Header({onProfilePress, onTogglePress,title}) {
   return (
     <View style={styles.container}>
       {/* Left - Profile Icon */}
@@ -14,7 +14,7 @@ function Header({onProfilePress, onTogglePress}) {
       </TouchableOpacity>
 
       {/* Center - న్యూస్ Title */}
-      <Text style={styles.title}>న్యూస్</Text>
+      <Text style={styles.title}>{title}</Text>
 
       {/* Right - Hide/Show Toggle Icon */}
       <TouchableOpacity 

@@ -3,7 +3,7 @@ import {Dimensions} from 'react-native';
 export const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} =
   Dimensions.get('window');
 
-export const CARD_HEIGHT = 510; // Updated for new card design
+export const CARD_HEIGHT = 510;
 export const CARD_PADDING = 16;
 
 export const LANGUAGES = [
@@ -58,6 +58,11 @@ export const MOCK_NEWS = [
     location: 'Kakinada',
     timeAgo: '5 minutes ago',
     source: 'Way2News',
+    reporter: {
+      name: 'రాజేష్ కుమార్',
+      location: 'కాకినాడ',
+      image: 'https://i.pravatar.cc/150?img=12',
+    },
   },
   {
     id: '2',
@@ -74,6 +79,7 @@ export const MOCK_NEWS = [
     location: 'Mumbai',
     timeAgo: '15 minutes ago',
     source: 'Sports Desk',
+    // No reporter - clean image
   },
   {
     id: '3',
@@ -90,6 +96,11 @@ export const MOCK_NEWS = [
     location: 'Bangalore',
     timeAgo: '30 minutes ago',
     source: 'Tech Today',
+    reporter: {
+      name: 'ప్రియా శర్మ',
+      location: 'బెంగళూరు',
+      image: 'https://i.pravatar.cc/150?img=45',
+    },
   },
   {
     id: '4',
@@ -106,6 +117,7 @@ export const MOCK_NEWS = [
     location: 'Chennai',
     timeAgo: '45 minutes ago',
     source: 'Entertainment',
+    // No reporter
   },
   {
     id: '5',
@@ -122,6 +134,11 @@ export const MOCK_NEWS = [
     location: 'Delhi',
     timeAgo: '1 hour ago',
     source: 'Business Wire',
+    reporter: {
+      name: 'అనిల్ మెహతా',
+      location: 'ఢిల్లీ',
+      image: 'https://i.pravatar.cc/150?img=33',
+    },
   },
   {
     id: '6',
@@ -138,6 +155,7 @@ export const MOCK_NEWS = [
     location: 'Pune',
     timeAgo: '2 hours ago',
     source: 'Health News',
+    // No reporter
   },
   {
     id: '7',
@@ -154,6 +172,11 @@ export const MOCK_NEWS = [
     location: 'Vijayawada',
     timeAgo: '3 hours ago',
     source: 'Local News',
+    reporter: {
+      name: 'వెంకటేష్ రెడ్డి',
+      location: 'విజయవాడ',
+      image: 'https://i.pravatar.cc/150?img=68',
+    },
   },
   {
     id: '8',
@@ -170,6 +193,7 @@ export const MOCK_NEWS = [
     location: 'Kolkata',
     timeAgo: '4 hours ago',
     source: 'Education',
+    // No reporter
   },
 ];
 

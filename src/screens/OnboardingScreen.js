@@ -4,131 +4,108 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
-  Dimensions,
   StatusBar,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
+import {useDispatch} from 'react-redux';
 import {completeOnboarding} from '../redux/reducers/auth';
-import {setLanguage, setLocation} from '../redux/reducers/settings';
-import {lightTheme, darkTheme} from '../utils/colors';
-import {LANGUAGES, LOCATIONS} from '../utils/constants';
-
-const {width} = Dimensions.get('window');
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const OnboardingScreen = ({navigation}) => {
   const dispatch = useDispatch();
-  const isDarkMode = useSelector(state => state.settings.isDarkMode);
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  const [selectedLanguage, setSelectedLanguage] = useState('telugu');
 
-  const [step, setStep] = useState(1);
-  const [selectedLanguage, setSelectedLanguage] = useState('english');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const languages = [
+    {
+      id: 'telugu',
+      icon: 'తె',
+      name: 'తెలుగు',
+      englishName: 'Telugu',
+      color: '#FFE5F1',
+      iconColor: '#FF1493',
+    },
+    {
+      id: 'tamil',
+      icon: 'த',
+      name: 'தமிழ்',
+      englishName: 'Tamil',
+      color: '#E8F5E9',
+      iconColor: '#4CAF50',
+    },
+    {
+      id: 'kannada',
+      icon: 'ಕ',
+      name: 'ಕನ್ನಡ',
+      englishName: 'Kannada',
+      color: '#E3F2FD',
+      iconColor: '#2196F3',
+    },
+  ];
 
-  const handleLanguageSelect = lang => {
-    setSelectedLanguage(lang);
-  };
-
-  const handleLocationSelect = loc => {
-    setSelectedLocation(loc);
+  const handleLanguageSelect = (languageId) => {
+    setSelectedLanguage(languageId);
   };
 
   const handleContinue = () => {
-    if (step === 1 && selectedLanguage) {
-      dispatch(setLanguage(selectedLanguage));
-      setStep(2);
-    } else if (step === 2 && selectedLocation) {
-      dispatch(setLocation(selectedLocation));
-      dispatch(completeOnboarding());
-      navigation.replace('Main');
-    }
+    dispatch(completeOnboarding());
+    navigation.replace('Main');
   };
 
-  const renderLanguageItem = ({item}) => (
-    <TouchableOpacity
-      style={[
-        styles.optionCard,
-        {
-          backgroundColor: theme.cardBackground,
-          borderColor:
-            selectedLanguage === item.code ? theme.primary : theme.border,
-          borderWidth: selectedLanguage === item.code ? 2 : 1,
-        },
-      ]}
-      onPress={() => handleLanguageSelect(item.code)}>
-      <Text style={[styles.optionTitle, {color: theme.text}]}>
-        {item.nativeName}
-      </Text>
-      <Text style={[styles.optionSubtitle, {color: theme.textSecondary}]}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderLocationItem = ({item}) => (
-    <TouchableOpacity
-      style={[
-        styles.optionCard,
-        {
-          backgroundColor: theme.cardBackground,
-          borderColor:
-            selectedLocation === item.id ? theme.primary : theme.border,
-          borderWidth: selectedLocation === item.id ? 2 : 1,
-        },
-      ]}
-      onPress={() => handleLocationSelect(item.id)}>
-      <Text style={[styles.optionTitle, {color: theme.text}]}>
-        {item.name}
-      </Text>
-      <Text style={[styles.optionSubtitle, {color: theme.textSecondary}]}>
-        {item.state}
-      </Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <View style={[styles.container, {backgroundColor: theme.background}]}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.background}
-      />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {/* Title */}
+        <Text style={styles.title}>Choose your preferred language{'\n'}to read the news</Text>
 
-      <View style={styles.header}>
-        <Text style={[styles.logo, {color: theme.primary}]}>Way2News</Text>
-        <Text style={[styles.subtitle, {color: theme.textSecondary}]}>
-          {step === 1 ? 'Select Your Language' : 'Select Your Location'}
-        </Text>
+        {/* Language Options */}
+        <View style={styles.languageList}>
+          {languages.map((language) => {
+            const isSelected = selectedLanguage === language.id;
+            return (
+              <TouchableOpacity
+                key={language.id}
+                style={[
+                  styles.languageCard,
+                  isSelected && styles.languageCardSelected,
+                ]}
+                onPress={() => handleLanguageSelect(language.id)}
+                activeOpacity={0.7}>
+                <View style={[styles.iconContainer, {backgroundColor: language.color}]}>
+                  <Text style={[styles.iconText, {color: language.iconColor}]}>
+                    {language.icon}
+                  </Text>
+                </View>
+                <View style={styles.languageInfo}>
+                  <Text style={styles.languageName}>{language.name}</Text>
+                  <Text style={styles.languageEnglishName}>{language.englishName}</Text>
+                </View>
+                {isSelected && (
+                  <View style={styles.checkmark}>
+                    <Icon name="check" size={20} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Continue Button - Fixed at Bottom */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.continueButton}
+          onPress={handleContinue}
+          activeOpacity={0.8}>
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={step === 1 ? LANGUAGES : LOCATIONS}
-        renderItem={step === 1 ? renderLanguageItem : renderLocationItem}
-        keyExtractor={item => (step === 1 ? item.code : item.id)}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
-      />
-
-      <TouchableOpacity
-        style={[
-          styles.continueButton,
-          {
-            backgroundColor:
-              (step === 1 && selectedLanguage) ||
-              (step === 2 && selectedLocation)
-                ? theme.primary
-                : theme.border,
-          },
-        ]}
-        onPress={handleContinue}
-        disabled={
-          (step === 1 && !selectedLanguage) ||
-          (step === 2 && !selectedLocation)
-        }>
-        <Text style={styles.continueButtonText}>
-          {step === 1 ? 'Continue' : 'Get Started'}
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -136,63 +113,93 @@ const OnboardingScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingTop: 60,
+    paddingBottom: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    paddingBottom: 35,
+    lineHeight: 30,
+  },
+  languageList: {
     paddingHorizontal: 20,
+    gap: 12,
   },
-  logo: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  languageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#E8EAED',
   },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  languageCardSelected: {
+    borderColor: '#FF3B30',
+    backgroundColor: '#FFFBFB',
   },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 100,
-  },
-  row: {
-    justifyContent: 'space-between',
-  },
-  optionCard: {
-    width: (width - 36) / 2,
-    padding: 20,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    marginVertical: 8,
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 100,
+    marginRight: 14,
   },
-  optionTitle: {
+  iconText: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  languageInfo: {
+    flex: 1,
+  },
+  languageName: {
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-    textAlign: 'center',
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 2,
   },
-  optionSubtitle: {
+  languageEnglishName: {
     fontSize: 14,
-    textAlign: 'center',
+    fontWeight: '500',
+    color: '#666',
+  },
+  checkmark: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonContainer: {
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
   },
   continueButton: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
-    height: 56,
-    borderRadius: 12,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
   },
 });
 

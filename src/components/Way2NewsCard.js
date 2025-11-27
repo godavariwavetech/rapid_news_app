@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Platform,
   StatusBar,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -17,29 +18,92 @@ import {useSelector, useDispatch} from 'react-redux';
 import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT =
+  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + STATUS_BAR_HEIGHT;
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
-function Way2NewsCard({news, onPress}) {
+function Way2NewsCard({news, onPress, onCommentsPress}) {
   const dispatch = useDispatch();
   const bookmarks = useSelector(state => state.bookmarks.items);
   const isBookmarked = bookmarks.some(item => item.id === news.id);
+  
+  const [liked, setLiked] = useState(false);
+  const [disliked, setDisliked] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
-  const handleBookmark = (e) => {
+  // Check if this news has reporter info
+  const hasReporter = news.reporter && news.reporter.name;
+
+  const handleShare = e => {
     if (e && e.stopPropagation) {
       e.stopPropagation();
-    }
-    if (isBookmarked) {
-      dispatch(removeBookmark(news.id));
-    } else {
-      dispatch(addBookmark(news));
     }
   };
 
-  const handleShare = (e) => {
+  const handleCommentsPress = e => {
     if (e && e.stopPropagation) {
       e.stopPropagation();
+    }
+    if (onCommentsPress) {
+      onCommentsPress(news);
+    }
+  };
+
+  const handleLike = e => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    if (liked) {
+      setLiked(false);
+    } else {
+      setLiked(true);
+      setDisliked(false);
+    }
+  };
+
+  const handleDislike = e => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    if (disliked) {
+      setDisliked(false);
+    } else {
+      setDisliked(true);
+      setLiked(false);
+    }
+  };
+
+  const handleMenuPress = e => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    setMenuVisible(true);
+  };
+
+  const handleMenuAction = (action, e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    setMenuVisible(false);
+    
+    switch(action) {
+      case 'bookmark':
+        if (isBookmarked) {
+          dispatch(removeBookmark(news.id));
+        } else {
+          dispatch(addBookmark(news));
+        }
+        break;
+      case 'report':
+        console.log('Report news:', news.id);
+        break;
+      case 'notInterested':
+        console.log('Not interested:', news.id);
+        break;
+      case 'block':
+        console.log('Block source:', news.id);
+        break;
     }
   };
 
@@ -49,29 +113,33 @@ function Way2NewsCard({news, onPress}) {
         {/* Image Section */}
         <View style={styles.imageSection}>
           <Image source={{uri: news.image}} style={styles.image} />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)']}
-            style={styles.gradient}
-            locations={[0, 0.6, 1]}
-          />
-
-          {/* Category Badge */}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{news.category.toUpperCase()}</Text>
-          </View>
-
-          {/* Time Badge */}
-          <View style={styles.timeBadge}>
-            <Icon name="clock-outline" size={13} color="#FFFFFF" />
-            <Text style={styles.timeText}>{news.timeAgo}</Text>
-          </View>
-
-          {/* Location on Image */}
-          <View style={styles.imageLocationRow}>
-            <Icon name="map-marker" size={16} color="#FFFFFF" />
-            <Text style={styles.imageLocationText}>{news.location}</Text>
-            <Text style={styles.imagePageText}>• {news.page}/{news.totalPages}</Text>
-          </View>
+          
+          {/* Reporter Section with Gradient */}
+          {hasReporter && (
+            <>
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.reporterGradient}
+                locations={[0, 1]}
+              />
+              
+              <View style={styles.reporterSection}>
+                <Image
+                  source={{uri: news.reporter.image}}
+                  style={styles.reporterImage}
+                />
+                <View style={styles.reporterInfo}>
+                  <Text style={styles.reporterName}>{news.reporter.name}</Text>
+                  <View style={styles.reporterLocationRow}>
+                    <Icon name="map-marker" size={14} color="#FFFFFFCC" />
+                    <Text style={styles.reporterLocation}>
+                      {news.reporter.location}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Content Section */}
@@ -90,37 +158,116 @@ function Way2NewsCard({news, onPress}) {
             )}
           </ScrollView>
 
-          {/* Stats Bar */}
+          {/* Timestamp at Bottom */}
+          <View style={styles.timestampContainer}>
+            <Icon name="clock-time-four-outline" size={14} color="#999" />
+            <Text style={styles.timestamp}>{news.timeAgo}</Text>
+          </View>
+
+          {/* Stats and Actions Bar */}
           <View style={styles.statsBar}>
+            {/* Left Side - Comment, Like, Dislike */}
             <View style={styles.statsLeft}>
-              <View style={styles.stat}>
-                <Icon name="eye-outline" size={20} color="#888" />
-                <Text style={styles.statText}>{news.views}</Text>
-              </View>
-              <View style={styles.stat}>
-                <Icon name="thumb-up-outline" size={20} color="#888" />
-                <Text style={styles.statText}>{news.likes}</Text>
-              </View>
-              <View style={styles.stat}>
+              {/* Comment Button */}
+              <TouchableOpacity
+                style={styles.statButton}
+                onPress={handleCommentsPress}>
                 <Icon name="comment-outline" size={20} color="#888" />
                 <Text style={styles.statText}>{news.comments}</Text>
-              </View>
-            </View>
+              </TouchableOpacity>
 
-            <View style={styles.actions}>
-              <TouchableOpacity onPress={handleBookmark} style={styles.actionBtn}>
+              {/* Like Button */}
+              <TouchableOpacity onPress={handleLike} style={styles.statButton}>
                 <Icon
-                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={24}
-                  color={isBookmarked ? '#FF6B35' : '#888'}
+                  name={liked ? 'thumb-up' : 'thumb-up-outline'}
+                  size={20}
+                  color={liked ? '#2196F3' : '#888'}
+                />
+                <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
+                  {liked ? parseInt(news.likes) + 1 : news.likes}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Dislike Button */}
+              <TouchableOpacity onPress={handleDislike} style={styles.iconButton}>
+                <Icon
+                  name={disliked ? 'thumb-down' : 'thumb-down-outline'}
+                  size={20}
+                  color={disliked ? '#FF3B30' : '#888'}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleShare} style={styles.actionBtn}>
-                <Icon name="share-variant" size={24} color="#888" />
+            </View>
+
+            {/* Right Side - Menu first, Share last */}
+            <View style={styles.actionsRight}>
+              {/* Three Dots Menu */}
+              <TouchableOpacity onPress={handleMenuPress} style={styles.iconButton}>
+                <Icon name="dots-vertical" size={22} color="#888" />
+              </TouchableOpacity>
+
+              {/* Share Button */}
+              <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
+                <Icon name="share-variant-outline" size={22} color="#888" />
               </TouchableOpacity>
             </View>
           </View>
         </View>
+
+        {/* Menu Modal */}
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}>
+          <TouchableOpacity
+            style={styles.menuOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}>
+            <View style={styles.menuContainer}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={(e) => handleMenuAction('bookmark', e)}>
+                <Icon
+                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={22}
+                  color="#333"
+                />
+                <Text style={styles.menuText}>
+                  {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={(e) => handleMenuAction('report', e)}>
+                <Icon name="flag-outline" size={22} color="#FF3B30" />
+                <Text style={[styles.menuText, {color: '#FF3B30'}]}>
+                  Report
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={(e) => handleMenuAction('notInterested', e)}>
+                <Icon name="eye-off-outline" size={22} color="#333" />
+                <Text style={styles.menuText}>Not Interested</Text>
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={(e) => handleMenuAction('block', e)}>
+                <Icon name="block-helper" size={22} color="#333" />
+                <Text style={styles.menuText}>Block this source</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -142,68 +289,54 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  gradient: {
+  reporterGradient: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    height: 100,
   },
-  categoryBadge: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  categoryText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  timeBadge: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  timeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  imageLocationRow: {
+  reporterSection: {
     position: 'absolute',
     bottom: 16,
     left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
-  imageLocationText: {
+  reporterImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#E0E0E0',
+  },
+  reporterInfo: {
+    flex: 1,
+  },
+  reporterName: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    marginBottom: 4,
   },
-  imagePageText: {
-    color: '#FFFFFFAA',
+  reporterLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reporterLocation: {
     fontSize: 13,
     fontWeight: '500',
-    marginLeft: 4,
+    color: '#FFFFFFCC',
   },
   contentSection: {
     flex: 1,
     padding: 20,
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 24,
@@ -221,35 +354,89 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     paddingBottom: 10,
   },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  timestamp: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '500',
+  },
   statsBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
     borderTopWidth: 1,
     borderTopColor: '#E8EAED',
-    marginTop: 10,
   },
   statsLeft: {
     flexDirection: 'row',
-    gap: 18,
+    alignItems: 'center',
+    gap: 2,
   },
-  stat: {
+  statButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  iconButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   statText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#565B67',
     fontWeight: '600',
   },
-  actions: {
+  actionsRight: {
     flexDirection: 'row',
-    gap: 14,
+    alignItems: 'center',
+    gap: 4,
   },
-  actionBtn: {
-    padding: 4,
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  menuContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: 320,
+    paddingVertical: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  menuText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#E8EAED',
+    marginHorizontal: 16,
   },
 });
 

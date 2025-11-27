@@ -15,10 +15,12 @@ import Way2NewsCard from '../components/Way2NewsCard';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
+import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import {MOCK_NEWS} from '../utils/constants';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT =
+  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + STATUS_BAR_HEIGHT;
 
 function HomeScreen({navigation}) {
@@ -29,6 +31,9 @@ function HomeScreen({navigation}) {
   const [activeTab, setActiveTab] = useState('HomeTab');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [categoriesModalVisible, setCategoriesModalVisible] = useState(false);
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedNews, setSelectedNews] = useState(null);
+  const [headerTitle, setHeaderTitle] = useState('న్యూస్');
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
@@ -73,25 +78,25 @@ function HomeScreen({navigation}) {
   };
 
   const handleTabPress = tabId => {
-    switch(tabId) {
+    switch (tabId) {
       case 'HomeTab':
         setActiveTab('HomeTab');
-        console.log('Home pressed');
+        setHeaderTitle('న్యూస్');
         break;
       case 'CategoriesTab':
-        // Open modal but don't change active tab
         setCategoriesModalVisible(true);
         break;
       case 'LocationTab':
         setActiveTab('LocationTab');
-        console.log('Location pressed');
+        setHeaderTitle('రాజమండ్రి');
         break;
       case 'TrendingTab':
         setActiveTab('TrendingTab');
-        console.log('Trending pressed');
+        setHeaderTitle('ట్రెండ్ల్');
         break;
       case 'ReloadTab':
         setActiveTab('ReloadTab');
+        setHeaderTitle('రిలోడ్');
         dispatch(setMockNews(MOCK_NEWS));
         if (flatListRef.current) {
           flatListRef.current.scrollToIndex({index: 0, animated: true});
@@ -116,11 +121,18 @@ function HomeScreen({navigation}) {
     itemVisiblePercentThreshold: 50,
   }).current;
 
+  // Handle opening comments
+  const handleCommentsPress = newsItem => {
+    setSelectedNews(newsItem);
+    setCommentsVisible(true);
+  };
+
   const renderItem = ({item, index}) => (
     <Way2NewsCard
       news={item}
       onPress={toggleUI}
       isActive={index === currentIndex}
+      onCommentsPress={() => handleCommentsPress(item)}
     />
   );
 
@@ -145,9 +157,10 @@ function HomeScreen({navigation}) {
           {transform: [{translateY: headerAnim}]},
         ]}
         pointerEvents={uiVisible ? 'auto' : 'none'}>
-        <Header 
-          onProfilePress={() => console.log('Profile pressed')}
+        <Header
+          onProfilePress={() => navigation.navigate('Profile')}
           onTogglePress={toggleUI}
+          title={headerTitle}
         />
       </Animated.View>
 
@@ -203,6 +216,14 @@ function HomeScreen({navigation}) {
         onClose={() => setCategoriesModalVisible(false)}
         onSelectCategory={handleCategorySelect}
         selectedCategory={selectedCategory}
+      />
+
+      {/* Comments Bottom Sheet */}
+      <CommentsBottomSheet
+        visible={commentsVisible}
+        onClose={() => setCommentsVisible(false)}
+        newsId={selectedNews?.id}
+        newsTitle={selectedNews?.title}
       />
     </View>
   );
