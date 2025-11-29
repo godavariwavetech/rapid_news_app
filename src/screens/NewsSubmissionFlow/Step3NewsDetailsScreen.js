@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Modal,
   Image,
   Alert,
+  Switch,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
@@ -20,13 +21,21 @@ const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step3NewsDetailsScreen = ({navigation, route}) => {
-  const {location} = route.params;
+  // const {location} = route.params;
   const [headline, setHeadline] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [image, setImage] = useState(null);
+  
+  // Transliteration states
+  const [headlineTranslitEnabled, setHeadlineTranslitEnabled] = useState(false);
+  const [descriptionTranslitEnabled, setDescriptionTranslitEnabled] = useState(false);
+  
+  // Store previous text to detect space key
+  const previousHeadlineRef = useRef('');
+  const previousDescriptionRef = useRef('');
 
   const categories = [
     'Political / Happenings',
@@ -34,6 +43,99 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
     'Crime / Accident',
     'Issues',
   ];
+
+  // Transliteration function using Google Input Tools API
+  const transliterate = async (text) => {
+    if (!text || text.trim() === '') return text;
+
+    try {
+      const url = `https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=te-t-i0-und&num=5&cp=0&cs=1&ie=utf-8&oe=utf-8`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      // Check if we got valid results
+      if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1] && data[1][0][1].length > 0) {
+        return data[1][0][1][0]; // Return first suggestion
+      }
+      
+      return text;
+    } catch (error) {
+      console.error('Transliteration error:', error);
+      return text;
+    }
+  };
+
+  // Handle headline change with transliteration
+  const handleHeadlineChange = async (text) => {
+    if (!headlineTranslitEnabled) {
+      setHeadline(text);
+      previousHeadlineRef.current = text;
+      return;
+    }
+
+    // Check if space was just added
+    const hadSpace = previousHeadlineRef.current.endsWith(' ');
+    const hasSpace = text.endsWith(' ');
+    
+    if (hasSpace && !hadSpace && text.trim() !== '') {
+      // Split by spaces
+      const words = text.trim().split(' ');
+      const lastWord = words[words.length - 1];
+      
+      if (lastWord && lastWord.length > 0) {
+        // Transliterate the last word
+        const transliteratedWord = await transliterate(lastWord);
+        
+        // Replace last word with transliterated version
+        words[words.length - 1] = transliteratedWord;
+        const newText = words.join(' ') + ' ';
+        
+        setHeadline(newText);
+        previousHeadlineRef.current = newText;
+        return;
+      }
+    }
+    
+    setHeadline(text);
+    previousHeadlineRef.current = text;
+  };
+
+  // Handle description change with transliteration
+  const handleDescriptionChange = async (text) => {
+    if (!descriptionTranslitEnabled) {
+      setDescription(text);
+      previousDescriptionRef.current = text;
+      return;
+    }
+
+    const hadSpace = previousDescriptionRef.current.endsWith(' ');
+    const hasSpace = text.endsWith(' ');
+    
+    if (hasSpace && !hadSpace && text.trim() !== '') {
+      const words = text.trim().split(' ');
+      const lastWord = words[words.length - 1];
+      
+      if (lastWord && lastWord.length > 0) {
+        const transliteratedWord = await transliterate(lastWord);
+        words[words.length - 1] = transliteratedWord;
+        const newText = words.join(' ') + ' ';
+        
+        setDescription(newText);
+        previousDescriptionRef.current = newText;
+        return;
+      }
+    }
+    
+    setDescription(text);
+    previousDescriptionRef.current = text;
+  };
 
   const handleImageOptions = () => {
     setShowImageOptions(true);
@@ -92,7 +194,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const handleNext = () => {
     if (headline && description && category) {
       navigation.navigate('NewsSubmissionStep4', {
-        location,
+        // location,
         headline,
         description,
         category,
@@ -125,55 +227,69 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
             <Text style={styles.inputLabel}>శీర్షికను ఇవ్వండి</Text>
-            <View style={styles.inputActions}>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="microphone" size={20} color="#2196F3" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="format-color-text" size={20} color="#2196F3" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="keyboard" size={20} color="#999" />
-              </TouchableOpacity>
+            <View style={styles.translitToggle}>
+              <Switch
+                value={headlineTranslitEnabled}
+                onValueChange={(value) => {
+                  setHeadlineTranslitEnabled(value);
+                  if (!value) {
+                    // Reset when turned off
+                    previousHeadlineRef.current = headline;
+                  }
+                }}
+                trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
+                thumbColor={headlineTranslitEnabled ? '#FFFFFF' : '#F4F4F4'}
+                ios_backgroundColor="#E0E0E0"
+                style={styles.switch}
+              />
+              <Text style={styles.translitLabel}>తె</Text>
             </View>
           </View>
           <View style={styles.inputBox}>
             <TextInput
               style={styles.textInput}
-              placeholder="హెడ్ లైన్"
+              placeholder={headlineTranslitEnabled ? "Type in English and press space" : "హెడ్ లైన్"}
               placeholderTextColor="#999"
               value={headline}
-              onChangeText={setHeadline}
+              onChangeText={handleHeadlineChange}
               maxLength={75}
               multiline
             />
             <Text style={styles.charCount}>{headline.length} / 75 Chars</Text>
           </View>
+          {headlineTranslitEnabled && (
+            <Text style={styles.hintText}>💡 Type in English and press SPACE to convert to Telugu</Text>
+          )}
         </View>
 
         {/* Description Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
             <Text style={styles.inputLabel}>విషయాన్ని విపరించండి</Text>
-            <View style={styles.inputActions}>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="microphone" size={20} color="#2196F3" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="format-color-text" size={20} color="#2196F3" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Icon name="keyboard" size={20} color="#999" />
-              </TouchableOpacity>
+            <View style={styles.translitToggle}>
+              <Switch
+                value={descriptionTranslitEnabled}
+                onValueChange={(value) => {
+                  setDescriptionTranslitEnabled(value);
+                  if (!value) {
+                    previousDescriptionRef.current = description;
+                  }
+                }}
+                trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
+                thumbColor={descriptionTranslitEnabled ? '#FFFFFF' : '#F4F4F4'}
+                ios_backgroundColor="#E0E0E0"
+                style={styles.switch}
+              />
+              <Text style={styles.translitLabel}>తె</Text>
             </View>
           </View>
           <View style={[styles.inputBox, styles.descriptionBox]}>
             <TextInput
               style={[styles.textInput, styles.descriptionInput]}
-              placeholder="విషయం"
+              placeholder={descriptionTranslitEnabled ? "Type in English and press space" : "విషయం"}
               placeholderTextColor="#999"
               value={description}
-              onChangeText={setDescription}
+              onChangeText={handleDescriptionChange}
               maxLength={400}
               multiline
               numberOfLines={8}
@@ -183,6 +299,9 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               {description.length} / 400 Chars
             </Text>
           </View>
+          {descriptionTranslitEnabled && (
+            <Text style={styles.hintText}>💡 Type in English and press SPACE to convert to Telugu</Text>
+          )}
         </View>
 
         {/* Category Selector */}
@@ -354,12 +473,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#999',
   },
-  inputActions: {
+  translitToggle: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 6,
   },
-  iconBtn: {
-    padding: 4,
+  switch: {
+    transform: [{scaleX: 0.8}, {scaleY: 0.8}],
+  },
+  translitLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
   },
   inputBox: {
     backgroundColor: '#F5F6F8',
@@ -382,6 +507,11 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'right',
     marginTop: 8,
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#4CAF50',
+    marginTop: 6,
   },
   categorySelector: {
     flexDirection: 'row',

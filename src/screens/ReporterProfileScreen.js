@@ -18,7 +18,7 @@ const STATUS_BAR_HEIGHT =
 const ReporterProfileScreen = ({navigation}) => {
   // Mock user data
   const userData = {
-    name: 'Devisri',
+    name: 'Guest',
     location: 'తూర్పు గోదావరి',
     profileImage: 'https://i.pravatar.cc/300?img=33',
     published: 0,

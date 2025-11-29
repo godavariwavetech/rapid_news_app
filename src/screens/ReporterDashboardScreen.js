@@ -11,6 +11,9 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MyStoriesScreen from './MyStoriesScreen';
+import TopReportersScreen from './TopReportersScreen';
+import { CommonActions } from '@react-navigation/native';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -49,6 +52,17 @@ const ReporterDashboardScreen = ({navigation}) => {
       isVideo: true,
     },
   ];
+
+  const handleHomeNavigation = () =>{
+    navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {name: 'Main'},
+            ],
+          }),
+        );
+  }
 
   const renderDashboardContent = () => (
     <>
@@ -193,6 +207,8 @@ const ReporterDashboardScreen = ({navigation}) => {
     </>
   );
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -211,10 +227,9 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Icon name="message-outline" size={20} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity
+          onPress={handleHomeNavigation}
+          style={styles.iconButton}>
             <Icon name="home-outline" size={20} color="#333" />
           </TouchableOpacity>
         </View>
@@ -223,21 +238,13 @@ const ReporterDashboardScreen = ({navigation}) => {
       {/* Content Area */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {selectedTab === 'డాష్‌బోర్డ్' && renderDashboardContent()}
-        {selectedTab === 'నా స్టోరీస్' && (
-          <View style={styles.placeholderContent}>
-            <Text style={styles.placeholderText}>నా స్టోరీస్ Content</Text>
-          </View>
-        )}
+        {selectedTab === 'నా స్టోరీస్' && <MyStoriesScreen />  }
         {selectedTab === 'నా జిల్లా' && (
           <View style={styles.placeholderContent}>
             <Text style={styles.placeholderText}>నా జిల్లా Content</Text>
           </View>
         )}
-        {selectedTab === 'టాప్ వీడియోలు' && (
-          <View style={styles.placeholderContent}>
-            <Text style={styles.placeholderText}>టాప్ వీడియోలు Content</Text>
-          </View>
-        )}
+        {selectedTab === 'టాప్ వీడియోలు' && <TopReportersScreen />  }
         <View style={{height: 16}} />
       </ScrollView>
 

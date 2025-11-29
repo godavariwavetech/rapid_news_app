@@ -2,6 +2,13 @@
 # yarn lockfile v1
 
 
+"@ai4bharat/indic-transliterate@*":
+  version "1.3.8"
+  resolved "https://registry.yarnpkg.com/@ai4bharat/indic-transliterate/-/indic-transliterate-1.3.8.tgz#7fbbc606e21beb648b3c3e5a0a4e99161d631157"
+  integrity sha512-PdbS1C4Ndmvj7rQ6Jyy1dKGgT1Qi+C+ZBffpAmaONOdC99bARqSZiiCK/TdrMKJoUlgQFWkMie+ULpzK8TfkKQ==
+  dependencies:
+    textarea-caret "^3.1.0"
+
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.12.13", "@babel/code-frame@^7.24.7", "@babel/code-frame@^7.27.1":
   version "7.27.1"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.27.1.tgz#200f715e66d52a23b221a9435534a91cc13ad5be"
@@ -7744,6 +7751,11 @@ text-table@^0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
   integrity sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==
+
+textarea-caret@^3.1.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/textarea-caret/-/textarea-caret-3.1.0.tgz#5d5a35bb035fd06b2ff0e25d5359e97f2655087f"
+  integrity sha512-cXAvzO9pP5CGa6NKx0WYHl+8CHKZs8byMkt3PCJBCmq2a34YA9pO1NrQET5pzeqnBjBdToF5No4rrmkDUgQC2Q==
 
 throat@^5.0.0:
   version "5.0.0"

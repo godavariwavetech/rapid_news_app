@@ -127,7 +127,7 @@ const ReporterScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.actionCard}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('MobileLogin')}>
+          onPress={() => navigation.navigate('ReporterApp')}>
           <View style={styles.iconCircle}>
             <Icon name="microphone" size={28} color="#E74C3C" />
           </View>

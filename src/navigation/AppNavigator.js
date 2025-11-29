@@ -74,7 +74,7 @@ function AppNavigator() {
             };
           },
         }}
-        initialRouteName={isOnboardingComplete ? 'ReporterApp' : 'LanguageSelection'}>
+        initialRouteName={isOnboardingComplete ? 'Main' : 'LanguageSelection'}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen
           name="LanguageSelection"

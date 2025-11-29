@@ -6,8 +6,11 @@ import {
   StyleSheet,
   Image,
   ScrollView,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import {createDrawerNavigator} from '@react-navigation/drawer';
+import {useNavigationState} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Import your screens
@@ -15,18 +18,26 @@ import ReporterDashboardScreen from '../screens/ReporterDashboardScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ReporterProfileScreen from '../screens/ReporterProfileScreen';
 
 const Drawer = createDrawerNavigator();
 
+const STATUS_BAR_HEIGHT =
+  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+
 // Custom Drawer Content
 function CustomDrawerContent({navigation}) {
+  // Get current route name
+  const state = useNavigationState(state => state);
+  const currentRoute = state?.routes[state.index]?.name;
+
   const menuItems = [
     {
       id: 'home',
       label: 'మై హోమ్',
       icon: 'home-outline',
-      screen: 'Dashboard',
-      color: '#E74C3C',
+      screen: 'ReporterDashboard',
+      color: '#666',
     },
     {
       id: 'profile',
@@ -37,14 +48,14 @@ function CustomDrawerContent({navigation}) {
     },
     {
       id: 'reporter',
-      label: 'రిపోర్టర్',
+      label: 'రిపోర్ట్',
       icon: 'file-document-outline',
       screen: 'Reports',
       color: '#666',
     },
     {
       id: 'settings',
-      label: 'సెబింధనలు',
+      label: 'నిబంధనలు',
       icon: 'cog-outline',
       screen: 'Settings',
       color: '#666',
@@ -74,6 +85,8 @@ function CustomDrawerContent({navigation}) {
 
   return (
     <View style={styles.drawerContainer}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5F6F8" />
+      
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
         <View style={styles.profileSection}>
@@ -93,16 +106,32 @@ function CustomDrawerContent({navigation}) {
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          {menuItems.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={() => navigation.navigate(item.screen)}
-              activeOpacity={0.7}>
-              <Icon name={item.icon} size={24} color={item.color} />
-              <Text style={styles.menuText}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {menuItems.map(item => {
+            const isActive = currentRoute === item.screen;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  isActive && styles.menuItemActive,
+                ]}
+                onPress={() => navigation.navigate(item.screen)}
+                activeOpacity={0.7}>
+                <Icon
+                  name={item.icon}
+                  size={24}
+                  color={isActive ? '#E74C3C' : item.color}
+                />
+                <Text
+                  style={[
+                    styles.menuText,
+                    isActive && styles.menuTextActive,
+                  ]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Divider */}
@@ -110,16 +139,32 @@ function CustomDrawerContent({navigation}) {
 
         {/* Bottom Menu Items */}
         <View style={styles.bottomMenuSection}>
-          {bottomMenuItems.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={() => navigation.navigate(item.screen)}
-              activeOpacity={0.7}>
-              <Icon name={item.icon} size={24} color="#666" />
-              <Text style={styles.menuText}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {bottomMenuItems.map(item => {
+            const isActive = currentRoute === item.screen;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  isActive && styles.menuItemActive,
+                ]}
+                onPress={() => navigation.navigate(item.screen)}
+                activeOpacity={0.7}>
+                <Icon
+                  name={item.icon}
+                  size={24}
+                  color={isActive ? '#E74C3C' : '#666'}
+                />
+                <Text
+                  style={[
+                    styles.menuText,
+                    isActive && styles.menuTextActive,
+                  ]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -139,8 +184,8 @@ function ReporterDrawerNavigator() {
           backgroundColor: '#FFFFFF',
         },
       }}>
-      <Drawer.Screen name="Dashboard" component={ReporterDashboardScreen} />
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="ReporterDashboard" component={ReporterDashboardScreen} />
+      <Drawer.Screen name="Profile" component={ReporterProfileScreen} />
       <Drawer.Screen name="Reports" component={ReportsScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>
@@ -151,6 +196,7 @@ const styles = StyleSheet.create({
   drawerContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: STATUS_BAR_HEIGHT,
   },
   profileSection: {
     flexDirection: 'row',
@@ -196,12 +242,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 12,
     gap: 16,
+    borderRadius: 8,
+  },
+  menuItemActive: {
+    backgroundColor: '#FFF5F5',
   },
   menuText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  menuTextActive: {
+    color: '#E74C3C',
+    fontWeight: '700',
   },
   divider: {
     height: 1,

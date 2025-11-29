@@ -86,7 +86,7 @@ const ProfileSetupScreen = ({navigation}) => {
       
       console.log('Profile Data:', profileData);
       // Navigate to main app
-      navigation.replace('Home');
+      navigation.replace('ReporterApp');
     } else {
       Alert.alert('Validation Error', 'Please fill all fields correctly');
     }
