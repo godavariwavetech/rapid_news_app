@@ -22,7 +22,12 @@ import MobileLoginScreen from '../screens/MobileLoginScreen';
 import OTPVerificationScreen from '../screens/OTPVerificationScreen';
 import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 import ReporterDashboardScreen from '../screens/ReporterDashboardScreen';
-// import ReporterDrawerNavigator from './ReporterDrawerNavigator';
+import Step1LocationScreen from '../screens/NewsSubmissionFlow/Step1LocationScreen';
+import Step2SelectionScreen from '../screens/NewsSubmissionFlow/Step2SelectionScreen';
+import Step3NewsDetailsScreen from '../screens/NewsSubmissionFlow/Step3NewsDetailsScreen';
+import Step4ReviewScreen from '../screens/NewsSubmissionFlow/Step4ReviewScreen';
+import ReporterProfileScreen from '../screens/ReporterProfileScreen';
+import ReporterDrawerNavigator from './ReporterDrawerNavigator';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -69,7 +74,7 @@ function AppNavigator() {
             };
           },
         }}
-        initialRouteName={isOnboardingComplete ? 'ReporterDashboardScreen' : 'LanguageSelection'}>
+        initialRouteName={isOnboardingComplete ? 'ReporterApp' : 'LanguageSelection'}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen
           name="LanguageSelection"
@@ -165,11 +170,33 @@ function AppNavigator() {
           component={ReporterDashboardScreen}
           options={{headerShown: false}}
         />
-        {/* <Stack.Screen
+
+          <Stack.Screen 
+          name="NewsSubmissionStep1" 
+          component={Step1LocationScreen} 
+        />
+        <Stack.Screen 
+          name="NewsSubmissionStep2" 
+          component={Step2SelectionScreen} 
+        />
+        <Stack.Screen 
+          name="NewsSubmissionStep3" 
+          component={Step3NewsDetailsScreen} 
+        />
+        <Stack.Screen 
+          name="NewsSubmissionStep4" 
+          component={Step4ReviewScreen} 
+        />
+        <Stack.Screen 
+          name="ReporterProfileScreen" 
+          component={ReporterProfileScreen} 
+        />
+        
+        <Stack.Screen
           name="ReporterApp"
           component={ReporterDrawerNavigator}
           options={{headerShown: false}}
-        /> */}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

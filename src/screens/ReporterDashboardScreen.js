@@ -90,7 +90,7 @@ const ReporterDashboardScreen = ({navigation}) => {
           ఈ స్థానం లో వార్తలు రాయడానికి అవకాశాలు ఉన్నాయి
         </Text>
         <TouchableOpacity style={styles.infoButton}>
-          <Icon name="information-outline" size={20} color="#666" />
+          <Icon name="information-outline" size={18} color="#666" />
         </TouchableOpacity>
       </View>
 
@@ -106,7 +106,7 @@ const ReporterDashboardScreen = ({navigation}) => {
           </Text>
         </View>
         <View style={styles.ctaArrow}>
-          <Icon name="arrow-right" size={24} color="#FFFFFF" />
+          <Icon name="arrow-right" size={20} color="#FFFFFF" />
         </View>
       </TouchableOpacity>
 
@@ -139,7 +139,7 @@ const ReporterDashboardScreen = ({navigation}) => {
           <Text style={styles.sectionTitle}>నా ఆదాయం</Text>
           <TouchableOpacity>
             <Text style={styles.statementLink}>
-              Statement <Icon name="chevron-right" size={16} color="#2196F3" />
+              Statement <Icon name="chevron-right" size={14} color="#2196F3" />
             </Text>
           </TouchableOpacity>
         </View>
@@ -158,7 +158,7 @@ const ReporterDashboardScreen = ({navigation}) => {
           </View>
           <TouchableOpacity style={styles.payButton}>
             <Text style={styles.payButtonText}>
-              Pay me <Icon name="arrow-right" size={16} color="#1A1A1A" />
+              Pay me <Icon name="arrow-right" size={14} color="#1A1A1A" />
             </Text>
           </TouchableOpacity>
         </View>
@@ -183,7 +183,7 @@ const ReporterDashboardScreen = ({navigation}) => {
               />
               {story.isVideo && (
                 <View style={styles.playButton}>
-                  <Icon name="play" size={32} color="#FFFFFF" />
+                  <Icon name="play" size={28} color="#FFFFFF" />
                 </View>
               )}
             </TouchableOpacity>
@@ -202,20 +202,20 @@ const ReporterDashboardScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.openDrawer()}>
-          <Icon name="menu" size={28} color="#333" />
+          <Icon name="menu" size={24} color="#333" />
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>Devisri</Text>
+          <Text style={styles.profileName}>Guest</Text>
           <Text style={styles.profileRole}>Reporter @తూర్పు గోదావరి</Text>
         </View>
 
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton}>
-            <Icon name="message-outline" size={24} color="#333" />
+            <Icon name="message-outline" size={20} color="#333" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>
-            <Icon name="home-outline" size={24} color="#333" />
+            <Icon name="home-outline" size={20} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -238,7 +238,7 @@ const ReporterDashboardScreen = ({navigation}) => {
             <Text style={styles.placeholderText}>టాప్ వీడియోలు Content</Text>
           </View>
         )}
-        <View style={{height: 20}} />
+        <View style={{height: 16}} />
       </ScrollView>
 
       {/* Bottom Tabs */}
@@ -279,36 +279,36 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: STATUS_BAR_HEIGHT + 10,
+    paddingTop: STATUS_BAR_HEIGHT + 8,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
   menuButton: {
     padding: 4,
-    marginRight: 12,
+    marginRight: 10,
   },
   profileSection: {
     flex: 1,
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1A1A1A',
   },
   profileRole: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
     marginTop: 2,
   },
   headerIcons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#F5F6F8',
     alignItems: 'center',
     justifyContent: 'center',
@@ -318,28 +318,28 @@ const styles = StyleSheet.create({
   },
   locationTabsContainer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E8EAED',
   },
   locationTabsScrollContent: {
     paddingHorizontal: 16,
-    gap: 12,
+    gap: 8,
   },
   locationTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: '#F5F6F8',
-    gap: 8,
+    gap: 6,
   },
   locationTabActive: {
     backgroundColor: '#1A1A1A',
   },
   locationTabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#666',
   },
@@ -347,15 +347,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   badge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#4CAF50',
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     backgroundColor: '#FFF9E6',
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
   },
   infoButton: {
@@ -381,133 +381,133 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#1A1A1A',
     marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
   },
   ctaContent: {
     flex: 1,
   },
   ctaTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   ctaSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFFAA',
   },
   ctaArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   section: {
     paddingHorizontal: 16,
-    marginTop: 24,
+    marginTop: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1A1A1A',
   },
   monthText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
   },
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
   },
   statBox: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     textAlign: 'center',
   },
   earningsSection: {
     paddingHorizontal: 16,
-    marginTop: 24,
+    marginTop: 16,
   },
   earningsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   statementLink: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#2196F3',
     fontWeight: '600',
   },
   earningsCard: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
   },
   earningsRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   earningItem: {
     flex: 1,
   },
   earningLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFFAA',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   earningAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
   },
   divider: {
     width: 1,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    marginHorizontal: 16,
+    marginHorizontal: 12,
   },
   payButton: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   payButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1A1A1A',
   },
   videosScroll: {
-    marginTop: 16,
+    marginTop: 12,
   },
   videoCard: {
-    width: 280,
-    height: 160,
-    borderRadius: 12,
+    width: 220,
+    height: 130,
+    borderRadius: 10,
     overflow: 'hidden',
-    marginRight: 12,
+    marginRight: 10,
   },
   videoThumbnail: {
     width: '100%',
@@ -517,10 +517,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{translateX: -30}, {translateY: -30}],
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    transform: [{translateX: -25}, {translateY: -25}],
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -529,35 +529,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 100,
+    paddingVertical: 80,
   },
   placeholderText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#666',
   },
   bottomTabsContainer: {
-    backgroundColor: '#4A4A4A',
-    paddingVertical: 8,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    backgroundColor: '#F5F6F8',
+    paddingVertical: 6,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 6,
   },
   bottomTabsContent: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
   },
   bottomTab: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: 'transparent',
   },
   bottomTabActive: {
     backgroundColor: '#1A1A1A',
   },
   bottomTabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#999',
+    color: '#666',
   },
   bottomTabTextActive: {
     color: '#FFFFFF',
