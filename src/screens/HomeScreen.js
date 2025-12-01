@@ -6,7 +6,6 @@ import {
   Animated,
   Dimensions,
   Text,
-  FlatList,
   Platform,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
@@ -17,6 +16,7 @@ import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
 import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import {MOCK_NEWS} from '../utils/constants';
+import FlipNewsScreen from './FlipNewsScreen';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 const STATUS_BAR_HEIGHT =
@@ -27,6 +27,7 @@ function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   const articles = useSelector(state => state.news.articles);
   const selectedCategory = useSelector(state => state.news.selectedCategory);
+
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -69,6 +70,13 @@ function HomeScreen({navigation}) {
     setUiVisible(prev => !prev);
   };
 
+  // New function to strictly hide UI (used when swiping starts)
+  const hideUI = () => {
+    if (uiVisible) {
+      setUiVisible(false);
+    }
+  };
+
   const handleCategorySelect = category => {
     dispatch(setSelectedCategory(category));
     setCurrentIndex(0);
@@ -105,120 +113,61 @@ function HomeScreen({navigation}) {
     }
   };
 
-  const handleScrollBeginDrag = () => {
-    if (uiVisible) {
-      setUiVisible(false);
-    }
-  };
-
-  const onViewableItemsChanged = useRef(({viewableItems}) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
-    }
-  }).current;
-
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-  }).current;
-
   // Handle opening comments
   const handleCommentsPress = newsItem => {
     setSelectedNews(newsItem);
     setCommentsVisible(true);
   };
 
-  const renderItem = ({item, index}) => (
-    <Way2NewsCard
-      news={item}
-      onPress={toggleUI}
-      isActive={index === currentIndex}
-      onCommentsPress={() => handleCommentsPress(item)}
-    />
-  );
-
-  const getItemLayout = (data, index) => ({
-    length: ACTUAL_HEIGHT,
-    offset: ACTUAL_HEIGHT * index,
-    index,
-  });
-
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Top Header - Animated Overlay */}
       <Animated.View
-        style={[
-          styles.headerOverlay,
-          {transform: [{translateY: headerAnim}]},
-        ]}
-        pointerEvents={uiVisible ? 'auto' : 'none'}>
-        <Header
-          onProfilePress={() => navigation.navigate('Profile')}
-          onTogglePress={toggleUI}
-          title={headerTitle}
-        />
+        style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
+        <Header title={headerTitle} />
       </Animated.View>
 
-      {/* Full Screen News Cards - FlatList */}
-      <FlatList
-        ref={flatListRef}
-        data={filteredNews}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        pagingEnabled
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ACTUAL_HEIGHT}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        bounces={false}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        getItemLayout={getItemLayout}
-        windowSize={3}
-        maxToRenderPerBatch={2}
-        initialNumToRender={1}
-        removeClippedSubviews={true}
+      {/* Flip News Screen with UI Handlers */}
+      <FlipNewsScreen
+        toggleUI={toggleUI}
+        hideUI={hideUI}
+        onCommentsPress={handleCommentsPress}
       />
 
       {/* News Counter */}
       {uiVisible && (
-        <Animated.View
-          style={[
-            styles.counterContainer,
-            {transform: [{translateY: headerAnim}]},
-          ]}
-          pointerEvents="none">
+        <View style={styles.counterContainer}>
           <Text style={styles.counterText}>
             {currentIndex + 1} / {filteredNews.length}
           </Text>
-        </Animated.View>
+        </View>
       )}
 
       {/* Bottom Tab Bar - Animated Overlay */}
       <Animated.View
-        style={[
-          styles.bottomTabOverlay,
-          {transform: [{translateY: bottomTabAnim}]},
-        ]}
-        pointerEvents={uiVisible ? 'auto' : 'none'}>
+        style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
         <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
       </Animated.View>
 
-      {/* Categories Modal */}
-      <CategoriesModal
+      {/* Categories Modal - Highest zIndex */}
+      {categoriesModalVisible && <View style={{flex:1}}>
+              <CategoriesModal
         visible={categoriesModalVisible}
         onClose={() => setCategoriesModalVisible(false)}
         onSelectCategory={handleCategorySelect}
         selectedCategory={selectedCategory}
       />
+        </View>}
+      {/* <CategoriesModal
+        visible={categoriesModalVisible}
+        onClose={() => setCategoriesModalVisible(false)}
+        onSelectCategory={handleCategorySelect}
+        selectedCategory={selectedCategory}
+      /> */}
 
-      {/* Comments Bottom Sheet */}
+      {/* Comments Bottom Sheet - High zIndex */}
       <CommentsBottomSheet
         visible={commentsVisible}
         onClose={() => setCommentsVisible(false)}

@@ -5,13 +5,16 @@ import {
   Image,
   StyleSheet,
   Dimensions,
-  TouchableOpacity,
   ScrollView,
-  TouchableWithoutFeedback,
   Platform,
   StatusBar,
   Modal,
 } from 'react-native';
+// CHANGE: Import Touchables from gesture-handler to fix conflicts with Flip gesture
+import {
+  TouchableWithoutFeedback,
+  TouchableOpacity
+} from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
@@ -27,7 +30,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const dispatch = useDispatch();
   const bookmarks = useSelector(state => state.bookmarks.items);
   const isBookmarked = bookmarks.some(item => item.id === news.id);
-  
+
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -40,35 +43,32 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const handleDoubleTap = () => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
-    
     if (lastTap && (now - lastTap) < DOUBLE_PRESS_DELAY) {
-      // Double tap detected
+      // Double tap detected - open full screen image
       setFullScreenImage(true);
+      setLastTap(0); // Reset
     } else {
-      // Single tap
+      // Single tap - toggle UI
       setLastTap(now);
+      if (onPress) {
+        onPress();
+      }
     }
   };
 
   const handleShare = e => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+    // Prevent event bubbling
+    // if (e && e.stopPropagation) e.stopPropagation();
+    // Note: RNGH events behave slightly differently, usually handled by component structure
   };
 
-  const handleCommentsPress = e => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+  const handleCommentsPress = () => {
     if (onCommentsPress) {
       onCommentsPress(news);
     }
   };
 
-  const handleLike = e => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+  const handleLike = () => {
     if (liked) {
       setLiked(false);
     } else {
@@ -77,10 +77,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     }
   };
 
-  const handleDislike = e => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+  const handleDislike = () => {
     if (disliked) {
       setDisliked(false);
     } else {
@@ -89,19 +86,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     }
   };
 
-  const handleMenuPress = e => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+  const handleMenuPress = () => {
     setMenuVisible(true);
   };
 
-  const handleMenuAction = (action, e) => {
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
+  const handleMenuAction = (action) => {
     setMenuVisible(false);
-    
     switch(action) {
       case 'bookmark':
         if (isBookmarked) {
@@ -123,41 +113,37 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={onPress}>
+    <TouchableWithoutFeedback onPress={handleDoubleTap}>
       <View style={styles.card}>
         {/* Image Section */}
-        <TouchableWithoutFeedback onPress={handleDoubleTap}>
-          <View style={styles.imageSection}>
-            <Image source={{uri: news.image}} style={styles.image} />
-            
-            {/* Reporter Section with Gradient */}
-            {hasReporter && (
-              <>
-                <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.8)']}
-                  style={styles.reporterGradient}
-                  locations={[0, 1]}
+        <View style={styles.imageSection}>
+          <Image source={{uri: news.imageUrl}} style={styles.image} />
+
+          {/* Reporter Section with Gradient */}
+          {hasReporter && (
+            <>
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.reporterGradient}
+              />
+              <View style={styles.reporterSection}>
+                <Image
+                  source={{uri: news.reporter.imageUrl}}
+                  style={styles.reporterImage}
                 />
-                
-                <View style={styles.reporterSection}>
-                  <Image
-                    source={{uri: news.reporter.image}}
-                    style={styles.reporterImage}
-                  />
-                  <View style={styles.reporterInfo}>
-                    <Text style={styles.reporterName}>{news.reporter.name}</Text>
-                    <View style={styles.reporterLocationRow}>
-                      <Icon name="map-marker" size={14} color="#FFFFFFCC" />
-                      <Text style={styles.reporterLocation}>
-                        {news.reporter.location}
-                      </Text>
-                    </View>
+                <View style={styles.reporterInfo}>
+                  <Text style={styles.reporterName}>{news.reporter.name}</Text>
+                  <View style={styles.reporterLocationRow}>
+                    <Icon name="map-marker" size={14} color="#FFFFFFCC" />
+                    <Text style={styles.reporterLocation}>
+                      {news.reporter.location}
+                    </Text>
                   </View>
                 </View>
-              </>
-            )}
-          </View>
-        </TouchableWithoutFeedback>
+              </View>
+            </>
+          )}
+        </View>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -165,21 +151,25 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <Text style={styles.title}>{news.title}</Text>
 
           {/* Body - Scrollable */}
+          {/* Note: ScrollView inside GestureHandler needs careful handling usually,
+              but standard ScrollView often works for simple cases */}
           <ScrollView
             style={styles.bodyContainer}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}>
-            <Text style={styles.body}>{news.body || news.description}</Text>
-            {news.fullContent && (
-              <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
-            )}
-          </ScrollView>
+            <Text style={styles.body}>
+              {news.body || news.description}
+              {news.fullContent && (
+                <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
+              )}
+            </Text>
 
-          {/* Timestamp at Bottom */}
-          <View style={styles.timestampContainer}>
-            <Icon name="clock-time-four-outline" size={14} color="#999" />
-            <Text style={styles.timestamp}>{news.timeAgo}</Text>
-          </View>
+            {/* Timestamp at Bottom */}
+            <View style={styles.timestampContainer}>
+              <Icon name="clock-outline" size={14} color="#999" />
+              <Text style={styles.timestamp}>{news.timeAgo}</Text>
+            </View>
+          </ScrollView>
 
           {/* Stats and Actions Bar */}
           <View style={styles.statsBar}>
@@ -189,16 +179,16 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               <TouchableOpacity
                 style={styles.statButton}
                 onPress={handleCommentsPress}>
-                <Icon name="comment-outline" size={20} color="#888" />
+                <Icon name="comment-outline" size={20} color="#565B67" />
                 <Text style={styles.statText}>{news.comments}</Text>
               </TouchableOpacity>
 
               {/* Like Button */}
-              <TouchableOpacity onPress={handleLike} style={styles.statButton}>
+              <TouchableOpacity style={styles.statButton} onPress={handleLike}>
                 <Icon
                   name={liked ? 'thumb-up' : 'thumb-up-outline'}
                   size={20}
-                  color={liked ? '#2196F3' : '#888'}
+                  color={liked ? '#2196F3' : '#565B67'}
                 />
                 <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
                   {liked ? parseInt(news.likes) + 1 : news.likes}
@@ -206,11 +196,11 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               </TouchableOpacity>
 
               {/* Dislike Button */}
-              <TouchableOpacity onPress={handleDislike} style={styles.iconButton}>
+              <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
                 <Icon
                   name={disliked ? 'thumb-down' : 'thumb-down-outline'}
                   size={20}
-                  color={disliked ? '#FF3B30' : '#888'}
+                  color={disliked ? '#F44336' : '#565B67'}
                 />
               </TouchableOpacity>
             </View>
@@ -218,13 +208,13 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             {/* Right Side - Menu first, Share last */}
             <View style={styles.actionsRight}>
               {/* Three Dots Menu */}
-              <TouchableOpacity onPress={handleMenuPress} style={styles.iconButton}>
-                <Icon name="dots-vertical" size={22} color="#888" />
+              <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
+                <Icon name="dots-vertical" size={22} color="#565B67" />
               </TouchableOpacity>
 
               {/* Share Button */}
-              <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-                <Icon name="share-variant-outline" size={22} color="#888" />
+              <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+                <Icon name="share-variant" size={20} color="#565B67" />
               </TouchableOpacity>
             </View>
           </View>
@@ -236,54 +226,53 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           transparent
           animationType="fade"
           onRequestClose={() => setMenuVisible(false)}>
-          <TouchableOpacity
-            style={styles.menuOverlay}
-            activeOpacity={1}
-            onPress={() => setMenuVisible(false)}>
-            <View style={styles.menuContainer}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={(e) => handleMenuAction('bookmark', e)}>
-                <Icon
-                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={22}
-                  color="#333"
-                />
-                <Text style={styles.menuText}>
-                  {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
-                </Text>
-              </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+            <View style={styles.menuOverlay}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.menuContainer}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handleMenuAction('bookmark')}>
+                    <Icon
+                      name={isBookmarked ? 'bookmark-minus' : 'bookmark-plus'}
+                      size={24}
+                      color="#333"
+                    />
+                    <Text style={styles.menuText}>
+                      {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
+                    </Text>
+                  </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
+                  <View style={styles.menuDivider} />
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={(e) => handleMenuAction('report', e)}>
-                <Icon name="flag-outline" size={22} color="#FF3B30" />
-                <Text style={[styles.menuText, {color: '#FF3B30'}]}>
-                  Report
-                </Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handleMenuAction('report')}>
+                    <Icon name="flag" size={24} color="#333" />
+                    <Text style={styles.menuText}>Report</Text>
+                  </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
+                  <View style={styles.menuDivider} />
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={(e) => handleMenuAction('notInterested', e)}>
-                <Icon name="eye-off-outline" size={22} color="#333" />
-                <Text style={styles.menuText}>Not Interested</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handleMenuAction('notInterested')}>
+                    <Icon name="eye-off" size={24} color="#333" />
+                    <Text style={styles.menuText}>Not Interested</Text>
+                  </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
+                  <View style={styles.menuDivider} />
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={(e) => handleMenuAction('block', e)}>
-                <Icon name="block-helper" size={22} color="#333" />
-                <Text style={styles.menuText}>Block this source</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handleMenuAction('block')}>
+                    <Icon name="cancel" size={24} color="#333" />
+                    <Text style={styles.menuText}>Block this source</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </TouchableOpacity>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* Full Screen Image Modal */}
@@ -295,17 +284,18 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <View style={styles.fullScreenContainer}>
             <TouchableOpacity
               style={styles.closeButton}
+              onPress={() => setFullScreenImage(false)}>
+              <Icon name="close" size={28} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableWithoutFeedback
               onPress={() => setFullScreenImage(false)}
               activeOpacity={0.8}>
-              <Icon name="close" size={32} color="#FFFFFF" />
-            </TouchableOpacity>
-            
-            <Image
-              source={{uri: news.image}}
-              style={styles.fullScreenImage}
-              resizeMode="contain"
-            />
-            
+              <Image
+                source={{uri: news.imageUrl}}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            </TouchableWithoutFeedback>
             <View style={styles.imageInfo}>
               <Text style={styles.imageTitle}>{news.title}</Text>
             </View>
@@ -481,7 +471,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EAED',
     marginHorizontal: 16,
   },
-  // Full Screen Image Styles
   fullScreenContainer: {
     flex: 1,
     backgroundColor: '#000000',

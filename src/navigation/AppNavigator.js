@@ -28,6 +28,7 @@ import Step3NewsDetailsScreen from '../screens/NewsSubmissionFlow/Step3NewsDetai
 import Step4ReviewScreen from '../screens/NewsSubmissionFlow/Step4ReviewScreen';
 import ReporterProfileScreen from '../screens/ReporterProfileScreen';
 import ReporterDrawerNavigator from './ReporterDrawerNavigator';
+import FlipNewsScreen from '../screens/FlipNewsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -196,6 +197,12 @@ function AppNavigator() {
           name="ReporterApp"
           component={ReporterDrawerNavigator}
           options={{headerShown: false}}
+        />
+
+        <Stack.Screen 
+          name="FlipNews" 
+          component={FlipNewsScreen} 
+          options={{ headerShown: false }} 
         />
       </Stack.Navigator>
     </NavigationContainer>

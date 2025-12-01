@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
   TextInput,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -17,7 +18,7 @@ const MODAL_HEIGHT = height * 0.8;
 
 const CategoriesModal = ({visible, onClose}) => {
   const [searchText, setSearchText] = useState('');
-  const navigation = useNavigation()
+  const navigation = useNavigation();
   const [activeSection, setActiveSection] = useState('news');
   const scrollViewRef = useRef(null);
   const sectionRefs = useRef({});
@@ -35,43 +36,32 @@ const CategoriesModal = ({visible, onClose}) => {
   ];
 
   const scrollToSection = (sectionId) => {
-    // Immediately update active section
     setActiveSection(sectionId);
-    
-    // Set flag to prevent scroll handler from interfering
     isScrollingToSection.current = true;
-    
     const yOffset = sectionRefs.current[sectionId];
     if (scrollViewRef.current && yOffset !== undefined) {
       scrollViewRef.current.scrollTo({y: yOffset, animated: true});
     }
 
-    // Clear any existing timeout
     if (scrollTimeout.current) {
       clearTimeout(scrollTimeout.current);
     }
 
-    // Reset flag after scroll animation completes
     scrollTimeout.current = setTimeout(() => {
       isScrollingToSection.current = false;
     }, 500);
   };
 
   const handleScroll = (event) => {
-    // Don't update active section if we're programmatically scrolling
     if (isScrollingToSection.current) {
       return;
     }
 
     const scrollY = event.nativeEvent.contentOffset.y;
-    
-    // Determine which section is currently visible
     const sections = Object.entries(sectionRefs.current).sort((a, b) => a[1] - b[1]);
-    
     for (let i = 0; i < sections.length; i++) {
       const [id, offset] = sections[i];
       const nextOffset = sections[i + 1] ? sections[i + 1][1] : Infinity;
-      
       if (scrollY >= offset - 100 && scrollY < nextOffset - 100) {
         if (activeSection !== id) {
           setActiveSection(id);
@@ -82,14 +72,13 @@ const CategoriesModal = ({visible, onClose}) => {
   };
 
   const handleScrollEnd = () => {
-    // Reset flag when user stops scrolling
     isScrollingToSection.current = false;
   };
 
-  const handleReporterNavigation = () =>{
-    onClose()
-    navigation.navigate('Reporter')
-  }
+  const handleReporterNavigation = () => {
+    onClose();
+    navigation.navigate('Reporter');
+  };
 
   return (
     <Modal
@@ -97,237 +86,224 @@ const CategoriesModal = ({visible, onClose}) => {
       transparent
       animationType="slide"
       onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          activeOpacity={1} 
-          onPress={onClose}
-        />
-        
-        <View style={styles.modalContainer}>
-          {/* Handle Bar */}
-          <View style={styles.handleBar} />
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.modalContainer}>
+              {/* Handle Bar */}
+              <View style={styles.handleBar} />
 
-          <View style={styles.contentWrapper}>
-            {/* Sidebar Navigation */}
-            <View style={styles.sidebar}>
-              {sidebarItems.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.sidebarItem,
-                    activeSection === item.id && styles.sidebarItemActive,
-                  ]}
-                  onPress={() => scrollToSection(item.id)}
-                  activeOpacity={0.7}>
-                  <Icon
-                    name={item.icon}
-                    size={24}
-                    color={activeSection === item.id ? '#FF6B35' : '#888'}
-                  />
-                  <Text
-                    style={[
-                      styles.sidebarLabel,
-                      activeSection === item.id && styles.sidebarLabelActive,
-                    ]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <View style={styles.contentWrapper}>
+                {/* Sidebar Navigation */}
+                <View style={styles.sidebar}>
+                  {sidebarItems.map(item => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.sidebarItem,
+                        activeSection === item.id && styles.sidebarItemActive,
+                      ]}
+                      onPress={() => scrollToSection(item.id)}
+                      activeOpacity={0.7}>
+                      <Icon
+                        name={item.icon}
+                        size={24}
+                        color={activeSection === item.id ? '#FF6B35' : '#888'}
+                      />
+                      <Text
+                        style={[
+                          styles.sidebarLabel,
+                          activeSection === item.id && styles.sidebarLabelActive,
+                        ]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Main Content */}
+                <ScrollView
+                  ref={scrollViewRef}
+                  style={styles.scrollView}
+                  onScroll={handleScroll}
+                  onMomentumScrollEnd={handleScrollEnd}
+                  scrollEventThrottle={16}>
+                  {/* Search Section */}
+                  <View
+                    style={styles.section}
+                    onLayout={(event) => {
+                      sectionRefs.current['news'] = event.nativeEvent.layout.y;
+                    }}>
+                    <View style={styles.searchContainer}>
+                      <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder="సెర్చ్ చేయండి"
+                        value={searchText}
+                        onChangeText={setSearchText}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Main Edition */}
+                  <TouchableOpacity style={styles.mainEditionCard}>
+                    <Text style={styles.mainEditionLabel}>Main Edition</Text>
+                    <Text style={styles.mainEditionText}>మెయిన్ ఎడిషన్</Text>
+                    <View style={styles.arrowButton}>
+                      <Icon name="chevron-right" size={24} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Local News */}
+                  <View
+                    style={styles.localNewsCard}
+                    onLayout={(event) => {
+                      sectionRefs.current['videos'] = event.nativeEvent.layout.y;
+                    }}>
+                    <Text style={styles.localNewsTitle}>LOCAL NEWS</Text>
+                    <View style={styles.locationCard}>
+                      <View style={{flex: 1}}>
+                        <Text style={styles.locationName}>BABA NAGAR</Text>
+                        <Text style={styles.locationAddress}>
+                          Rajamahendravaram Urban, East Godavari – 533106
+                        </Text>
+                      </View>
+                      <View style={styles.locationArrow}>
+                        <Icon name="chevron-right" size={20} color="#666" />
+                      </View>
+                    </View>
+                    <TouchableOpacity style={styles.editButton}>
+                      <Icon name="pencil" size={16} color="#FFF" />
+                      <Text style={styles.editButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Quick Access Grid */}
+                  <View
+                    style={styles.quickAccessGrid}
+                    onLayout={(event) => {
+                      sectionRefs.current['astrology'] = event.nativeEvent.layout.y;
+                    }}>
+                    <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#FF6B35'}]}>
+                      <Icon name="cricket" size={32} color="#FFF" />
+                      <Text style={styles.quickAccessText}>స్పోర్ట్స్</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#9C27B0'}]}>
+                      <Icon name="movie" size={32} color="#FFF" />
+                      <Text style={styles.quickAccessText}>సినిమాలు</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#2196F3'}]}>
+                      <Icon name="briefcase" size={32} color="#FFF" />
+                      <Text style={styles.quickAccessText}>బిజినెస్</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Viral Section */}
+                  <TouchableOpacity
+                    style={styles.viralCard}
+                    onLayout={(event) => {
+                      sectionRefs.current['stocks'] = event.nativeEvent.layout.y;
+                    }}>
+                    <Text style={styles.viralText}>వైరల్</Text>
+                    <View style={styles.cardArrow}>
+                      <Icon name="chevron-right" size={24} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Jobs Section */}
+                  <TouchableOpacity
+                    style={styles.jobsCard}
+                    onLayout={(event) => {
+                      sectionRefs.current['sports'] = event.nativeEvent.layout.y;
+                    }}>
+                    <View style={styles.jobsContent}>
+                      <Text style={styles.jobsLabel}>Jobs</Text>
+                      <Text style={styles.jobsText}>జాబ్స్</Text>
+                    </View>
+                    <View style={styles.cardArrow}>
+                      <Icon name="chevron-right" size={24} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Padi Panta Section */}
+                  <TouchableOpacity
+                    style={styles.padiPantaCard}
+                    onLayout={(event) => {
+                      sectionRefs.current['videos2'] = event.nativeEvent.layout.y;
+                    }}>
+                    <View style={styles.padiPantaContent}>
+                      <Text style={styles.padiPantaLabel}>Padi Panta</Text>
+                      <Text style={styles.padiPantaText}>పాడి పంట</Text>
+                    </View>
+                    <View style={styles.cardArrow}>
+                      <Icon name="chevron-right" size={24} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Bottom Options */}
+                  <View
+                    style={styles.bottomSection}
+                    onLayout={(event) => {
+                      sectionRefs.current['settings'] = event.nativeEvent.layout.y;
+                    }}>
+                    <TouchableOpacity style={styles.optionCard}>
+                      <Icon name="translate" size={24} color="#333" />
+                      <Text style={styles.optionText}>ભાષા</Text>
+                      <View style={styles.optionArrow}>
+                        <Icon name="chevron-right" size={20} color="#666" />
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.optionCard}>
+                      <Icon name="star-circle" size={24} color="#333" />
+                      <Text style={styles.optionText}>జోవిత్యం</Text>
+                      <View style={styles.optionArrow}>
+                        <Icon name="chevron-right" size={20} color="#666" />
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.optionCard}>
+                      <Icon name="chart-line" size={24} color="#333" />
+                      <Text style={styles.optionText}>సందాగం</Text>
+                      <View style={styles.optionArrow}>
+                        <Icon name="chevron-right" size={20} color="#666" />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Reporter Section */}
+                  <TouchableOpacity style={styles.reporterCard} onPress={handleReporterNavigation}>
+                    <View style={styles.reporterContent}>
+                      <Text style={styles.reporterLabel}>Reporter</Text>
+                      <Text style={styles.reporterText}>రిపోర్టర్</Text>
+                      <Text style={styles.reporterDesc}>
+                        మీ ప్రాంతంలో జరుగుతున్న రాయింది రాజయిట్ జి తానిమ్ చేసన్త్
+                      </Text>
+                    </View>
+                    <View style={styles.cardArrow}>
+                      <Icon name="chevron-right" size={24} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Feedback Section */}
+                  <View style={styles.feedbackSection}>
+                    <Text style={styles.feedbackTitle}>Feedback</Text>
+                    <TextInput
+                      style={styles.feedbackInput}
+                      placeholder="Your feedback..."
+                      multiline
+                      numberOfLines={4}
+                    />
+                    <TouchableOpacity style={styles.submitButton}>
+                      <Text style={styles.submitButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
             </View>
-
-            {/* Main Content */}
-            <ScrollView 
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              onMomentumScrollEnd={handleScrollEnd}
-              scrollEventThrottle={16}>
-              
-              {/* Search Section */}
-              <View 
-                style={styles.section}
-                onLayout={(event) => {
-                  sectionRefs.current['news'] = event.nativeEvent.layout.y;
-                }}>
-                <Text style={styles.sectionTitle}>సెర్చ్ చేయండి</Text>
-                <View style={styles.searchContainer}>
-                  <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search Keyword ex: Modi, Politics, Health, Stocks"
-                    placeholderTextColor="#999"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                  />
-                </View>
-              </View>
-
-              {/* Main Edition */}
-              <TouchableOpacity style={styles.mainEditionCard}>
-                <Text style={styles.mainEditionLabel}>Main Edition</Text>
-                <Text style={styles.mainEditionText}>మెయిన్ ఎడిషన్</Text>
-                <View style={styles.arrowButton}>
-                  <Icon name="arrow-right" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Local News */}
-              <View 
-                style={styles.localNewsCard}
-                onLayout={(event) => {
-                  sectionRefs.current['videos'] = event.nativeEvent.layout.y;
-                }}>
-                <Text style={styles.localNewsTitle}>LOCAL NEWS</Text>
-                <View style={styles.locationCard}>
-                  <View>
-                    <Text style={styles.locationName}>BABA NAGAR</Text>
-                    <Text style={styles.locationAddress}>
-                      Rajamahendravaram Urban, East Godavari – 533106
-                    </Text>
-                  </View>
-                  <View style={styles.locationArrow}>
-                    <Icon name="arrow-right" size={20} color="#666" />
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.editButton}>
-                  <Icon name="pencil" size={16} color="#FFFFFF" />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Quick Access Grid */}
-              <View 
-                style={styles.quickAccessGrid}
-                onLayout={(event) => {
-                  sectionRefs.current['astrology'] = event.nativeEvent.layout.y;
-                }}>
-                <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#FFB366'}]}>
-                  <Icon name="trophy" size={32} color="#FFFFFF" />
-                  <Text style={styles.quickAccessText}>స్పోర్ట్స్</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#66D9EF'}]}>
-                  <Icon name="movie-open" size={32} color="#FFFFFF" />
-                  <Text style={styles.quickAccessText}>సినిమాలు</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.quickAccessCard, {backgroundColor: '#E066FF'}]}>
-                  <Icon name="trending-up" size={32} color="#FFFFFF" />
-                  <Text style={styles.quickAccessText}>బిజినెస్</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Viral Section */}
-              <TouchableOpacity 
-                style={styles.viralCard}
-                onLayout={(event) => {
-                  sectionRefs.current['stocks'] = event.nativeEvent.layout.y;
-                }}>
-                <Icon name="fire" size={32} color="#FFFFFF" />
-                <Text style={styles.viralText}>వైరల్</Text>
-                <View style={styles.cardArrow}>
-                  <Icon name="arrow-right" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Jobs Section */}
-              <TouchableOpacity 
-                style={styles.jobsCard}
-                onLayout={(event) => {
-                  sectionRefs.current['sports'] = event.nativeEvent.layout.y;
-                }}>
-                <View style={styles.jobsContent}>
-                  <Text style={styles.jobsLabel}>Jobs</Text>
-                  <Text style={styles.jobsText}>జాబ్స్</Text>
-                </View>
-                <View style={styles.cardArrow}>
-                  <Icon name="arrow-right" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Padi Panta Section */}
-              <TouchableOpacity 
-                style={styles.padiPantaCard}
-                onLayout={(event) => {
-                  sectionRefs.current['videos2'] = event.nativeEvent.layout.y;
-                }}>
-                <View style={styles.padiPantaContent}>
-                  <Text style={styles.padiPantaLabel}>Padi Panta</Text>
-                  <Text style={styles.padiPantaText}>పాడి పంట</Text>
-                </View>
-                <View style={styles.cardArrow}>
-                  <Icon name="arrow-right" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Bottom Options */}
-              <View 
-                style={styles.bottomSection}
-                onLayout={(event) => {
-                  sectionRefs.current['settings'] = event.nativeEvent.layout.y;
-                }}>
-                <TouchableOpacity style={styles.optionCard}>
-                  <Icon name="brightness-7" size={28} color="#333" />
-                  <Text style={styles.optionText}>భాష</Text>
-                  <View style={styles.optionArrow}>
-                    <Icon name="arrow-right" size={20} color="#666" />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.optionCard}>
-                  <Icon name="shield-check" size={28} color="#333" />
-                  <Text style={styles.optionText}>జోవిత్యం</Text>
-                  <View style={styles.optionArrow}>
-                    <Icon name="arrow-right" size={20} color="#666" />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.optionCard}>
-                  <Icon name="creation" size={28} color="#333" />
-                  <Text style={styles.optionText}>సందాగం</Text>
-                  <View style={styles.optionArrow}>
-                    <Icon name="arrow-right" size={20} color="#666" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Reporter Section */}
-              <TouchableOpacity
-              onPress={handleReporterNavigation}
-              style={styles.reporterCard}>
-                <Icon name="microphone" size={32} color="#FFFFFF" />
-                <View style={styles.reporterContent}>
-                  <Text style={styles.reporterLabel}>Reporter</Text>
-                  <Text style={styles.reporterText}>రిపోర్టర్</Text>
-                  <Text style={styles.reporterDesc}>
-                    మీ ప్రాంతంలో జరుగుతున్న రాయింది రాజయిట్ జి తానిమ్ చేసన్త్
-                  </Text>
-                </View>
-                <View style={styles.cardArrow}>
-                  <Icon name="arrow-right" size={24} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Feedback Section */}
-              <View style={styles.feedbackSection}>
-                <Text style={styles.feedbackTitle}>Feedback</Text>
-                <TextInput
-                  style={styles.feedbackInput}
-                  placeholder="Enter your Feedback"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={4}
-                />
-                <TouchableOpacity style={styles.submitButton}>
-                  <Text style={styles.submitButtonText}>Submit</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={{height: 40}} />
-            </ScrollView>
-          </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
