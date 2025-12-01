@@ -111,13 +111,13 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         break;
     }
   };
-
+console.log(news,"news.imageUrl");
   return (
     <TouchableWithoutFeedback onPress={handleDoubleTap}>
       <View style={styles.card}>
         {/* Image Section */}
         <View style={styles.imageSection}>
-          <Image source={{uri: news.imageUrl}} style={styles.image} />
+          <Image source={{uri: news.image}} style={styles.image} />
 
           {/* Reporter Section with Gradient */}
           {hasReporter && (

@@ -47,22 +47,13 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
   );
 });
 
-// 3. Static Overlay
-const StaticOverlay = ({ newsItem, height }) => {
-  if (!newsItem || !height) return null;
-  return (
-    <View style={[styles.absoluteFill, { height }]}>
-      <MemoizedCard newsItem={newsItem} height={height} onPress={() => {}} onCommentsPress={() => {}} />
-    </View>
-  );
-};
-
 const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const [currIndex, setCurrIndex] = useState(0);
-  const [overlayNews, setOverlayNews] = useState(null);
   const [containerHeight, setContainerHeight] = useState(0);
   const halfHeight = containerHeight / 2;
   const scrollY = useSharedValue(0);
+  const isAnimating = useSharedValue(false);
+  const swipeDirection = useSharedValue(0); // 0 = none, 1 = next, -1 = prev
 
   const getIndex = useCallback((i) => {
     const len = MOCK_NEWS.length;
@@ -74,21 +65,12 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const prevNews = useMemo(() => MOCK_NEWS[getIndex(currIndex - 1)], [currIndex, getIndex]);
 
   const finishFlip = (direction) => {
-    const targetNews = direction === 'next' ? nextNews : prevNews;
-    setOverlayNews(targetNews);
     const newIndex = direction === 'next' ? getIndex(currIndex + 1) : getIndex(currIndex - 1);
     setCurrIndex(newIndex);
+    scrollY.value = 0;
+    swipeDirection.value = 0;
+    isAnimating.value = false;
   };
-
-  useEffect(() => {
-    if (overlayNews) {
-      scrollY.value = 0;
-      const timer = setTimeout(() => {
-        setOverlayNews(null);
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [currIndex, overlayNews, scrollY]);
 
   const onLayout = (event) => {
     const { height } = event.nativeEvent.layout;
@@ -100,46 +82,75 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const pan = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .onStart(() => {
-      // Hide UI when user starts swiping
       if (hideUI) {
         runOnJS(hideUI)();
       }
     })
     .onUpdate((e) => {
-      if (containerHeight === 0) return;
-      scrollY.value = -e.translationY / containerHeight;
+      if (containerHeight === 0 || isAnimating.value) return;
+
+      const position = -e.translationY / containerHeight;
+      scrollY.value = position;
+
+      if (swipeDirection.value === 0 && Math.abs(position) > 0.05) {
+        swipeDirection.value = position > 0 ? 1 : -1;
+      }
     })
     .onEnd((e) => {
-      if (containerHeight === 0) return;
+      if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       const velocity = -e.velocityY;
+
       if (position > 0.15 || velocity > 600) {
-        scrollY.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) }, () => runOnJS(finishFlip)('next'));
-      } else if (position < -0.15 || velocity < -600) {
-        scrollY.value = withTiming(-1, { duration: 250, easing: Easing.out(Easing.quad) }, () => runOnJS(finishFlip)('prev'));
+        isAnimating.value = true;
+        swipeDirection.value = 1; // Lock to next
+        scrollY.value = withTiming(
+          1, 
+          { duration: 300, easing: Easing.out(Easing.cubic) }, 
+          (finished) => {
+            if (finished) {
+              runOnJS(finishFlip)('next');
+            }
+          }
+        );
+      } 
+      // Swipe DOWN (positive translationY, negative position) = PREV
+      else if (position < -0.15 || velocity < -600) {
+        isAnimating.value = true;
+        swipeDirection.value = -1; // Lock to prev
+        scrollY.value = withTiming(
+          -1, 
+          { duration: 300, easing: Easing.out(Easing.cubic) }, 
+          (finished) => {
+            if (finished) {
+              runOnJS(finishFlip)('prev');
+            }
+          }
+        );
       } else {
+        // Cancel swipe - return to rest
+        swipeDirection.value = 0;
         scrollY.value = withSpring(0, SPRING_CONFIG);
       }
     });
 
-  // --- ANIMATED STYLES (NO VERTICAL MOVEMENT) ---
-  const flipPrevStyle = useAnimatedStyle(() => {
-    const isActive = scrollY.value < 0;
-    const rotateX = interpolate(scrollY.value, [0, -1], [0, -180], Extrapolate.CLAMP);
-    return {
-      zIndex: isActive ? 10 : 0,
-      opacity: isActive ? 1 : 0,
-      transform: [
-        { perspective: 1500 },
-        { rotateX: `${rotateX}deg` },
-      ],
-      transformOrigin: 'center bottom',
-    };
-  });
+  // --- ANIMATED STYLES ---
 
+  // Destination overlay - only visible when actively swiping, locked to direction
+  const destinationNextStyle = useAnimatedStyle(() => ({
+    opacity: swipeDirection.value === 1 && Math.abs(scrollY.value) > 0.01 ? 1 : 0,
+    zIndex: swipeDirection.value === 1 && Math.abs(scrollY.value) > 0.01 ? 1 : -1,
+  }));
+
+  const destinationPrevStyle = useAnimatedStyle(() => ({
+    opacity: swipeDirection.value === -1 && Math.abs(scrollY.value) > 0.01 ? 1 : 0,
+    zIndex: swipeDirection.value === -1 && Math.abs(scrollY.value) > 0.01 ? 1 : -1,
+  }));
+
+  // NEXT FLIPPER (Bottom half) - Active when scrollY > 0 (swipe UP to next)
   const flipNextStyle = useAnimatedStyle(() => {
     const isActive = scrollY.value > 0;
-    const rotateX = interpolate(scrollY.value, [0, 1], [0, 180], Extrapolate.CLAMP);
+    const rotateX = interpolate(scrollY.value, [0, 1], [0, -180], Extrapolate.CLAMP);
     return {
       zIndex: isActive ? 10 : 0,
       opacity: isActive ? 1 : 0,
@@ -151,18 +162,24 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     };
   });
 
+  // PREV FLIPPER (Top half) - Active when scrollY < 0 (swipe DOWN to prev)
+  const flipPrevStyle = useAnimatedStyle(() => {
+    const isActive = scrollY.value < 0;
+    const rotateX = interpolate(scrollY.value, [0, -1], [0, 180], Extrapolate.CLAMP);
+    return {
+      zIndex: isActive ? 10 : 0,
+      opacity: isActive ? 1 : 0,
+      transform: [
+        { perspective: 1500 },
+        { rotateX: `${rotateX}deg` },
+      ],
+      transformOrigin: 'center bottom',
+    };
+  });
+
   // --- FACE LOGIC ---
-  const prevFrontStyle = useAnimatedStyle(() => ({
-    opacity: scrollY.value > -0.5 ? 1 : 0,
-    zIndex: scrollY.value > -0.5 ? 2 : 1,
-  }));
 
-  const prevBackStyle = useAnimatedStyle(() => ({
-    opacity: scrollY.value <= -0.5 ? 1 : 0,
-    zIndex: scrollY.value <= -0.5 ? 2 : 1,
-    transform: [{ rotateX: '180deg' }],
-  }));
-
+  // NEXT (swipe UP): Bottom half flips
   const nextFrontStyle = useAnimatedStyle(() => ({
     opacity: scrollY.value < 0.5 ? 1 : 0,
     zIndex: scrollY.value < 0.5 ? 2 : 1,
@@ -174,13 +191,27 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     transform: [{ rotateX: '180deg' }],
   }));
 
-  // Static Backgrounds
+  // PREV (swipe DOWN): Top half flips
+  const prevFrontStyle = useAnimatedStyle(() => ({
+    opacity: scrollY.value > -0.5 ? 1 : 0,
+    zIndex: scrollY.value > -0.5 ? 2 : 1,
+  }));
+
+  const prevBackStyle = useAnimatedStyle(() => ({
+    opacity: scrollY.value <= -0.5 ? 1 : 0,
+    zIndex: scrollY.value <= -0.5 ? 2 : 1,
+    transform: [{ rotateX: '180deg' }],
+  }));
+
+  // Static Backgrounds - only show current news when not swiping
   const staticTopStyle = useAnimatedStyle(() => ({
-    opacity: scrollY.value >= 0 ? 1 : 0
+    opacity: scrollY.value <= 0 ? 1 : 0,
+    zIndex: 2,
   }));
 
   const staticBottomStyle = useAnimatedStyle(() => ({
-    opacity: scrollY.value <= 0 ? 1 : 0
+    opacity: scrollY.value >= 0 ? 1 : 0,
+    zIndex: 2,
   }));
 
   const shadowStyle = useAnimatedStyle(() => ({
@@ -197,37 +228,58 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={pan}>
         <Animated.View style={styles.container} onLayout={onLayout}>
-          {/* Destination (Z: 1) */}
-          <StaticOverlay newsItem={scrollY.value > 0 ? nextNews : prevNews} height={containerHeight} />
+          {/* Destination NEXT (Z: 1) - Only visible when swiping to next */}
+          <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
+            <MemoizedCard 
+              newsItem={nextNews} 
+              height={containerHeight} 
+              onPress={() => {}} 
+              onCommentsPress={() => {}} 
+            />
+          </Animated.View>
 
-          {/* Static Top (Z: 2) */}
+          {/* Destination PREV (Z: 1) - Only visible when swiping to prev */}
+          <Animated.View style={[styles.absoluteFill, destinationPrevStyle]}>
+            <MemoizedCard 
+              newsItem={prevNews} 
+              height={containerHeight} 
+              onPress={() => {}} 
+              onCommentsPress={() => {}} 
+            />
+          </Animated.View>
+
+          {/* Static Top (Z: 2) - Visible when swiping UP (to next) or at rest */}
           <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle]}>
             <CardHalf newsItem={currentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          {/* Static Bottom (Z: 2) */}
+          {/* Static Bottom (Z: 2) - Visible when swiping DOWN (to prev) or at rest */}
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle]}>
             <CardHalf newsItem={currentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          {/* TOP FLIPPER (Prev) */}
-          <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
-            <Animated.View style={[styles.face, prevFrontStyle]}>
-              <CardHalf newsItem={prevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
+          {/* BOTTOM FLIPPER (Z: 10) - Active when swiping UP (to next) */}
+          <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
+            {/* Front: Current news bottom */}
+            <Animated.View style={[styles.face, nextFrontStyle]}>
+              <CardHalf newsItem={currentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
-            <Animated.View style={[styles.face, prevBackStyle]}>
-              <CardHalf newsItem={currentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
+            {/* Back: Next news top (flipped 180deg) */}
+            <Animated.View style={[styles.face, nextBackStyle]}>
+              <CardHalf newsItem={nextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
             <Animated.View style={[styles.shadow, shadowStyle]} />
           </Animated.View>
 
-          {/* BOTTOM FLIPPER (Next) */}
-          <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
-            <Animated.View style={[styles.face, nextFrontStyle]}>
-              <CardHalf newsItem={nextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
+          {/* TOP FLIPPER (Z: 10) - Active when swiping DOWN (to prev) */}
+          <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
+            {/* Front: Current news top */}
+            <Animated.View style={[styles.face, prevFrontStyle]}>
+              <CardHalf newsItem={currentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
-            <Animated.View style={[styles.face, nextBackStyle]}>
-              <CardHalf newsItem={currentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
+            {/* Back: Previous news bottom (flipped 180deg) */}
+            <Animated.View style={[styles.face, prevBackStyle]}>
+              <CardHalf newsItem={prevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
             <Animated.View style={[styles.shadow, shadowStyle]} />
           </Animated.View>
