@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {useDispatch} from 'react-redux';
 import {completeOnboarding} from '../redux/reducers/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LocationService from '../utils/LocationService';
+import { resolveLocation } from '../redux/reducers/location';
 
 const LanguageSelectionScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
@@ -63,6 +65,20 @@ const LanguageSelectionScreen = ({navigation, route}) => {
     dispatch(completeOnboarding());
     navigation.replace('Main');
   };
+  
+    const fetchLocationAres = async () => {
+      try {
+         const position = await LocationService.getLocation();
+         dispatch(resolveLocation({latitude:position.coords?.latitude,longitude:position.coords?.longitude}))
+      } catch (error) {
+        
+      }
+    }
+  
+    useEffect(()=>{
+       fetchLocationAres()
+    },[])
+  
 
   return (
     <SafeAreaView style={styles.container}>

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,8 @@ import {
 import {useDispatch} from 'react-redux';
 import {completeOnboarding} from '../redux/reducers/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
-const OnboardingScreen = ({navigation}) => {
-  const dispatch = useDispatch();
-  const [selectedLanguage, setSelectedLanguage] = useState('telugu');
+import LocationService from '../utils/LocationService';
+import { resolveLocation } from '../redux/reducers/location';
 
   const languages = [
     {
@@ -43,6 +41,10 @@ const OnboardingScreen = ({navigation}) => {
       iconColor: '#2196F3',
     },
   ];
+
+const OnboardingScreen = ({navigation}) => {
+  const dispatch = useDispatch();
+  const [selectedLanguage, setSelectedLanguage] = useState('telugu');
 
   const handleLanguageSelect = (languageId) => {
     setSelectedLanguage(languageId);

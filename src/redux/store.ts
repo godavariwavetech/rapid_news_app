@@ -7,12 +7,14 @@ import authReducer from './reducers/auth';
 import newsReducer from './reducers/news';
 import settingsReducer from './reducers/settings';
 import bookmarksReducer from './reducers/bookmarks';
+import locationReducer from './reducers/location';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   news: newsReducer,
   settings: settingsReducer,
   bookmarks: bookmarksReducer,
+  location: locationReducer,
 });
 
 const persistConfig = {

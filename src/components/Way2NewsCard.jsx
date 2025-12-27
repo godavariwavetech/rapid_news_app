@@ -114,7 +114,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         break;
     }
   };
-console.log(news,"news.imageUrl");
   return (
     <TouchableWithoutFeedback onPress={handleDoubleTap} >
       <View style={styles.card}>

@@ -29,6 +29,7 @@ import Step4ReviewScreen from '../screens/NewsSubmissionFlow/Step4ReviewScreen';
 import ReporterProfileScreen from '../screens/ReporterProfileScreen';
 import ReporterDrawerNavigator from './ReporterDrawerNavigator';
 import FlipNewsScreen from '../screens/FlipNewsScreen';
+import SplashScreen from '../screens/SplashScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,7 +76,8 @@ function AppNavigator() {
             };
           },
         }}
-        initialRouteName={isOnboardingComplete ? 'Main' : 'LanguageSelection'}>
+        initialRouteName={isOnboardingComplete ? 'Main' : 'SplashScreen'}>
+        <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen
           name="LanguageSelection"
