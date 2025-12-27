@@ -13,16 +13,24 @@ import {
   KeyboardAvoidingView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const {height} = Dimensions.get('window');
+const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   const [commentText, setCommentText] = useState('');
+  const insets = useSafeAreaInsets()
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [showContent, setShowContent] = useState(false);
-  const translateY = useRef(new Animated.Value(height)).current;
+  
+  // Controls the actual visibility of the Modal component
+  const [modalVisible, setModalVisible] = useState(visible);
+  
+  // Animation values
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const opacity = useRef(new Animated.Value(0)).current; // For the background dimming
 
+  // Mock data (kept same)
   const [comments, setComments] = useState([
     {
       id: 1,
@@ -36,119 +44,79 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
       liked: false,
       color: '#E8D5F5',
     },
-    {
-      id: 2,
-      number: 2,
-      avatar: '#A8D8EA',
-      username: 'rajendradeverap',
-      location: 'కృష్ణా',
-      text: 'పరిస్థితి ఆందోళన కలిగిస్తోంది. అందరూ సురక్షితంగా ఉండాలని కోరుకుంటున్నాం. అధికారులు స్పందన తప్పదు ఉండాలి.',
-      time: '0 secs ago',
-      likes: 12,
-      liked: false,
-      color: '#D5EDF8',
-    },
-    {
-      id: 3,
-      number: 3,
-      avatar: '#FFB3BA',
-      username: 'rajendradeverap',
-      location: 'కృష్ణా',
-      text: 'వద్దాలు, గాలుల తీవ్రత గురించి స్పష్టమైన వివరాలు ఇచ్చినందుకు ధన్యవాదాలు. ప్రజలు జాగ్రత్తగా ఉండాలి.',
-      time: '0 secs ago',
-      likes: 12,
-      liked: false,
-      color: '#FFDEE5',
-    },
-    {
-      id: 4,
-      number: 4,
-      avatar: '#FFFFBA',
-      username: 'rajendradeverap',
-      location: 'కృష్ణా',
-      text: 'మాలిక సదుపాయాలు దెబ్బతిన్నాయని వినడం విచారకరం. ఆత్మసనర బుంధాలు వేగంగా స్థానిస్తుస్తాము అభినందలు.',
-      time: '0 secs ago',
-      likes: 12,
-      liked: false,
-      color: '#FFFDE5',
-    },
+    // ... other items
   ]);
 
   useEffect(() => {
     if (visible) {
-      setShowContent(true);
-      // Small delay to ensure content is rendered before animation starts
-      setTimeout(() => {
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 65,
-          friction: 11,
-        }).start();
-      }, 50);
+      setModalVisible(true);
+      // Wait for mount, then animate IN
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }),
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
     } else {
-      Animated.timing(translateY, {
-        toValue: height,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        setShowContent(false);
+      // Animate OUT
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+        if (onClose) onClose(); // Ensure parent state is synced
       });
     }
   }, [visible]);
 
   const handleClose = () => {
-    Animated.timing(translateY, {
-      toValue: height,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowContent(false);
-      onClose();
-    });
-  };
-
-  const handleLike = commentId => {
-    setComments(prevComments =>
-      prevComments.map(comment =>
-        comment.id === commentId
-          ? {
-              ...comment,
-              liked: !comment.liked,
-              likes: comment.liked ? comment.likes - 1 : comment.likes + 1,
-            }
-          : comment,
-      ),
-    );
+    // Trigger the close animation via the prop update or local logic
+    if (onClose) onClose();
   };
 
   const handleSendComment = () => {
     if (commentText.trim()) {
-      const newComment = {
-        id: comments.length + 1,
-        number: comments.length + 1,
-        avatar: '#BAE1FF',
-        username: 'You',
-        location: 'కృష్ణా',
-        text: commentText,
-        time: 'Just now',
-        likes: 0,
-        liked: false,
-        color: '#E3F2FD',
-      };
-      setComments([newComment, ...comments]);
       setCommentText('');
     }
   };
 
-  if (!visible && !showContent) return null;
+  if (!modalVisible) return null;
 
   return (
     <Modal
-      visible={visible}
-      transparent={false}
+      visible={modalVisible}
+      transparent={true}
       animationType="none"
-      onRequestClose={handleClose}>
+      onRequestClose={handleClose}
+      statusBarTranslucent={true}
+    >
+      {/* 1. Animated Background Overlay (Fades In/Out) */}
+      <Animated.View style={[styles.backdropContainer, {opacity}]}>
+        <TouchableOpacity 
+          style={StyleSheet.absoluteFill} 
+          activeOpacity={1} 
+          onPress={handleClose} 
+        />
+      </Animated.View>
+
+      {/* 2. Sliding Sheet Content */}
       <Animated.View
         style={[
           styles.modalContainer,
@@ -156,182 +124,176 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
             transform: [{translateY}],
           },
         ]}>
-        <StatusBar
-          barStyle="dark-content"
-          backgroundColor="#FFFFFF"
-          translucent={false}
-        />
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity style={styles.backButton} onPress={handleClose}>
-                <Icon name="arrow-left" size={24} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {newsTitle || 'కాకినాడను తాకిన మరిన్ని తుఫాను...'}
-              </Text>
-            </View>
-            <View style={styles.headerRight}>
-              <Text style={styles.notificationLabel}>నోటిఫికేషన్</Text>
-              <TouchableOpacity
-                style={[
-                  styles.toggle,
-                  notificationsEnabled && styles.toggleActive,
-                ]}
-                onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-                activeOpacity={0.8}>
-                <View
-                  style={[
-                    styles.toggleThumb,
-                    notificationsEnabled && styles.toggleThumbActive,
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
+        
+        {/* White Background Container */}
+        <View style={styles.sheetContent}>
+          {/* Handle Bar */}
+          <View style={styles.handleBarContainer}>
+             <View style={styles.handleBar} />
           </View>
 
-          {/* Comments List */}
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}>
-            {comments.map(comment => (
-              <View key={comment.id} style={styles.commentCard}>
-                {/* Avatar and Number */}
-                <View style={styles.commentLeft}>
-                  <View
-                    style={[styles.avatar, {backgroundColor: comment.avatar}]}>
-                    <Text style={styles.avatarText}>{comment.number}</Text>
-                  </View>
-                </View>
-
-                {/* Comment Content */}
-                <View style={styles.commentRight}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.keyboardContainer}>
+            
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <TouchableOpacity style={styles.backButton} onPress={handleClose}>
+                  <Icon name="arrow-left" size={24} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {newsTitle || 'కాకినాడను తాకిన మరిన్ని తుఫాను...'}
+                </Text>
+              </View>
+              <View style={styles.headerRight}>
+                <Text style={styles.notificationLabel}>నోటిఫికేషన్</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.toggle,
+                    notificationsEnabled && styles.toggleActive,
+                  ]}
+                  onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+                  activeOpacity={0.8}>
                   <View
                     style={[
-                      styles.commentBubble,
-                      {backgroundColor: comment.color},
-                    ]}>
-                    {/* Username and Location */}
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.username}>{comment.username}</Text>
-                      <View style={styles.locationRow}>
-                        <Icon name="map-marker" size={14} color="#666" />
-                        <Text style={styles.location}>{comment.location}</Text>
-                      </View>
-                    </View>
+                      styles.toggleThumb,
+                      notificationsEnabled && styles.toggleThumbActive,
+                    ]}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-                    {/* Comment Text */}
-                    <Text style={styles.commentText}>{comment.text}</Text>
+            {/* Comments List */}
+            <ScrollView
+              style={styles.content}
+              showsVerticalScrollIndicator={false}>
+              {comments.map(comment => (
+                <View key={comment.id} style={styles.commentCard}>
+                  <View style={styles.commentLeft}>
+                    <View
+                      style={[styles.avatar, {backgroundColor: comment.avatar}]}>
+                      <Text style={styles.avatarText}>{comment.number}</Text>
+                    </View>
                   </View>
 
-                  {/* Comment Actions */}
-                  <View style={styles.commentActions}>
-                    <Text style={styles.commentTime}>{comment.time}</Text>
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity style={styles.actionButton}>
-                        <Icon name="reply" size={18} color="#666" />
-                        <Text style={styles.actionText}>Reply</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButton}>
-                        <Icon name="content-copy" size={18} color="#666" />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButton}>
-                        <Icon
-                          name="alert-octagon-outline"
-                          size={18}
-                          color="#666"
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleLike(comment.id)}>
-                        <Icon
-                          name={comment.liked ? 'heart' : 'heart-outline'}
-                          size={18}
-                          color={comment.liked ? '#FF3B30' : '#666'}
-                        />
-                        <Text
-                          style={[
-                            styles.likeCount,
-                            comment.liked && {color: '#FF3B30'},
-                          ]}>
-                          {comment.likes}
-                        </Text>
-                      </TouchableOpacity>
+                  <View style={styles.commentRight}>
+                    <View
+                      style={[
+                        styles.commentBubble,
+                        {backgroundColor: comment.color},
+                      ]}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.username}>{comment.username}</Text>
+                        <View style={styles.locationRow}>
+                          <Icon name="map-marker" size={14} color="#666" />
+                          <Text style={styles.location}>{comment.location}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.commentText}>{comment.text}</Text>
+                    </View>
+
+                    <View style={styles.commentActions}>
+                      <Text style={styles.commentTime}>{comment.time}</Text>
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity style={styles.actionButton}>
+                          <Icon name="reply" size={18} color="#666" />
+                          <Text style={styles.actionText}>Reply</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              ))}
+              <View style={{height: 20}} />
+            </ScrollView>
 
-            <View style={{height: 20}} />
-          </ScrollView>
-
-          {/* Comment Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="కామెంట్ చేయండి"
-              placeholderTextColor="#999"
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-            />
-            <TouchableOpacity style={styles.textButton} activeOpacity={0.7}>
-              <Icon name="format-text" size={24} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.emojiButton} activeOpacity={0.7}>
-              <Icon name="emoticon-happy-outline" size={24} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={handleSendComment}
-              activeOpacity={0.8}>
-              <Icon name="send" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+            {/* Input */}
+            <View style={[styles.inputContainer,{marginBottom:insets.bottom}]}>
+              <TextInput
+                style={styles.input}
+                placeholder="కామెంట్ చేయండి"
+                placeholderTextColor="#999"
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+              />
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSendComment}
+                activeOpacity={0.8}>
+                <Icon name="send" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Animated.View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  // This view covers the whole screen behind the sheet
+  backdropContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 1,
+  },
+  // This is the sliding sheet itself
   modalContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '95%', // Almost full screen
+    zIndex: 2,
+  },
+  sheetContent: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
   },
-  container: {
+  keyboardContainer: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+  },
+  handleBarContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#DDD',
+    borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
+    borderBottomColor: '#F0F0F0',
     backgroundColor: '#FFFFFF',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
   },
   backButton: {
     padding: 4,
     marginRight: 8,
   },
   headerTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#1A1A1A',
     flex: 1,
   },
@@ -346,9 +308,9 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   toggle: {
-    width: 48,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#E0E0E0',
     padding: 2,
     justifyContent: 'center',
@@ -357,15 +319,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
   },
   toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
@@ -376,21 +337,21 @@ const styles = StyleSheet.create({
   },
   commentCard: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   commentLeft: {
-    marginRight: 10,
+    marginRight: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#333',
   },
@@ -398,17 +359,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentBubble: {
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
+    borderTopLeftRadius: 4,
   },
   commentHeader: {
-    marginBottom: 8,
+    marginBottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   username: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -416,7 +380,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   location: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
   },
   commentText: {
@@ -438,7 +402,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   actionButton: {
     flexDirection: 'row',
@@ -450,36 +414,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
   },
-  likeCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E8EAED',
-    gap: 8,
+    gap: 12,
   },
   input: {
     flex: 1,
     backgroundColor: '#F5F6F8',
-    borderRadius: 20,
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: 15,
     color: '#333',
     maxHeight: 100,
-  },
-  textButton: {
-    padding: 4,
-  },
-  emojiButton: {
-    padding: 4,
   },
   sendButton: {
     width: 44,

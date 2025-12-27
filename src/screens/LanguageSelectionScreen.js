@@ -12,10 +12,12 @@ import {
 import {useDispatch} from 'react-redux';
 import {completeOnboarding} from '../redux/reducers/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LanguageSelectionScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
   const [selectedLanguage, setSelectedLanguage] = useState('telugu');
+  const insets = useSafeAreaInsets()
   
   // Check if this is onboarding flow
   const isOnboarding = route?.params?.isOnboarding || false;
@@ -117,7 +119,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
 
         {/* Continue Button - Only show during onboarding */}
         {isOnboarding && (
-          <View style={styles.buttonContainer}>
+          <View style={[styles.buttonContainer,{marginBottom:insets.bottom}]}>
             <TouchableOpacity 
               style={styles.continueButton}
               onPress={handleContinue}

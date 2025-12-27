@@ -1,8 +1,10 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const BottomTabBar = ({activeTab, onTabPress}) => {
+  const insets = useSafeAreaInsets()
   const tabs = [
     {
       id: 'HomeTab',
@@ -32,7 +34,7 @@ const BottomTabBar = ({activeTab, onTabPress}) => {
   ];
 
   return (
-    <View style={styles.bottomTabBar}>
+    <View style={[styles.bottomTabBar,{paddingBottom:insets.bottom}]}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (

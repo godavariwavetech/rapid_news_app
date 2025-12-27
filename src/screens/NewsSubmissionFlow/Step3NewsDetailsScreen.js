@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -23,6 +24,7 @@ const STATUS_BAR_HEIGHT =
 const Step3NewsDetailsScreen = ({navigation, route}) => {
   // const {location} = route.params;
   const [headline, setHeadline] = useState('');
+  const insets = useSafeAreaInsets()
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -348,7 +350,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer,{marginBottom:insets.bottom}]}>
         <TouchableOpacity
           style={[styles.submitButton, isValid && styles.submitButtonActive]}
           onPress={handleNext}

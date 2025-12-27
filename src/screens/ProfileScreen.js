@@ -11,12 +11,14 @@ import {
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ProfileScreen = ({navigation}) => {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets()
   const selectedCategory = useSelector(state => state.news.selectedCategory);
 
   const categories = [
@@ -58,7 +60,7 @@ const ProfileScreen = ({navigation}) => {
       />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header,{paddingTop:insets.top}]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}

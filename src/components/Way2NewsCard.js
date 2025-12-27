@@ -19,6 +19,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
 import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {responsiveFontSize, responsiveScreenWidth, responsiveWidth} from 'react-native-responsive-dimensions'
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const STATUS_BAR_HEIGHT =
@@ -28,6 +30,7 @@ const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
 function Way2NewsCard({news, onPress, onCommentsPress}) {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets()
   const bookmarks = useSelector(state => state.bookmarks.items);
   const isBookmarked = bookmarks.some(item => item.id === news.id);
 
@@ -113,7 +116,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   };
 console.log(news,"news.imageUrl");
   return (
-    <TouchableWithoutFeedback onPress={handleDoubleTap}>
+    <TouchableWithoutFeedback onPress={handleDoubleTap} >
       <View style={styles.card}>
         {/* Image Section */}
         <View style={styles.imageSection}>
@@ -172,7 +175,7 @@ console.log(news,"news.imageUrl");
           </ScrollView>
 
           {/* Stats and Actions Bar */}
-          <View style={styles.statsBar}>
+          <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
             {/* Left Side - Comment, Like, Dislike */}
             <View style={styles.statsLeft}>
               {/* Comment Button */}
@@ -208,12 +211,12 @@ console.log(news,"news.imageUrl");
             {/* Right Side - Menu first, Share last */}
             <View style={styles.actionsRight}>
               {/* Three Dots Menu */}
-              <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
+              <TouchableOpacity style={styles.iconButton} >
                 <Icon name="dots-vertical" size={22} color="#565B67" />
               </TouchableOpacity>
 
               {/* Share Button */}
-              <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+              <TouchableOpacity style={styles.iconButton}>
                 <Icon name="share-variant" size={20} color="#565B67" />
               </TouchableOpacity>
             </View>
@@ -318,7 +321,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: {
-    width: '100%',
+    width: responsiveWidth(100),
     height: '100%',
     resizeMode: 'cover',
   },
@@ -339,8 +342,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reporterImage: {
-    width: 48,
-    height: 48,
+    width: responsiveScreenWidth(10),
+    height: responsiveScreenWidth(10),
     borderRadius: 24,
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -350,7 +353,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reporterName: {
-    fontSize: 15,
+    fontSize: responsiveFontSize(1.8),
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reporterLocation: {
-    fontSize: 13,
+    fontSize: responsiveFontSize(1.6),
     fontWeight: '500',
     color: '#FFFFFFCC',
   },
@@ -372,17 +375,17 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize:responsiveFontSize(2.6),
     fontWeight: '700',
     color: '#1A1A1A',
     lineHeight: 32,
-    marginBottom: 14,
+    // marginBottom: 14,
   },
   bodyContainer: {
     flex: 1,
   },
   body: {
-    fontSize: 17,
+    fontSize: responsiveFontSize(2.4),
     color: '#333',
     lineHeight: 27,
     paddingBottom: 10,
@@ -395,7 +398,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   timestamp: {
-    fontSize: 13,
+    fontSize: responsiveFontSize(1.5),
     color: '#999',
     fontWeight: '500',
   },

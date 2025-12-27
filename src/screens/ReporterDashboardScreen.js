@@ -14,11 +14,13 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MyStoriesScreen from './MyStoriesScreen';
 import TopReportersScreen from './TopReportersScreen';
 import { CommonActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterDashboardScreen = ({navigation}) => {
+  const insets = useSafeAreaInsets()
   const [selectedTab, setSelectedTab] = useState('డాష్‌బోర్డ్');
   const [selectedLocation, setSelectedLocation] = useState('తూర్పు గోదావరి');
 
@@ -112,7 +114,7 @@ const ReporterDashboardScreen = ({navigation}) => {
       <TouchableOpacity
         style={styles.ctaCard}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('SubmitNews')}>
+        onPress={() => navigation.navigate('NewsSubmissionStep1')}>
         <View style={styles.ctaContent}>
           <Text style={styles.ctaTitle}>స్టోర్స్ సూన్స్ పోస్ట్ చేయండి</Text>
           <Text style={styles.ctaSubtitle}>
@@ -249,7 +251,7 @@ const ReporterDashboardScreen = ({navigation}) => {
       </ScrollView>
 
       {/* Bottom Tabs */}
-      <View style={styles.bottomTabsContainer}>
+      <View style={[styles.bottomTabsContainer,{marginBottom:insets.bottom}]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

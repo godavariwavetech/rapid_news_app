@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import React from 'react';
 import {
   View,
@@ -11,12 +12,14 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step4ReviewScreen = ({navigation, route}) => {
+  const insets = useSafeAreaInsets()
   const {location, headline, description, category, image} = route.params;
 
   const handleSubmit = () => {
@@ -27,7 +30,17 @@ const Step4ReviewScreen = ({navigation, route}) => {
       [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('ReporterDashboard'),
+          onPress: () => {
+                navigation.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [
+                          {name: 'ReporterApp'},
+                        ],
+                      }),
+                    );
+            // navigation.navigate('ReporterApp')
+          },
         },
       ]
     );
@@ -94,7 +107,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer,{marginBottom:insets.bottom}]}>
         <TouchableOpacity
           style={styles.submitButton}
           onPress={handleSubmit}

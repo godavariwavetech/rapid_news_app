@@ -9,9 +9,11 @@ import {
   SafeAreaView,
   Linking,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ContactUsScreen = ({navigation}) => {
+  const insets = useSafeAreaInsets()
   const handleEmailPress = (email) => {
     Linking.openURL(`mailto:${email}`);
   };
@@ -21,7 +23,7 @@ const ContactUsScreen = ({navigation}) => {
       <StatusBar barStyle="light-content" backgroundColor="#808080" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header,{paddingTop:insets.top}]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>

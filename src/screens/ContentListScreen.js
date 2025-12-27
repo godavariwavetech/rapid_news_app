@@ -9,10 +9,12 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ContentListScreen = ({navigation, route}) => {
   const {type} = route.params; // 'magazines' or 'videos'
+  const insets = useSafeAreaInsets()
 
   const isVideos = type === 'videos';
   const headerTitle = isVideos ? 'వీడియోస్' : 'డిజిటల్ మ్యాగజిన్స్';
@@ -86,13 +88,13 @@ const ContentListScreen = ({navigation, route}) => {
       <StatusBar barStyle="light-content" backgroundColor="#808080" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton,{marginTop:insets.top}]}
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={26} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{headerTitle}</Text>
+        <Text style={[styles.headerTitle,{marginTop:insets.top}]}>{headerTitle}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

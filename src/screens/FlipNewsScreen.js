@@ -71,44 +71,43 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const nextNews = useMemo(() => MOCK_NEWS[getIndex(currIndex + 1)], [currIndex, getIndex]);
   const prevNews = useMemo(() => MOCK_NEWS[getIndex(currIndex - 1)], [currIndex, getIndex]);
 
-  // --- DATA STABILIZATION FIX ---
-  // When isSwitching is true, we force ALL layers (Static, Front, Back, Destination) 
-  // to display the SAME article (the one we just flipped to).
-  // This prevents the "New Next" article from flashing on the back face before the reset.
-  
+  // Content Stabilizer: Lock all cards to the target news during the switch
   const displayNews = overrideNews || currentNews;
-  
   const activeCurrentNews = isSwitching ? displayNews : currentNews;
   const activeNextNews = isSwitching ? displayNews : nextNews;
   const activePrevNews = isSwitching ? displayNews : prevNews;
 
   useEffect(() => {
     if (isSwitching) {
-      // 1. Instantly reset animation (Flipper snaps to front)
+      // 1. Instantly reset animation (Flipper snaps to front, covered by Static Background)
       scrollY.value = 0;
       swipeDirection.value = 0;
       
-      // 2. Wait a frame for the reset to paint, then release the lock
+      // 2. Wait a brief moment for the repaint, then unlock
       setTimeout(() => {
         setIsSwitching(false);
         setOverrideNews(null);
+        
+        // CRITICAL FIX: Unlock gestures ONLY after everything is reset.
+        // This prevents the "freezing" caused by swiping during the reset gap.
+        isAnimating.value = false;
       }, 50);
     }
   }, [currIndex, isSwitching]);
 
   const finishFlip = (direction) => {
-    // 1. Capture the news we just flipped TO (e.g., News B)
+    // 1. Capture the news we just flipped TO
     const targetNews = direction === 'next' ? nextNews : prevNews;
     setOverrideNews(targetNews);
 
-    // 2. Activate Switching Mode (All cards will now render News B)
+    // 2. Activate Switching Mode
     setIsSwitching(true);
     
-    // 3. Update the actual index
+    // 3. Update the actual index (Triggers the useEffect above)
     const newIndex = direction === 'next' ? getIndex(currIndex + 1) : getIndex(currIndex - 1);
     setCurrIndex(newIndex);
     
-    isAnimating.value = false;
+    // NOTE: isAnimating.value remains TRUE here. It is set to FALSE in the useEffect/setTimeout.
   };
 
   const onLayout = (event) => {
@@ -130,6 +129,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       const position = -e.translationY / containerHeight;
       scrollY.value = position;
       
+      // Lock swipe direction once started
       if (swipeDirection.value === 0 && Math.abs(position) > 0.05) {
         swipeDirection.value = position > 0 ? 1 : -1;
       }
@@ -138,6 +138,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       
+      // Trigger Next
       if (position > 0.15 || -e.velocityY > 600) {
         isAnimating.value = true;
         swipeDirection.value = 1;
@@ -147,6 +148,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           (finished) => { if (finished) runOnJS(finishFlip)('next'); }
         );
       } 
+      // Trigger Prev
       else if (position < -0.15 || -e.velocityY < -600) {
         isAnimating.value = true;
         swipeDirection.value = -1;
@@ -155,7 +157,9 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           { duration: 300, easing: Easing.out(Easing.cubic) }, 
           (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
         );
-      } else {
+      } 
+      // Cancel
+      else {
         swipeDirection.value = 0;
         scrollY.value = withSpring(0, SPRING_CONFIG);
       }
@@ -246,8 +250,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       <GestureDetector gesture={pan}>
         <Animated.View style={styles.container} onLayout={onLayout}>
           
-          {/* Destinations (Behind everything) */}
-          {/* Using active*News ensures these don't flash new content prematurely */}
+          {/* Destinations (Behind) */}
           <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
             <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} />
           </Animated.View>
@@ -255,22 +258,34 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
             <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} />
           </Animated.View>
 
-          {/* STATIC LAYERS (Background/Overlay) */}
-          <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
+          {/* STATIC LAYERS */}
+          {/* Always visible, and prioritized during switching to cover any flickering */}
+          <Animated.View 
+            style={[
+              styles.halfWrapper, 
+              { top: 0, height: halfHeight }, 
+              staticTopStyle, 
+              isSwitching && { opacity: 1, zIndex: 100 }
+            ]}>
             <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
+          <Animated.View 
+            style={[
+              styles.halfWrapper, 
+              { bottom: 0, height: halfHeight }, 
+              staticBottomStyle, 
+              isSwitching && { opacity: 1, zIndex: 100 }
+            ]}>
             <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          {/* FLIPPERS - Always mounted, but content stabilized */}
+          {/* FLIPPERS - Always mounted */}
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
             <Animated.View style={[styles.face, nextFrontStyle]}>
               <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
             <Animated.View style={[styles.face, nextBackStyle]}>
-              {/* This is the key fix: Back face shows 'activeNextNews' which is clamped to 'displayNews' during switch */}
               <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
             </Animated.View>
             <Animated.View style={[styles.shadow, shadowStyle]} />

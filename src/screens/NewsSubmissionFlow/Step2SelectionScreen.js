@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const STATUS_BAR_HEIGHT =
@@ -16,6 +17,7 @@ const STATUS_BAR_HEIGHT =
 
 const Step2SelectionScreen = ({navigation, route}) => {
   const {location} = route.params;
+  const insets = useSafeAreaInsets()
   const [selectedOption, setSelectedOption] = useState(null);
 
   const options = [
@@ -40,16 +42,13 @@ const Step2SelectionScreen = ({navigation, route}) => {
   ];
 
   const handleNext = () => {
-    if (selectedOption) {
       navigation.navigate('NewsSubmissionStep3', {location, selectedOption});
-    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -85,7 +84,7 @@ const Step2SelectionScreen = ({navigation, route}) => {
               key={option.id}
               style={[
                 styles.optionCard,
-                selectedOption === option.id && styles.optionCardSelected,
+                // selectedOption === option.id && styles.optionCardSelected,
                 {borderColor: option.color},
               ]}
               onPress={() => setSelectedOption(option.id)}
@@ -98,11 +97,11 @@ const Step2SelectionScreen = ({navigation, route}) => {
       </ScrollView>
 
       {/* Next Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer,{marginBottom:insets.bottom}]}>
         <TouchableOpacity
-          style={[styles.nextButton, !selectedOption && styles.nextButtonDisabled]}
+          style={[styles.nextButton]}
           onPress={handleNext}
-          disabled={!selectedOption}
+          // disabled={!selectedOption}
           activeOpacity={0.8}>
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>

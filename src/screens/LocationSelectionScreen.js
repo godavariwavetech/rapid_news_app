@@ -10,12 +10,14 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const LocationSelectionScreen = ({navigation}) => {
+  const insets = useSafeAreaInsets()
   const [searchText, setSearchText] = useState('');
 
   const districts = [
@@ -39,7 +41,7 @@ const LocationSelectionScreen = ({navigation}) => {
 
       {/* Header Wrapper */}
       <View style={styles.headerWrapper}>
-        <View style={styles.header}>
+        <View style={[styles.header,{paddingTop:insets.top}]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}>

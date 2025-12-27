@@ -17,14 +17,15 @@ import CategoriesModal from '../components/CategoriesModal';
 import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import {MOCK_NEWS} from '../utils/constants';
 import FlipNewsScreen from './FlipNewsScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
-const ACTUAL_HEIGHT = SCREEN_HEIGHT + STATUS_BAR_HEIGHT;
 
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const articles = useSelector(state => state.news.articles);
   const selectedCategory = useSelector(state => state.news.selectedCategory);
 
@@ -70,7 +71,6 @@ function HomeScreen({navigation}) {
     setUiVisible(prev => !prev);
   };
 
-  // New function to strictly hide UI (used when swiping starts)
   const hideUI = () => {
     if (uiVisible) {
       setUiVisible(false);
@@ -80,9 +80,8 @@ function HomeScreen({navigation}) {
   const handleCategorySelect = category => {
     dispatch(setSelectedCategory(category));
     setCurrentIndex(0);
-    if (flatListRef.current) {
-      flatListRef.current.scrollToIndex({index: 0, animated: false});
-    }
+    // Close modal after selection
+    setCategoriesModalVisible(false);
   };
 
   const handleTabPress = tabId => {
@@ -92,6 +91,7 @@ function HomeScreen({navigation}) {
         setHeaderTitle('న్యూస్');
         break;
       case 'CategoriesTab':
+        // FIX: Just set state to true. Since component is already mounted, it opens instantly.
         setCategoriesModalVisible(true);
         break;
       case 'LocationTab':
@@ -106,37 +106,34 @@ function HomeScreen({navigation}) {
         setActiveTab('ReloadTab');
         setHeaderTitle('రిలోడ్');
         dispatch(setMockNews(MOCK_NEWS));
-        if (flatListRef.current) {
-          flatListRef.current.scrollToIndex({index: 0, animated: true});
-        }
         break;
     }
   };
 
-  // Handle opening comments
   const handleCommentsPress = newsItem => {
     setSelectedNews(newsItem);
     setCommentsVisible(true);
   };
 
+  const onProfilePress = () => {
+    navigation.navigate("Profile");
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Top Header - Animated Overlay */}
       <Animated.View
         style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
-        <Header title={headerTitle} />
+        <Header title={headerTitle} onProfilePress={onProfilePress}/>
       </Animated.View>
 
-      {/* Flip News Screen with UI Handlers */}
       <FlipNewsScreen
         toggleUI={toggleUI}
         hideUI={hideUI}
         onCommentsPress={handleCommentsPress}
       />
 
-      {/* News Counter */}
       {uiVisible && (
         <View style={styles.counterContainer}>
           <Text style={styles.counterText}>
@@ -145,35 +142,30 @@ function HomeScreen({navigation}) {
         </View>
       )}
 
-      {/* Bottom Tab Bar - Animated Overlay */}
       <Animated.View
         style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
         <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
       </Animated.View>
 
-      {/* Categories Modal - Highest zIndex */}
-      {categoriesModalVisible && <View style={{flex:1}}>
-              <CategoriesModal
+      {/* FIX: Render directly (removed {categoriesModalVisible && ...}) to prevent lag */}
+      <CategoriesModal
         visible={categoriesModalVisible}
         onClose={() => setCategoriesModalVisible(false)}
         onSelectCategory={handleCategorySelect}
         selectedCategory={selectedCategory}
       />
-        </View>}
-      {/* <CategoriesModal
-        visible={categoriesModalVisible}
-        onClose={() => setCategoriesModalVisible(false)}
-        onSelectCategory={handleCategorySelect}
-        selectedCategory={selectedCategory}
-      /> */}
 
-      {/* Comments Bottom Sheet - High zIndex */}
-      <CommentsBottomSheet
-        visible={commentsVisible}
-        onClose={() => setCommentsVisible(false)}
-        newsId={selectedNews?.id}
-        newsTitle={selectedNews?.title}
-      />
+      {/* Comments Bottom Sheet */}
+      {commentsVisible && (
+        <View style={{flex:1, position:"absolute", top:0, left:0, bottom:0, right:0, zIndex: 200}}>
+          <CommentsBottomSheet
+            visible={commentsVisible}
+            onClose={() => setCommentsVisible(false)}
+            newsId={selectedNews?.id}
+            newsTitle={selectedNews?.title}
+          />
+        </View>
+      )}
     </View>
   );
 }
