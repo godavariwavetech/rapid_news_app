@@ -9,11 +9,12 @@ import {
   StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {useSelector, useDispatch} from 'react-redux';
-import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
+import { useSelector, useDispatch } from 'react-redux';
+import { addBookmark, removeBookmark } from '../redux/reducers/bookmarks';
+import NewsInteractions from '../components/NewsInteractions'; // Import new component
 
-const NewsDetailScreen = ({route, navigation}) => {
-  const {news} = route.params;
+const NewsDetailScreen = ({ route, navigation }) => {
+  const { news } = route.params;
   const dispatch = useDispatch();
   const bookmarks = useSelector(state => state.bookmarks.items);
   const isBookmarked = bookmarks.some(item => item.id === news.id);
@@ -30,7 +31,7 @@ const NewsDetailScreen = ({route, navigation}) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Custom Header */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -48,34 +49,30 @@ const NewsDetailScreen = ({route, navigation}) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Image source={{uri: news.image}} style={styles.mainImage} />
+        <Image source={{ uri: news.image }} style={styles.mainImage} />
 
         <View style={styles.content}>
+          {/* Category & Date */}
           <View style={styles.metaRow}>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{news.category.toUpperCase()}</Text>
+              <Text style={styles.categoryText}>
+                {news.category ? news.category.toUpperCase() : 'NEWS'}
+              </Text>
             </View>
             <Text style={styles.dateText}>{news.date}</Text>
           </View>
 
           <Text style={styles.title}>{news.title}</Text>
 
+          {/* Stats Row (Only Views & Location now, others handled by Interactions) */}
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Icon name="eye-outline" size={18} color="#888" />
-              <Text style={styles.statText}>{news.views}</Text>
-            </View>
-            <View style={styles.stat}>
-              <Icon name="thumb-up-outline" size={18} color="#888" />
-              <Text style={styles.statText}>{news.likes}</Text>
-            </View>
-            <View style={styles.stat}>
-              <Icon name="comment-outline" size={18} color="#888" />
-              <Text style={styles.statText}>{news.comments}</Text>
+              <Text style={styles.statText}>{news.views || 0} Views</Text>
             </View>
             <View style={styles.stat}>
               <Icon name="map-marker" size={18} color="#4ECDC4" />
-              <Text style={styles.statText}>{news.location}</Text>
+              <Text style={styles.statText}>{news.location || 'Global'}</Text>
             </View>
           </View>
 
@@ -86,29 +83,13 @@ const NewsDetailScreen = ({route, navigation}) => {
           )}
         </View>
 
-        {/* Action Bar */}
-        <View style={styles.actionBar}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
-            <Icon
-              name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={24}
-              color={isBookmarked ? '#FF6B35' : '#333'}
-            />
-            <Text style={styles.actionText}>
-              {isBookmarked ? 'Saved' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+        {/* --- NEW INTERACTION COMPONENT --- */}
+        <NewsInteractions 
+          newsId={news.id} 
+          likeCount={news.likes} 
+          commentCount={news.comments} 
+        />
 
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="share-variant" size={24} color="#333" />
-            <Text style={styles.actionText}>Share</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="comment-outline" size={24} color="#333" />
-            <Text style={styles.actionText}>Comment</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
@@ -205,24 +186,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#444',
     lineHeight: 26,
-  },
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
   },
 });
 

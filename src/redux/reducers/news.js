@@ -1,29 +1,36 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../utils/api'; // Corrected path to your api.js
+import { getUniqueId } from 'react-native-device-info';
+import { Platform } from 'react-native'; 
+import api from '../../utils/api'; 
+import { endpoints } from '../../config/config';
 
 const initialState = {
-  // --- Existing News List State ---
   articles: [],
   loading: false,
   error: null,
   selectedCategory: 'all',
   refreshing: false,
-
-  // --- New Interaction State (Comments/Likes) ---
   currentComments: [],
-  isLoadingComments: false, // Loading state for the comments modal
-  isPostingComment: false,  // Loading state for submitting a comment
+  isLoadingComments: false, 
+  isPostingComment: false,  
   interactionError: null,
 };
 
-// --- ASYNC THUNKS ---
-
-// 1. Fetch News List
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (category = 'all', { rejectWithValue }) => {
     try {
-      const response = await api.get(`news?category=${category}`);
+      const response = await api.get(endpoints.GET_NEWS_FEED, {
+        params: {
+          village_id: '693d34588b5e54c56d55c925',
+          mandal_id: '693d34588b5e54c56d55c924',
+          district_id: '693d34588b5e54c56d55c923',
+          state_id: '693d34588b5e54c56d55c922',
+          lang: 'te',
+          page: 1,
+          limit: 20,
+        }
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -31,18 +38,17 @@ export const fetchNews = createAsyncThunk(
   }
 );
 
-// 2. React to News (Like/Dislike)
 export const reactToNews = createAsyncThunk(
   'news/reactToNews',
   async ({ newsId, type }, { rejectWithValue }) => {
     try {
+      const deviceId = await getUniqueId();
       const payload = { 
         news_id: newsId, 
-        type: type, // "LIKE" or "DISLIKE"
-        device_id: "device-123" // Static Device ID as requested
+        type: type, 
+        device_id: deviceId 
       };
-      // Adjust endpoint if needed (e.g., 'news/react' or 'react')
-      const response = await api.post('news/react', payload); 
+      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload); 
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -55,8 +61,9 @@ export const getComments = createAsyncThunk(
   'news/getComments',
   async (newsId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`comments/${newsId}`);
-      return response.data;
+      const url = endpoints.GET_COMMENTS.replace(':id', newsId);
+      const response = await api.get(url);
+      return response.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -72,13 +79,30 @@ export const postComment = createAsyncThunk(
         news_id: newsId, 
         text: text 
       };
-      const response = await api.post('comments', payload);
+      const response = await api.post(endpoints.ADD_COMMENT, payload);
       
-      // Refresh comments list immediately after successful post
       dispatch(getComments(newsId)); 
       
       return response.data;
     } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const trackAdClick = createAsyncThunk(
+  'news/trackAdClick',
+  async (adId, { rejectWithValue }) => {
+    try {
+      const payload = {
+        source: "feed",
+        platform: Platform.OS 
+      };
+      const url = endpoints.TRACK_AD_CLICK.replace(':id', adId);
+      const response = await api.post(url, payload);
+      return response.data;
+    } catch (error) {
+      console.log('Ad tracking failed:', error);
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -127,7 +151,7 @@ const newsSlice = createSlice({
       })
       .addCase(getComments.fulfilled, (state, action) => {
         state.isLoadingComments = false;
-        state.currentComments = action.payload;
+        state.currentComments = action.payload.items || []; 
       })
       .addCase(getComments.rejected, (state, action) => {
         state.isLoadingComments = false;
@@ -145,11 +169,6 @@ const newsSlice = createSlice({
       .addCase(postComment.rejected, (state, action) => {
         state.isPostingComment = false;
         state.interactionError = action.payload;
-      })
-
-      // React (Like/Dislike)
-      .addCase(reactToNews.fulfilled, (state, action) => {
-        // Optional: Update local state if API returns updated counts
       });
   },
 });

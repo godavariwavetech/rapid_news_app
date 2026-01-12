@@ -9,8 +9,9 @@ import {
   Platform,
   StatusBar,
   Modal,
+  Linking,
 } from 'react-native';
-// CHANGE: Import Touchables from gesture-handler to fix conflicts with Flip gesture
+import FastImage from 'react-native-fast-image';
 import {
   TouchableWithoutFeedback,
   TouchableOpacity
@@ -18,9 +19,15 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
-import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {responsiveFontSize, responsiveScreenWidth, responsiveWidth} from 'react-native-responsive-dimensions'
+import {responsiveFontSize, responsiveScreenWidth, responsiveWidth} from 'react-native-responsive-dimensions';
+
+// Assets
+import { applogo } from '../assets'; 
+
+// Redux Actions
+import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
+import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news'; // Added trackAdClick
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const STATUS_BAR_HEIGHT =
@@ -30,12 +37,16 @@ const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
 function Way2NewsCard({news, onPress, onCommentsPress}) {
   const dispatch = useDispatch();
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsets();
+  
+  // Selectors
   const bookmarks = useSelector(state => state.bookmarks.items);
-  const isBookmarked = bookmarks.some(item => item.id === news.id);
+  const isBookmarked = news.id ? bookmarks.some(item => item.id === news.id) : false;
 
+  // Local state for UI feedback
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
+  
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [lastTap, setLastTap] = useState(0);
@@ -43,29 +54,39 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   // Check if this news has reporter info
   const hasReporter = news.reporter && news.reporter.name;
 
+  // --- Handlers ---
+
   const handleDoubleTap = () => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
     if (lastTap && (now - lastTap) < DOUBLE_PRESS_DELAY) {
-      // Double tap detected - open full screen image
       setFullScreenImage(true);
-      setLastTap(0); // Reset
+      setLastTap(0); 
     } else {
-      // Single tap - toggle UI
       setLastTap(now);
       if (onPress) {
         onPress();
       }
     }
   };
+  
+  // Specific handler for Ad clicks
+  const handleAdPress = () => {
+    // 1. Track the ad click (Fire and forget)
+    if (news.id) {
+        dispatch(trackAdClick(news.id));
+    }
 
-  const handleShare = e => {
-    // Prevent event bubbling
-    // if (e && e.stopPropagation) e.stopPropagation();
-    // Note: RNGH events behave slightly differently, usually handled by component structure
+    // 2. Open URL
+    if (news.redirectUrl) {
+      Linking.openURL(news.redirectUrl).catch(err => 
+        console.error("Failed to open URL:", err)
+      );
+    }
   };
 
   const handleCommentsPress = () => {
+    dispatch(getComments(news.id));
     if (onCommentsPress) {
       onCommentsPress(news);
     }
@@ -77,6 +98,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     } else {
       setLiked(true);
       setDisliked(false);
+      dispatch(reactToNews({ newsId: news.id, type: 'LIKE' }));
     }
   };
 
@@ -86,7 +108,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     } else {
       setDisliked(true);
       setLiked(false);
+      dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' }));
     }
+  };
+
+  const handleShare = () => {
+     console.log("Share pressed for news:", news.id);
   };
 
   const handleMenuPress = () => {
@@ -114,12 +141,53 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         break;
     }
   };
+
+  // --- RENDER AD CARD ---
+  if (news.isAd) {
+    return (
+      <TouchableWithoutFeedback onPress={handleAdPress}>
+        <View style={styles.card}>
+          <FastImage 
+            source={{
+              uri: news.image,
+              priority: FastImage.priority.high,
+            }} 
+            style={[styles.image, { height: '100%', width: '100%' }]} 
+            resizeMode={FastImage.resizeMode.cover} 
+          />
+          {/* Ad Watermark */}
+          <Image source={applogo} style={styles.watermarkLogo} /> 
+          
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            style={[styles.reporterGradient, { height: 120 }]}
+          />
+          <View style={styles.adBadgeContainer}>
+            <Text style={styles.adBadgeText}>{news.label || 'Sponsored'}</Text>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    );
+  }
+
+  // --- RENDER NEWS CARD ---
   return (
     <TouchableWithoutFeedback onPress={handleDoubleTap} >
       <View style={styles.card}>
         {/* Image Section */}
         <View style={styles.imageSection}>
-          <Image source={{uri: news.image}} style={styles.image} />
+          <FastImage 
+            source={{
+              uri: news.image,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }} 
+            style={styles.image} 
+            resizeMode={FastImage.resizeMode.cover}
+          />
+
+          {/* APP LOGO WATERMARK - Bottom Right */}
+          <Image source={applogo} style={styles.watermarkLogo} />
 
           {/* Reporter Section with Gradient */}
           {hasReporter && (
@@ -129,9 +197,13 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 style={styles.reporterGradient}
               />
               <View style={styles.reporterSection}>
-                <Image
-                  source={{uri: news.reporter.imageUrl}}
+                <FastImage
+                  source={{
+                    uri: news.reporter.imageUrl,
+                    priority: FastImage.priority.normal
+                  }}
                   style={styles.reporterImage}
+                  resizeMode={FastImage.resizeMode.cover}
                 />
                 <View style={styles.reporterInfo}>
                   <Text style={styles.reporterName}>{news.reporter.name}</Text>
@@ -153,8 +225,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <Text style={styles.title}>{news.title}</Text>
 
           {/* Body - Scrollable */}
-          {/* Note: ScrollView inside GestureHandler needs careful handling usually,
-              but standard ScrollView often works for simple cases */}
           <ScrollView
             style={styles.bodyContainer}
             showsVerticalScrollIndicator={false}
@@ -177,6 +247,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
             {/* Left Side - Comment, Like, Dislike */}
             <View style={styles.statsLeft}>
+              
               {/* Comment Button */}
               <TouchableOpacity
                 style={styles.statButton}
@@ -193,7 +264,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                   color={liked ? '#2196F3' : '#565B67'}
                 />
                 <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
-                  {liked ? parseInt(news.likes) + 1 : news.likes}
+                  {liked ? parseInt(news?.likes || 0) + 1 : (news.likes || 0)}
                 </Text>
               </TouchableOpacity>
 
@@ -210,12 +281,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             {/* Right Side - Menu first, Share last */}
             <View style={styles.actionsRight}>
               {/* Three Dots Menu */}
-              <TouchableOpacity style={styles.iconButton} >
+              <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
                 <Icon name="dots-vertical" size={22} color="#565B67" />
               </TouchableOpacity>
 
               {/* Share Button */}
-              <TouchableOpacity style={styles.iconButton}>
+              <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
                 <Icon name="share-variant" size={20} color="#565B67" />
               </TouchableOpacity>
             </View>
@@ -292,10 +363,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             <TouchableWithoutFeedback
               onPress={() => setFullScreenImage(false)}
               activeOpacity={0.8}>
-              <Image
-                source={{uri: news.imageUrl}}
+              <FastImage
+                source={{uri: news.image}} 
                 style={styles.fullScreenImage}
-                resizeMode="contain"
+                resizeMode={FastImage.resizeMode.contain}
               />
             </TouchableWithoutFeedback>
             <View style={styles.imageInfo}>
@@ -318,11 +389,40 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: IMAGE_HEIGHT,
     position: 'relative',
+    backgroundColor: '#f0f0f0', 
   },
   image: {
     width: responsiveWidth(100),
     height: '100%',
-    resizeMode: 'cover',
+  },
+  // --- Watermark Style ---
+  watermarkLogo: {
+    position: 'absolute',
+    bottom: 15,
+    right: 15,
+    width: 45, 
+    height: 45, 
+    resizeMode: 'contain',
+    zIndex: 10, 
+    opacity: 0.9,
+  },
+  // Ad Specific Styles
+  adBadgeContainer: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  adBadgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   reporterGradient: {
     position: 'absolute',
@@ -378,7 +478,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     lineHeight: 32,
-    // marginBottom: 14,
   },
   bodyContainer: {
     flex: 1,

@@ -11,8 +11,9 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useSelector } from 'react-redux'; //
+import { useSelector } from 'react-redux';
 import Way2NewsCard from '../components/Way2NewsCard';
+import ShimmerLoader from '../components/ShimmerLoader'; // Import Shimmer
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -32,6 +33,41 @@ const formatTimeAgo = (dateString) => {
   interval = seconds / 60;
   if (interval > 1) return Math.floor(interval) + " minutes ago";
   return Math.floor(seconds) + " seconds ago";
+};
+
+// --- SKELETON LOADING COMPONENT ---
+const NewsSkeleton = ({ height }) => {
+  const imageHeight = height * 0.45;
+  const contentHeight = height - imageHeight;
+
+  return (
+    <View style={[styles.skeletonContainer, { height }]}>
+      {/* Image Placeholder */}
+      <ShimmerLoader height={imageHeight} borderRadius={0} />
+      
+      <View style={styles.skeletonContent}>
+        {/* Title Placeholder */}
+        <ShimmerLoader height={30} borderRadius={4} />
+        <View style={{height: 10}} />
+        <ShimmerLoader height={30} borderRadius={4} />
+        <View style={{height: 20}} />
+        
+        {/* Body Placeholder */}
+        <ShimmerLoader height={20} borderRadius={4} />
+        <View style={{height: 8}} />
+        <ShimmerLoader height={20} borderRadius={4} />
+        <View style={{height: 8}} />
+        <ShimmerLoader height={20} borderRadius={4} />
+        <View style={{height: 8}} />
+        <ShimmerLoader height={20} borderRadius={4} />
+        
+        {/* Stats Bar Placeholder */}
+        <View style={{ marginTop: 'auto', marginBottom: 20 }}>
+          <ShimmerLoader height={40} borderRadius={4} />
+        </View>
+      </View>
+    </View>
+  );
 };
 
 // --- PHYSICS CONFIGURATION ---
@@ -69,35 +105,55 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
 });
 
 const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
-  // Redux నుండి ఆర్టికల్స్ తీసుకోండి
-  const { articles } = useSelector(state => state.news);
+  // Get articles and loading state from Redux
+  const { articles, loading } = useSelector(state => state.news);
   
   // API Data Mapping
   const formattedNews = useMemo(() => {
-    // API రెస్పాన్స్ { items: [...] } లేదా డైరెక్ట్ array కావచ్చు, రెండింటినీ హ్యాండిల్ చేయడం
     const rawItems = articles?.items || (Array.isArray(articles) ? articles : []);
 
-    return rawItems.map(item => ({
-      id: item._id,
-      title: item.content?.title || '',
-      body: item.content?.body || '',
-      short: item.content?.short || '',
-      // ఇమేజ్ లేకపోతే డీఫాల్ట్ ప్లేస్‌హోల్డర్
-      image: item.images?.length > 0 ? item.images[0] : 'https://via.placeholder.com/600x400',
-      publishedAt: item.published_at,
-      timeAgo: formatTimeAgo(item.published_at),
-      likes: '0', // APIలో కీస్ వస్తే ఇక్కడ మ్యాప్ చేయాలి
-      comments: '0',
-      reporter: item.reporter || {
-        name: 'Reporter',
-        imageUrl: 'https://via.placeholder.com/100', // డీఫాల్ట్ రిపోర్టర్ ఇమేజ్
-        location: 'Andhra Pradesh'
+    return rawItems.map(item => {
+      // Check if it is an AD
+      if (item.type === 'AD') {
+        return {
+          id: item.data._id,
+          type: 'AD',
+          isAd: true,
+          image: item.data.image, // Base64 string
+          redirectUrl: item.data.redirect_url,
+          label: item.data.label || 'Sponsored',
+          title: item.data.label || 'Advertisement',
+          likes: 0,
+          comments: 0,
+        };
+      } 
+      // Handle NEWS type
+      else {
+        const data = item.data;
+        return {
+          id: data._id,
+          type: 'NEWS',
+          isAd: false,
+          title: data.content?.title || '',
+          body: data.content?.body || '',
+          short: data.content?.short || '',
+          image: data.images?.length > 0 ? data.images[0] : 'https://via.placeholder.com/600x400',
+          publishedAt: data.published_at,
+          timeAgo: formatTimeAgo(data.published_at),
+          likes: data?.reactions?.likes || 0,
+          comments: data?.comments?.count || 0,
+          reporter: data.reporter || {
+            name: 'Reporter',
+            imageUrl: 'https://via.placeholder.com/100',
+            location: 'Andhra Pradesh'
+          }
+        };
       }
-    }));
+    });
   }, [articles]);
 
   const [currIndex, setCurrIndex] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
   
   // Transition state
   const [isSwitching, setIsSwitching] = useState(false);
@@ -114,12 +170,10 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     return ((i % len) + len) % len;
   }, [formattedNews]);
 
-  // MOCK_NEWS బదులుగా formattedNews వాడాలి
   const currentNews = useMemo(() => formattedNews[getIndex(currIndex)], [currIndex, getIndex, formattedNews]);
   const nextNews = useMemo(() => formattedNews[getIndex(currIndex + 1)], [currIndex, getIndex, formattedNews]);
   const prevNews = useMemo(() => formattedNews[getIndex(currIndex - 1)], [currIndex, getIndex, formattedNews]);
 
-  // Content Stabilizer: Lock all cards to the target news during the switch
   const displayNews = overrideNews || currentNews;
   const activeCurrentNews = isSwitching ? displayNews : currentNews;
   const activeNextNews = isSwitching ? displayNews : nextNews;
@@ -127,11 +181,8 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
 
   useEffect(() => {
     if (isSwitching) {
-      // 1. Instantly reset animation
       scrollY.value = 0;
       swipeDirection.value = 0;
-      
-      // 2. Wait a brief moment for the repaint, then unlock
       setTimeout(() => {
         setIsSwitching(false);
         setOverrideNews(null);
@@ -200,7 +251,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     });
 
   // --- ANIMATED STYLES ---
-
   const VISIBILITY_THRESHOLD = 0.01;
   const PERSPECTIVE_VAL = 6000; 
 
@@ -236,8 +286,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     };
   });
 
-  // --- FACE LOGIC ---
-
   const nextFrontStyle = useAnimatedStyle(() => ({
     opacity: scrollY.value < 0.5 ? 1 : 0, 
     zIndex: scrollY.value < 0.5 ? 2 : 1,
@@ -260,8 +308,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     transform: [{ rotateX: '180deg' }],
   }));
 
-  // --- STATIC BACKGROUND LOGIC ---
-
   const staticTopStyle = useAnimatedStyle(() => ({
     opacity: scrollY.value < -VISIBILITY_THRESHOLD ? 0 : 1,
     zIndex: 2,
@@ -276,17 +322,18 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  if (containerHeight === 0) {
-    return <View style={styles.container} onLayout={onLayout} />;
-  }
-  
-  // డేటా లేనప్పుడు లోడింగ్ లేదా ఖాళీ వ్యూ చూపించడానికి (ఆప్షనల్)
-  if (!displayNews) {
-    return (
+  // Handle Loading State
+  if (loading && formattedNews.length === 0) {
+     return (
         <View style={styles.container} onLayout={onLayout}>
-             {/* కావాలంటే ఇక్కడ Shimmer లేదా Loading Indicator పెట్టవచ్చు */}
+           <NewsSkeleton height={containerHeight} />
         </View>
-    );
+     );
+  }
+
+  // Handle Empty Data (non-loading)
+  if (!displayNews) {
+    return <View style={styles.container} onLayout={onLayout} />;
   }
 
   return (
@@ -294,7 +341,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       <GestureDetector gesture={pan}>
         <Animated.View style={styles.container} onLayout={onLayout}>
           
-          {/* Destinations (Behind) */}
+          {/* Destinations */}
           <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
             <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} />
           </Animated.View>
@@ -385,6 +432,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'black',
   },
+  // Skeleton Styles
+  skeletonContainer: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
+  skeletonContent: {
+    flex: 1,
+    padding: 20,
+  }
 });
 
 export default FlipNewsScreen;

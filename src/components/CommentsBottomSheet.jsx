@@ -11,46 +11,35 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
-  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch, useSelector } from 'react-redux';
+import { getComments, postComment } from '../redux/reducers/news';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
-  const [commentText, setCommentText] = useState('');
-  const insets = useSafeAreaInsets()
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   
-  // Controls the actual visibility of the Modal component
+  const { currentComments, isLoadingComments, isPostingComment } = useSelector(
+    state => state.news
+  );
+
+  const [commentText, setCommentText] = useState('');
   const [modalVisible, setModalVisible] = useState(visible);
   
-  // Animation values
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const opacity = useRef(new Animated.Value(0)).current; // For the background dimming
-
-  // Mock data (kept same)
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      number: 1,
-      avatar: '#C8A2E0',
-      username: 'rajendradeverap',
-      location: 'కృష్ణా',
-      text: 'ఈ సమాచారం చాలా ఉపయోగకరంగా ఉంది. పరిస్థితి తీవ్రమైన తెలుస్తోంది. దయచేసి మరిన్ని అప్డేట్స్ ఇవ్వండి.',
-      time: '0 secs ago',
-      likes: 12,
-      liked: false,
-      color: '#E8D5F5',
-    },
-    // ... other items
-  ]);
+  const opacity = useRef(new Animated.Value(0)).current; 
 
   useEffect(() => {
     if (visible) {
       setModalVisible(true);
-      // Wait for mount, then animate IN
+      if (newsId) {
+        dispatch(getComments(newsId));
+      }
       requestAnimationFrame(() => {
         Animated.parallel([
           Animated.spring(translateY, {
@@ -67,7 +56,6 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
         ]).start();
       });
     } else {
-      // Animate OUT
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: SCREEN_HEIGHT,
@@ -81,20 +69,26 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
         }),
       ]).start(() => {
         setModalVisible(false);
-        if (onClose) onClose(); // Ensure parent state is synced
+        if (onClose) onClose(); 
       });
     }
-  }, [visible]);
+  }, [visible, newsId, dispatch]);
 
   const handleClose = () => {
-    // Trigger the close animation via the prop update or local logic
     if (onClose) onClose();
   };
 
   const handleSendComment = () => {
-    if (commentText.trim()) {
-      setCommentText('');
-    }
+    if (!commentText.trim()) return;
+
+    dispatch(postComment({ newsId, text: commentText }))
+      .unwrap()
+      .then(() => {
+        setCommentText(''); 
+      })
+      .catch((err) => {
+        console.error("Failed to post comment:", err);
+      });
   };
 
   if (!modalVisible) return null;
@@ -107,7 +101,6 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
       onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
-      {/* 1. Animated Background Overlay (Fades In/Out) */}
       <Animated.View style={[styles.backdropContainer, {opacity}]}>
         <TouchableOpacity 
           style={StyleSheet.absoluteFill} 
@@ -116,18 +109,13 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
         />
       </Animated.View>
 
-      {/* 2. Sliding Sheet Content */}
       <Animated.View
         style={[
           styles.modalContainer,
-          {
-            transform: [{translateY}],
-          },
+          { transform: [{translateY}] },
         ]}>
         
-        {/* White Background Container */}
         <View style={styles.sheetContent}>
-          {/* Handle Bar */}
           <View style={styles.handleBarContainer}>
              <View style={styles.handleBar} />
           </View>
@@ -136,94 +124,92 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.keyboardContainer}>
             
-            {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <TouchableOpacity style={styles.backButton} onPress={handleClose}>
                   <Icon name="arrow-left" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle} numberOfLines={1}>
-                  {newsTitle || 'కాకినాడను తాకిన మరిన్ని తుఫాను...'}
+                  {newsTitle || 'Comments'}
                 </Text>
-              </View>
-              <View style={styles.headerRight}>
-                <Text style={styles.notificationLabel}>నోటిఫికేషన్</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.toggle,
-                    notificationsEnabled && styles.toggleActive,
-                  ]}
-                  onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-                  activeOpacity={0.8}>
-                  <View
-                    style={[
-                      styles.toggleThumb,
-                      notificationsEnabled && styles.toggleThumbActive,
-                    ]}
-                  />
-                </TouchableOpacity>
               </View>
             </View>
 
-            {/* Comments List */}
-            <ScrollView
-              style={styles.content}
-              showsVerticalScrollIndicator={false}>
-              {comments.map(comment => (
-                <View key={comment.id} style={styles.commentCard}>
-                  <View style={styles.commentLeft}>
-                    <View
-                      style={[styles.avatar, {backgroundColor: comment.avatar}]}>
-                      <Text style={styles.avatarText}>{comment.number}</Text>
-                    </View>
-                  </View>
+            {isLoadingComments ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2196F3" />
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.content}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}>
+                
+                {currentComments && currentComments.length > 0 ? (
+                  currentComments.map((comment, index) => {
+                    // UPDATED: Handle nested user object and createdAt
+                    const userName = comment.user_id?.name || 'User';
+                    const userInitial = userName.charAt(0).toUpperCase();
+                    const timeString = comment.createdAt 
+                      ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                      : '';
 
-                  <View style={styles.commentRight}>
-                    <View
-                      style={[
-                        styles.commentBubble,
-                        {backgroundColor: comment.color},
-                      ]}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.username}>{comment.username}</Text>
-                        <View style={styles.locationRow}>
-                          <Icon name="map-marker" size={14} color="#666" />
-                          <Text style={styles.location}>{comment.location}</Text>
+                    return (
+                      <View key={comment._id || index} style={styles.commentCard}>
+                        <View style={styles.commentLeft}>
+                          <View style={[styles.avatar, {backgroundColor: '#E8D5F5'}]}>
+                            <Text style={styles.avatarText}>{userInitial}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.commentRight}>
+                          <View style={[styles.commentBubble, {backgroundColor: '#F5F6F8'}]}>
+                            <View style={styles.commentHeader}>
+                              <Text style={styles.username}>{userName}</Text>
+                            </View>
+                            <Text style={styles.commentText}>{comment.text}</Text>
+                          </View>
+
+                          <View style={styles.commentActions}>
+                            <Text style={styles.commentTime}>{timeString}</Text>
+                            <View style={styles.actionButtons}>
+                              <TouchableOpacity style={styles.actionButton}>
+                                <Icon name="reply" size={18} color="#666" />
+                                <Text style={styles.actionText}>Reply</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
                         </View>
                       </View>
-                      <Text style={styles.commentText}>{comment.text}</Text>
-                    </View>
-
-                    <View style={styles.commentActions}>
-                      <Text style={styles.commentTime}>{comment.time}</Text>
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity style={styles.actionButton}>
-                          <Icon name="reply" size={18} color="#666" />
-                          <Text style={styles.actionText}>Reply</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                    );
+                  })
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No comments yet.</Text>
                   </View>
-                </View>
-              ))}
-              <View style={{height: 20}} />
-            </ScrollView>
+                )}
+              </ScrollView>
+            )}
 
-            {/* Input */}
-            <View style={[styles.inputContainer,{marginBottom:insets.bottom}]}>
+            <View style={[styles.inputContainer, {marginBottom: insets.bottom}]}>
               <TextInput
                 style={styles.input}
-                placeholder="కామెంట్ చేయండి"
+                placeholder="Write a comment..."
                 placeholderTextColor="#999"
                 value={commentText}
                 onChangeText={setCommentText}
                 multiline
               />
               <TouchableOpacity
-                style={styles.sendButton}
+                style={[styles.sendButton, !commentText.trim() && { backgroundColor: '#ccc' }]}
                 onPress={handleSendComment}
+                disabled={isPostingComment || !commentText.trim()}
                 activeOpacity={0.8}>
-                <Icon name="send" size={24} color="#FFFFFF" />
+                {isPostingComment ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Icon name="send" size={24} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
@@ -234,19 +220,17 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 };
 
 const styles = StyleSheet.create({
-  // This view covers the whole screen behind the sheet
   backdropContainer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
     zIndex: 1,
   },
-  // This is the sliding sheet itself
   modalContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '95%', // Almost full screen
+    height: '95%',
     zIndex: 2,
   },
   sheetContent: {
@@ -297,48 +281,28 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     flex: 1,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  notificationLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-  },
-  toggle: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E0E0E0',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleActive: {
-    backgroundColor: '#FF3B30',
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
   content: {
     flex: 1,
     backgroundColor: '#F5F6F8',
   },
+  loadingContainer: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: '#F5F6F8',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#999',
+    fontSize: 14,
+  },
   commentCard: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   commentLeft: {
     marginRight: 12,
@@ -373,15 +337,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#1A1A1A',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  location: {
-    fontSize: 12,
-    color: '#666',
   },
   commentText: {
     fontSize: 14,
