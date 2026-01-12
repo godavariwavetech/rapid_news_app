@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {setMockNews, setSelectedCategory} from '../redux/reducers/news';
+import {fetchNews, setMockNews, setSelectedCategory} from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
@@ -28,6 +28,7 @@ function HomeScreen({navigation}) {
   const insets = useSafeAreaInsets();
   const articles = useSelector(state => state.news.articles);
   const selectedCategory = useSelector(state => state.news.selectedCategory);
+  const {currentLocation} = useSelector(state => state.location)
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -41,8 +42,11 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
 
+  console.log(articles,">>>>>>>>>>>>>>>>>>currentLocation");
+
+
   useEffect(() => {
-    dispatch(setMockNews(MOCK_NEWS));
+    dispatch(fetchNews())
   }, [dispatch]);
 
   useEffect(() => {

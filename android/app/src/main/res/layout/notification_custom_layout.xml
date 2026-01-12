@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1C1C1E"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <FrameLayout
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/circle_background">
+        
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="6dp"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="icon" />
+    </FrameLayout>
+
+    <ImageView
+        android:id="@+id/custom_img"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="12dp"
+        android:background="#F5A623" 
+        android:scaleType="centerCrop"
+        android:contentDescription="thumbnail" />
+        <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/custom_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="IPLలో ఆ ప్లేయర్‌ను"
+            android:textColor="#FF453A"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+            <TextView
+            android:id="@+id/custom_body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="ఆడనివ్వద్దని డిమాండ్లు"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:tint="#888888"
+        android:contentDescription="expand" />
+
+</LinearLayout>

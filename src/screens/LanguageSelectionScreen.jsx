@@ -66,7 +66,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
     navigation.replace('Main');
   };
   
-    const fetchLocationAres = async () => {
+    const fetchLocationAreas = async () => {
       try {
          const position = await LocationService.getLocation();
          dispatch(resolveLocation({latitude:position.coords?.latitude,longitude:position.coords?.longitude}))
@@ -76,7 +76,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
     }
   
     useEffect(()=>{
-       fetchLocationAres()
+       fetchLocationAreas()
     },[])
   
 

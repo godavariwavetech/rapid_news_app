@@ -15,16 +15,12 @@ import { lightTheme } from '../utils/colors'; //
 import { applogo } from '../assets';
 
 const SplashScreen = ({ navigation }) => {
-  // 1. Get Auth State
   const isOnboardingComplete = useSelector(state => state.auth.isOnboardingComplete); //
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
-
-  // 2. Animation Values
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const textOpacity = useSharedValue(0);
 
-  // 3. Navigation Logic
   const handleNavigation = () => {
     if (!isOnboardingComplete) {
       navigation.replace('LanguageSelection');
@@ -36,8 +32,6 @@ const SplashScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    // 4. Animation Sequence
-    // Logo pops up
     scale.value = withSequence(
       withTiming(0.5, { duration: 300 }),
       withSpring(1, { damping: 10, stiffness: 100 })

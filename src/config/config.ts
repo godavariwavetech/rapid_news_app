@@ -8,6 +8,9 @@ export const endpoints = {
   RESOLVE_LOCATION: 'location/resolve',
   GET_NEWS_FEED: 'news/feed',
   GUEST_REACT_LIKE: 'reactions',
+
+  GET_DISTRICTS: 'location/districts',
+  GET_STATES: 'location/states',
   // Usage: replace :id with news_id
   GET_COMMENTS: 'comments/:id',
   GET_REACTION_COUNTS: 'reactions/:id',
@@ -17,10 +20,13 @@ export const endpoints = {
 
   // --- Reporter ---
   CREATE_NEWS: 'news',
-  CREATE_CATEGORY: 'categories',
+  UPDATE_NEWS: 'news/:id/edit',
+  CATEGORY: 'categories',
+  GET_REPORTER_NEWS: 'news/myNews',
   // Reporter/User Auth
   AUTH_REQUEST_OTP: 'auth/request-otp',
   AUTH_VERIFY_OTP: 'auth/verify-otp',
+  APPLY_REPORTER:'users/apply-reporter',
 
   // --- Admin & Editor Auth ---
   ADMIN_LOGIN: 'admin-auth/login',

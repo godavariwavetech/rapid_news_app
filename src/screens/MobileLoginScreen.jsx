@@ -12,17 +12,26 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch } from 'react-redux';
+import { requestOTP } from '../redux/reducers/auth';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const MobileLoginScreen = ({navigation}) => {
+  const disptach = useDispatch()
   const [mobileNumber, setMobileNumber] = useState('');
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (mobileNumber.length === 10) {
-      // Navigate to OTP screen
-      navigation.navigate('OTPVerification', {mobile: mobileNumber});
+      const payload = {
+        "phone": mobileNumber
+      }
+      const response = await disptach(requestOTP(payload))
+      console.log(response,">>>>>>>>Responseeee");
+      if(response?.payload?.status==200){
+        navigation.navigate('OTPVerification', {mobile: mobileNumber});
+      }
     } else {
       alert('Please enter a valid 10-digit mobile number');
     }

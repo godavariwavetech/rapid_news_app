@@ -1,10 +1,57 @@
-import {createSlice} from '@reduxjs/toolkit';
+import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
+import api from '../../utils/api';
+import { endpoints } from '../../config/config';
 
 const initialState = {
   isOnboardingComplete: false,
-  user: null,
+  user:null,
+  reporter: null,
   isAuthenticated: false,
+  reporterToken:null
 };
+
+
+export const requestOTP = createAsyncThunk(
+  'auth/requestOTP',
+  async (payload, {getState, rejectWithValue}) => {
+    try {
+      const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload);
+      return response;
+    } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>>>LOGIN");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+export const verifyOTP = createAsyncThunk(
+  'auth/verifyOTP',
+  async (payload, {getState, rejectWithValue}) => {
+    try {
+      const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload);
+      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
+      return response.data;
+    } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+
+export const applyReporter = createAsyncThunk(
+  'auth/applyReporter',
+  async (payload, {getState, rejectWithValue}) => {
+    try {
+      const response = await api.post(endpoints.APPLY_REPORTER, payload);
+      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
+      return response.data;
+    } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -22,6 +69,22 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
     },
   },
+    extraReducers: builder => {
+      builder
+        .addCase(verifyOTP.pending, state => {
+          state.loading = true;
+          state.error = null;
+        })
+        .addCase(verifyOTP.fulfilled, (state, action) => {
+          state.loading = false;
+          state.reporter=action.payload?.user
+          state.reporterToken = action.payload?.token;
+        })
+        .addCase(verifyOTP.rejected, (state, action) => {
+          state.loading = false;
+          state.error = action.error.message || 'Failed to fetch news';
+        })
+    },
 });
 
 export const {completeOnboarding, setUser, logout} = authSlice.actions;

@@ -1,4 +1,4 @@
-import { CommonActions } from '@react-navigation/native';
+import {CommonActions} from '@react-navigation/native';
 import React from 'react';
 import {
   View,
@@ -12,38 +12,61 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {useDispatch} from 'react-redux';
+import {createNews, updateNews} from '../../redux/reducers/news'; // Import updateNews
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step4ReviewScreen = ({navigation, route}) => {
-  const insets = useSafeAreaInsets()
-  const {location, headline, description, category, image} = route.params;
+  const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  // Destructure new params: isEditing and newsId
+  const {location, headline, description, category, image, isEditing, newsId} = route.params;
 
-  const handleSubmit = () => {
-    // Submit the news
-    Alert.alert(
-      'Success',
-      'Your news has been submitted successfully!',
-      [
+  const handleSubmit = async () => {
+    const validCodes = [200, 201, 202, 204];
+    let response;
+
+    // Check if we are in Edit Mode
+    if (isEditing && newsId) {
+      // Dispatch Update Action
+      response = await dispatch(updateNews({
+        id: newsId,
+        payload: route.params?.apiPayload
+      }));
+    } else {
+      // Dispatch Create Action
+      response = await dispatch(createNews(route.params?.apiPayload));
+    }
+
+    if (validCodes.includes(response?.payload?.status)) {
+      Alert.alert(
+        'Success', 
+        `Your news has been ${isEditing ? 'updated' : 'submitted'} successfully!`, 
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{name: 'ReporterApp'}],
+                }),
+              );
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('Failed', 'Something went wrong', [
         {
           text: 'OK',
-          onPress: () => {
-                navigation.dispatch(
-                      CommonActions.reset({
-                        index: 0,
-                        routes: [
-                          {name: 'ReporterApp'},
-                        ],
-                      }),
-                    );
-            // navigation.navigate('ReporterApp')
-          },
         },
-      ]
-    );
+      ]);
+    }
   };
 
   return (
@@ -57,7 +80,8 @@ const Step4ReviewScreen = ({navigation, route}) => {
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review & Submit</Text>
+        {/* Dynamic Header Title */}
+        <Text style={styles.headerTitle}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
         <Text style={styles.stepIndicator}>4 / 4</Text>
       </View>
 
@@ -107,12 +131,15 @@ const Step4ReviewScreen = ({navigation, route}) => {
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={[styles.footer,{marginBottom:insets.bottom}]}>
+      <View style={[styles.footer, {marginBottom: insets.bottom}]}>
         <TouchableOpacity
           style={styles.submitButton}
           onPress={handleSubmit}
           activeOpacity={0.8}>
-          <Text style={styles.submitButtonText}>Submit News</Text>
+          {/* Dynamic Button Text */}
+          <Text style={styles.submitButtonText}>
+            {isEditing ? 'Update News' : 'Submit News'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

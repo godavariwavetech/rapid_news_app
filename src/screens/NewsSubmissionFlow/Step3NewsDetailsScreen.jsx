@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,312 +13,211 @@ import {
   Image,
   Alert,
   Switch,
+  FlatList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { getCategories } from '../../redux/reducers/news';
 
-const STATUS_BAR_HEIGHT =
-  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step3NewsDetailsScreen = ({navigation, route}) => {
-  // const {location} = route.params;
+  const dispatch = useDispatch();
+  const {currentLocation} = useSelector(state => state.location);
+  const {categories} = useSelector(state => state.news);
+  const insets = useSafeAreaInsets();
+
+  // Edit Mode Props
+  const existingNews = route.params?.existingNews;
+  const passedLocation = route.params?.location;
+
+  // Form State
   const [headline, setHeadline] = useState('');
-  const insets = useSafeAreaInsets()
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
+  const [image, setImage] = useState(null);
+
+  // UI State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
-  const [image, setImage] = useState(null);
-  
-  // Transliteration states
   const [headlineTranslitEnabled, setHeadlineTranslitEnabled] = useState(false);
   const [descriptionTranslitEnabled, setDescriptionTranslitEnabled] = useState(false);
-  
-  // Store previous text to detect space key
+
   const previousHeadlineRef = useRef('');
   const previousDescriptionRef = useRef('');
 
-  const categories = [
-    'Political / Happenings',
-    'Administration & Infra',
-    'Crime / Accident',
-    'Issues',
-  ];
+  console.log(existingNews,">>>>>>>>>>>>>>>>>>>>existingNews");
 
-  // Transliteration function using Google Input Tools API
-  const transliterate = async (text) => {
-    if (!text || text.trim() === '') return text;
+  // 1. Fetch Categories
+  useEffect(() => {
+    dispatch(getCategories());
+  }, [dispatch]);
 
-    try {
-      const url = `https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=te-t-i0-und&num=5&cp=0&cs=1&ie=utf-8&oe=utf-8`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      const data = await response.json();
-      
-      // Check if we got valid results
-      if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1] && data[1][0][1].length > 0) {
-        return data[1][0][1][0]; // Return first suggestion
-      }
-      
-      return text;
-    } catch (error) {
-      console.error('Transliteration error:', error);
-      return text;
-    }
-  };
+  // 2. Pre-fill Data
+  useEffect(() => {
+    if (existingNews) {
+      const content = existingNews.content;
+      const title = content?.en?.title || content?.te?.title || content?.title || '';
+      const body = content?.en?.body || content?.te?.body || content?.body || '';
+      const imgUrl = existingNews.images?.[0] || null;
 
-  // Handle headline change with transliteration
-  const handleHeadlineChange = async (text) => {
-    if (!headlineTranslitEnabled) {
-      setHeadline(text);
-      previousHeadlineRef.current = text;
-      return;
-    }
+      setHeadline(title);
+      setDescription(body);
+      if (imgUrl) setImage({ uri: imgUrl });
 
-    // Check if space was just added
-    const hadSpace = previousHeadlineRef.current.endsWith(' ');
-    const hasSpace = text.endsWith(' ');
-    
-    if (hasSpace && !hadSpace && text.trim() !== '') {
-      // Split by spaces
-      const words = text.trim().split(' ');
-      const lastWord = words[words.length - 1];
-      
-      if (lastWord && lastWord.length > 0) {
-        // Transliterate the last word
-        const transliteratedWord = await transliterate(lastWord);
-        
-        // Replace last word with transliterated version
-        words[words.length - 1] = transliteratedWord;
-        const newText = words.join(' ') + ' ';
-        
-        setHeadline(newText);
-        previousHeadlineRef.current = newText;
-        return;
+      if (existingNews.category_id && categories.length > 0) {
+        const found = categories.find(c => c._id === existingNews.category_id);
+        if (found) setSelectedCategoryObj(found);
       }
     }
-    
-    setHeadline(text);
-    previousHeadlineRef.current = text;
+  }, [existingNews, categories]);
+
+  // Handlers
+  const handleCategorySelect = (item) => {
+    setSelectedCategoryObj(item);
+    setShowCategoryModal(false);
   };
 
-  // Handle description change with transliteration
-  const handleDescriptionChange = async (text) => {
-    if (!descriptionTranslitEnabled) {
-      setDescription(text);
-      previousDescriptionRef.current = text;
-      return;
-    }
-
-    const hadSpace = previousDescriptionRef.current.endsWith(' ');
-    const hasSpace = text.endsWith(' ');
-    
-    if (hasSpace && !hadSpace && text.trim() !== '') {
-      const words = text.trim().split(' ');
-      const lastWord = words[words.length - 1];
-      
-      if (lastWord && lastWord.length > 0) {
-        const transliteratedWord = await transliterate(lastWord);
-        words[words.length - 1] = transliteratedWord;
-        const newText = words.join(' ') + ' ';
-        
-        setDescription(newText);
-        previousDescriptionRef.current = newText;
-        return;
-      }
-    }
-    
-    setDescription(text);
-    previousDescriptionRef.current = text;
-  };
-
-  const handleImageOptions = () => {
-    setShowImageOptions(true);
-  };
+  const handleImageOptions = () => setShowImageOptions(true);
 
   const handleCamera = () => {
     setShowImageOptions(false);
-    const options = {
-      mediaType: 'photo',
-      quality: 0.8,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      saveToPhotos: true,
-    };
-
-    launchCamera(options, response => {
-      if (response.didCancel) {
-        console.log('User cancelled camera');
-      } else if (response.errorCode) {
-        Alert.alert('Error', response.errorMessage || 'Failed to open camera');
-      } else if (response.assets && response.assets[0]) {
-        setImage(response.assets[0]);
-      }
+    launchCamera({ mediaType: 'photo', quality: 0.8 }, response => {
+      if (response.assets && response.assets[0]) setImage(response.assets[0]);
     });
   };
 
   const handleGallery = () => {
     setShowImageOptions(false);
-    const options = {
-      mediaType: 'photo',
-      quality: 0.8,
-      maxWidth: 1920,
-      maxHeight: 1080,
-    };
-
-    launchImageLibrary(options, response => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorCode) {
-        Alert.alert('Error', response.errorMessage || 'Failed to pick image');
-      } else if (response.assets && response.assets[0]) {
-        setImage(response.assets[0]);
-      }
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, response => {
+      if (response.assets && response.assets[0]) setImage(response.assets[0]);
     });
   };
 
-  const removeImage = () => {
-    setImage(null);
-  };
-
-  const handleCategorySelect = (selectedCategory) => {
-    setCategory(selectedCategory);
-    setShowCategoryModal(false);
-  };
+  const removeImage = () => setImage(null);
 
   const handleNext = () => {
-    if (headline && description && category) {
+    if (headline && description && selectedCategoryObj) {
+      
+      // Use || null to ensure keys are sent even if values are undefined
+      const payload = {
+        "village_id": currentLocation?.village?._id || existingNews?.village_id || null,
+        "district_id": currentLocation?.district?._id || existingNews?.district_id || null,
+        "state_id": currentLocation?.state?._id || existingNews?.state_id || null,
+        "category_id": selectedCategoryObj._id,
+        "content": {
+          "en": {
+            "title": headline,
+            "short": description.substring(0, 50),
+            "body": description
+          }
+        },
+        "images": image ? [image.uri] : [],
+        "videos": []
+      };
+
+      console.log("Submitting Payload:", JSON.stringify(payload, null, 2));
+
       navigation.navigate('NewsSubmissionStep4', {
-        // location,
         headline,
         description,
-        category,
+        category: selectedCategoryObj.name.en,
         image: image?.uri,
+        apiPayload: payload,
+        location: passedLocation || "Current Location",
+        isEditing: !!existingNews,
+        newsId: existingNews?._id
       });
     } else {
       Alert.alert('Incomplete Form', 'Please fill all required fields');
     }
   };
 
-  const isValid = headline.trim() && description.trim() && category;
+  const isValid = headline.trim() && description.trim() && selectedCategoryObj;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.stepIndicator}>3 / 4</Text>
       </View>
 
-      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Headline Input */}
+        
+        {/* Headline */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={styles.inputLabel}>శీర్షికను ఇవ్వండి</Text>
+            <Text style={styles.inputLabel}>Enter Headline</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={headlineTranslitEnabled}
-                onValueChange={(value) => {
-                  setHeadlineTranslitEnabled(value);
-                  if (!value) {
-                    // Reset when turned off
-                    previousHeadlineRef.current = headline;
-                  }
-                }}
+                onValueChange={setHeadlineTranslitEnabled}
                 trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
-                thumbColor={headlineTranslitEnabled ? '#FFFFFF' : '#F4F4F4'}
-                ios_backgroundColor="#E0E0E0"
-                style={styles.switch}
               />
-              <Text style={styles.translitLabel}>తె</Text>
+              <Text style={styles.translitLabel}>EN/TE</Text>
             </View>
           </View>
           <View style={styles.inputBox}>
             <TextInput
               style={styles.textInput}
-              placeholder={headlineTranslitEnabled ? "Type in English and press space" : "హెడ్ లైన్"}
+              placeholder="Headline"
               placeholderTextColor="#999"
               value={headline}
-              onChangeText={handleHeadlineChange}
+              onChangeText={setHeadline}
               maxLength={75}
               multiline
             />
             <Text style={styles.charCount}>{headline.length} / 75 Chars</Text>
           </View>
-          {headlineTranslitEnabled && (
-            <Text style={styles.hintText}>💡 Type in English and press SPACE to convert to Telugu</Text>
-          )}
         </View>
 
-        {/* Description Input */}
+        {/* Description */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={styles.inputLabel}>విషయాన్ని విపరించండి</Text>
+            <Text style={styles.inputLabel}>Description</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={descriptionTranslitEnabled}
-                onValueChange={(value) => {
-                  setDescriptionTranslitEnabled(value);
-                  if (!value) {
-                    previousDescriptionRef.current = description;
-                  }
-                }}
+                onValueChange={setDescriptionTranslitEnabled}
                 trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
-                thumbColor={descriptionTranslitEnabled ? '#FFFFFF' : '#F4F4F4'}
-                ios_backgroundColor="#E0E0E0"
-                style={styles.switch}
               />
-              <Text style={styles.translitLabel}>తె</Text>
+              <Text style={styles.translitLabel}>EN/TE</Text>
             </View>
           </View>
           <View style={[styles.inputBox, styles.descriptionBox]}>
             <TextInput
               style={[styles.textInput, styles.descriptionInput]}
-              placeholder={descriptionTranslitEnabled ? "Type in English and press space" : "విషయం"}
+              placeholder="Enter details here..."
               placeholderTextColor="#999"
               value={description}
-              onChangeText={handleDescriptionChange}
+              onChangeText={setDescription}
               maxLength={400}
               multiline
               numberOfLines={8}
               textAlignVertical="top"
             />
-            <Text style={styles.charCount}>
-              {description.length} / 400 Chars
-            </Text>
+            <Text style={styles.charCount}>{description.length} / 400 Chars</Text>
           </View>
-          {descriptionTranslitEnabled && (
-            <Text style={styles.hintText}>💡 Type in English and press SPACE to convert to Telugu</Text>
-          )}
         </View>
 
-        {/* Category Selector */}
+        {/* Category */}
         <TouchableOpacity
           style={styles.categorySelector}
           onPress={() => setShowCategoryModal(true)}
           activeOpacity={0.7}>
-          <Text
-            style={[styles.categoryText, !category && styles.placeholderText]}>
-            {category || 'Select Category'}
+          <Text style={[styles.categoryText, !selectedCategoryObj && styles.placeholderText]}>
+            {selectedCategoryObj ? selectedCategoryObj.name.en : 'Select Category'}
           </Text>
           <Icon name="chevron-down" size={24} color="#666" />
         </TouchableOpacity>
 
-        {/* Upload Image Section */}
+        {/* Image */}
         {!image ? (
           <TouchableOpacity
             style={styles.uploadButton}
@@ -331,32 +230,22 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         ) : (
           <View style={styles.imagePreviewContainer}>
             <Image source={{uri: image.uri}} style={styles.imagePreview} />
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={removeImage}
-              activeOpacity={0.8}>
+            <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
               <Icon name="close-circle" size={28} color="#FF3B30" />
             </TouchableOpacity>
-            <View style={styles.imageInfo}>
-              <Text style={styles.imageInfoText}>
-                {(image.fileSize / 1024).toFixed(2)} KB
-              </Text>
-              <Text style={styles.imageInfoText}>
-                {image.width} × {image.height}
-              </Text>
-            </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Submit Button */}
-      <View style={[styles.footer,{marginBottom:insets.bottom}]}>
+      <View style={[styles.footer, {marginBottom: insets.bottom}]}>
         <TouchableOpacity
           style={[styles.submitButton, isValid && styles.submitButtonActive]}
           onPress={handleNext}
           disabled={!isValid}
           activeOpacity={0.8}>
-          <Text style={styles.submitButtonText}>సబ్మిట్ →</Text>
+          <Text style={styles.submitButtonText}>
+            {existingNews ? 'Update Preview →' : 'Submit →'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -372,28 +261,35 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           onPress={() => setShowCategoryModal(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Category</Text>
-            {categories.map((cat, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.categoryOption}
-                onPress={() => handleCategorySelect(cat)}>
-                <View
-                  style={[
-                    styles.radio,
-                    category === cat && styles.radioSelected,
-                  ]}>
-                  {category === cat && (
-                    <View style={styles.radioInner} />
-                  )}
-                </View>
-                <Text style={styles.categoryOptionText}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
+            <FlatList
+              data={categories}
+              keyExtractor={(item) => item._id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  style={styles.categoryOption}
+                  onPress={() => handleCategorySelect(item)}>
+                  <View
+                    style={[
+                      styles.radio,
+                      selectedCategoryObj?._id === item._id && styles.radioSelected,
+                    ]}>
+                    {selectedCategoryObj?._id === item._id && (
+                      <View style={styles.radioInner} />
+                    )}
+                  </View>
+                  <Text style={styles.categoryOptionText}>{item.name.en}</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={{textAlign:'center', color:'#999'}}>No categories available</Text>
+              }
+            />
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Image Options Modal */}
+      {/* Image Modal */}
       <Modal
         visible={showImageOptions}
         transparent
@@ -405,7 +301,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           onPress={() => setShowImageOptions(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Choose Image Source</Text>
-
             <TouchableOpacity
               style={styles.imageOptionButton}
               onPress={handleCamera}
@@ -413,7 +308,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               <Icon name="camera" size={24} color="#2196F3" />
               <Text style={styles.imageOptionText}>Take Photo</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.imageOptionButton}
               onPress={handleGallery}
@@ -421,7 +315,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               <Icon name="image" size={24} color="#2196F3" />
               <Text style={styles.imageOptionText}>Choose from Gallery</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowImageOptions(false)}
@@ -480,11 +373,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  switch: {
-    transform: [{scaleX: 0.8}, {scaleY: 0.8}],
-  },
   translitLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#666',
   },
@@ -509,11 +399,6 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'right',
     marginTop: 8,
-  },
-  hintText: {
-    fontSize: 11,
-    color: '#4CAF50',
-    marginTop: 6,
   },
   categorySelector: {
     flexDirection: 'row',
@@ -570,22 +455,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
   },
-  imageInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  imageInfoText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   footer: {
     padding: 20,
   },
@@ -613,7 +482,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: 18,

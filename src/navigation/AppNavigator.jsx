@@ -39,7 +39,7 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {display: 'none'}, // Hide default tab bar
+        tabBarStyle: {display: 'none'},
       }}>
       <Tab.Screen name="HomeTab" component={HomeScreen} />
       <Tab.Screen name="VideosTab" component={VideosScreen} />
@@ -76,7 +76,7 @@ function AppNavigator() {
             };
           },
         }}
-        initialRouteName={isOnboardingComplete ? 'Main' : 'SplashScreen'}>
+        initialRouteName={'SplashScreen'}>
         <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen

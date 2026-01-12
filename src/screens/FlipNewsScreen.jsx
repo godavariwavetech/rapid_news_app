@@ -11,8 +11,28 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { useSelector } from 'react-redux'; //
 import Way2NewsCard from '../components/Way2NewsCard';
-import { MOCK_NEWS } from '../utils/constants';
+
+// --- HELPER: TIME AGO CALCULATION ---
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + " years ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + " months ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + " days ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + " hours ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + " minutes ago";
+  return Math.floor(seconds) + " seconds ago";
+};
 
 // --- PHYSICS CONFIGURATION ---
 const SPRING_CONFIG = {
@@ -49,6 +69,33 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
 });
 
 const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
+  // Redux నుండి ఆర్టికల్స్ తీసుకోండి
+  const { articles } = useSelector(state => state.news);
+  
+  // API Data Mapping
+  const formattedNews = useMemo(() => {
+    // API రెస్పాన్స్ { items: [...] } లేదా డైరెక్ట్ array కావచ్చు, రెండింటినీ హ్యాండిల్ చేయడం
+    const rawItems = articles?.items || (Array.isArray(articles) ? articles : []);
+
+    return rawItems.map(item => ({
+      id: item._id,
+      title: item.content?.title || '',
+      body: item.content?.body || '',
+      short: item.content?.short || '',
+      // ఇమేజ్ లేకపోతే డీఫాల్ట్ ప్లేస్‌హోల్డర్
+      image: item.images?.length > 0 ? item.images[0] : 'https://via.placeholder.com/600x400',
+      publishedAt: item.published_at,
+      timeAgo: formatTimeAgo(item.published_at),
+      likes: '0', // APIలో కీస్ వస్తే ఇక్కడ మ్యాప్ చేయాలి
+      comments: '0',
+      reporter: item.reporter || {
+        name: 'Reporter',
+        imageUrl: 'https://via.placeholder.com/100', // డీఫాల్ట్ రిపోర్టర్ ఇమేజ్
+        location: 'Andhra Pradesh'
+      }
+    }));
+  }, [articles]);
+
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   
@@ -62,14 +109,15 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const swipeDirection = useSharedValue(0); 
 
   const getIndex = useCallback((i) => {
-    if (!MOCK_NEWS || MOCK_NEWS.length === 0) return 0;
-    const len = MOCK_NEWS.length;
+    if (!formattedNews || formattedNews.length === 0) return 0;
+    const len = formattedNews.length;
     return ((i % len) + len) % len;
-  }, []);
+  }, [formattedNews]);
 
-  const currentNews = useMemo(() => MOCK_NEWS[getIndex(currIndex)], [currIndex, getIndex]);
-  const nextNews = useMemo(() => MOCK_NEWS[getIndex(currIndex + 1)], [currIndex, getIndex]);
-  const prevNews = useMemo(() => MOCK_NEWS[getIndex(currIndex - 1)], [currIndex, getIndex]);
+  // MOCK_NEWS బదులుగా formattedNews వాడాలి
+  const currentNews = useMemo(() => formattedNews[getIndex(currIndex)], [currIndex, getIndex, formattedNews]);
+  const nextNews = useMemo(() => formattedNews[getIndex(currIndex + 1)], [currIndex, getIndex, formattedNews]);
+  const prevNews = useMemo(() => formattedNews[getIndex(currIndex - 1)], [currIndex, getIndex, formattedNews]);
 
   // Content Stabilizer: Lock all cards to the target news during the switch
   const displayNews = overrideNews || currentNews;
@@ -79,7 +127,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
 
   useEffect(() => {
     if (isSwitching) {
-      // 1. Instantly reset animation (Flipper snaps to front, covered by Static Background)
+      // 1. Instantly reset animation
       scrollY.value = 0;
       swipeDirection.value = 0;
       
@@ -87,27 +135,17 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       setTimeout(() => {
         setIsSwitching(false);
         setOverrideNews(null);
-        
-        // CRITICAL FIX: Unlock gestures ONLY after everything is reset.
-        // This prevents the "freezing" caused by swiping during the reset gap.
         isAnimating.value = false;
       }, 50);
     }
   }, [currIndex, isSwitching]);
 
   const finishFlip = (direction) => {
-    // 1. Capture the news we just flipped TO
     const targetNews = direction === 'next' ? nextNews : prevNews;
     setOverrideNews(targetNews);
-
-    // 2. Activate Switching Mode
     setIsSwitching(true);
-    
-    // 3. Update the actual index (Triggers the useEffect above)
     const newIndex = direction === 'next' ? getIndex(currIndex + 1) : getIndex(currIndex - 1);
     setCurrIndex(newIndex);
-    
-    // NOTE: isAnimating.value remains TRUE here. It is set to FALSE in the useEffect/setTimeout.
   };
 
   const onLayout = (event) => {
@@ -129,7 +167,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       const position = -e.translationY / containerHeight;
       scrollY.value = position;
       
-      // Lock swipe direction once started
       if (swipeDirection.value === 0 && Math.abs(position) > 0.05) {
         swipeDirection.value = position > 0 ? 1 : -1;
       }
@@ -138,7 +175,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       
-      // Trigger Next
       if (position > 0.15 || -e.velocityY > 600) {
         isAnimating.value = true;
         swipeDirection.value = 1;
@@ -148,7 +184,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           (finished) => { if (finished) runOnJS(finishFlip)('next'); }
         );
       } 
-      // Trigger Prev
       else if (position < -0.15 || -e.velocityY < -600) {
         isAnimating.value = true;
         swipeDirection.value = -1;
@@ -158,7 +193,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
         );
       } 
-      // Cancel
       else {
         swipeDirection.value = 0;
         scrollY.value = withSpring(0, SPRING_CONFIG);
@@ -168,6 +202,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   // --- ANIMATED STYLES ---
 
   const VISIBILITY_THRESHOLD = 0.01;
+  const PERSPECTIVE_VAL = 6000; 
 
   const destinationNextStyle = useAnimatedStyle(() => ({
     opacity: swipeDirection.value === 1 && Math.abs(scrollY.value) > VISIBILITY_THRESHOLD ? 1 : 0,
@@ -185,7 +220,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     return {
       zIndex: isActive ? 10 : 0,
       opacity: isActive ? 1 : 0,
-      transform: [{ perspective: 1500 }, { rotateX: `${rotateX}deg` }],
+      transform: [{ perspective: PERSPECTIVE_VAL }, { rotateX: `${rotateX}deg` }],
       transformOrigin: 'center top',
     };
   });
@@ -196,12 +231,12 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     return {
       zIndex: isActive ? 10 : 0,
       opacity: isActive ? 1 : 0,
-      transform: [{ perspective: 1500 }, { rotateX: `${rotateX}deg` }],
+      transform: [{ perspective: PERSPECTIVE_VAL }, { rotateX: `${rotateX}deg` }],
       transformOrigin: 'center bottom',
     };
   });
 
-  // --- FACE LOGIC (THRESHOLD: 50% / 0.5) ---
+  // --- FACE LOGIC ---
 
   const nextFrontStyle = useAnimatedStyle(() => ({
     opacity: scrollY.value < 0.5 ? 1 : 0, 
@@ -241,8 +276,17 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  if (containerHeight === 0 || !displayNews) {
+  if (containerHeight === 0) {
     return <View style={styles.container} onLayout={onLayout} />;
+  }
+  
+  // డేటా లేనప్పుడు లోడింగ్ లేదా ఖాళీ వ్యూ చూపించడానికి (ఆప్షనల్)
+  if (!displayNews) {
+    return (
+        <View style={styles.container} onLayout={onLayout}>
+             {/* కావాలంటే ఇక్కడ Shimmer లేదా Loading Indicator పెట్టవచ్చు */}
+        </View>
+    );
   }
 
   return (
@@ -259,7 +303,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           </Animated.View>
 
           {/* STATIC LAYERS */}
-          {/* Always visible, and prioritized during switching to cover any flickering */}
           <Animated.View 
             style={[
               styles.halfWrapper, 
@@ -280,7 +323,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
             <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          {/* FLIPPERS - Always mounted */}
+          {/* FLIPPERS */}
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
             <Animated.View style={[styles.face, nextFrontStyle]}>
               <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />

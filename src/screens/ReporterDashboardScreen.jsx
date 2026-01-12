@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -15,14 +15,26 @@ import MyStoriesScreen from './MyStoriesScreen';
 import TopReportersScreen from './TopReportersScreen';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { getReportedNews } from '../redux/reducers/news';
+import NewsDetailModal from '../components/NewsDetailModal'; 
+import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterDashboardScreen = ({navigation}) => {
   const insets = useSafeAreaInsets()
+  const dispatch= useDispatch()
+  const {reporter} = useSelector(state=>state.auth)
   const [selectedTab, setSelectedTab] = useState('డాష్‌బోర్డ్');
   const [selectedLocation, setSelectedLocation] = useState('తూర్పు గోదావరి');
+  
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedNews, setSelectedNews] = useState(null);
+
+  const {reporterNews} = useSelector(state=>state.news)
 
   const mainTabs = [
     {id: 'dashboard', name: 'డాష్‌బోర్డ్'},
@@ -66,9 +78,143 @@ const ReporterDashboardScreen = ({navigation}) => {
         );
   }
 
+  console.log(reporterNews,"++++++++++++++++reportert");
+
+  useEffect(()=>{
+    dispatch(getReportedNews())
+  },[])
+
+  const handleNewsPress = (item) => {
+    setSelectedNews(item);
+    setModalVisible(true);
+  };
+
+  // NEW: Handle Edit Navigation
+  const handleEditNews = (item) => {
+    navigation.navigate('NewsSubmissionStep3', {
+      existingNews: item,
+      location: 'Saved Location' 
+    });
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return '#FF9D00'; // Orange
+      case 'APPROVED':
+        return '#28A745';
+      case 'REJECTED':
+        return '#DC3545';
+      default:
+        return '#C2C2C2';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+     switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return 'పరిశీలనలో ఉంది'; // "Under Review" in Telugu
+      case 'APPROVED':
+        return 'ఆమోదించబడింది';
+      case 'REJECTED':
+        return 'తిరస్కరించబడింది';
+      default:
+        return status;
+    }
+  }
+
+  const testNotification = async () =>{
+    await notifee.requestPermission();
+    const channelId = await notifee.createChannel({
+      id: 'custom_test_channel',
+      name: 'Custom Test',
+      importance: AndroidImportance.HIGH,
+      badge:true
+    });
+
+    await notifee.displayNotification({
+      title: '<p style="color: #FF6B00;"><b>IPLలో ఆ స్టార్‌ను</b></p>',
+      body: '<b>ఆడనిచ్చని డిమాండ్</b> - Read full news and updates',
+      android: {
+        channelId,
+        smallIcon: 'ic_launcher', 
+        color: '#FF6B00',
+        largeIcon: require('../assets/applogo.png'), 
+        style: {
+          type: AndroidStyle.BIGTEXT,
+          text: 'ఆడనిచ్చని డిమాండ్ - Read full news and updates about IPL cricket. Get latest scores and player information.',
+        },
+      },
+    });
+  }
+
+  const renderNaaJillaContent = () => (
+    <View style={styles.naaJillaContainer}>
+      {reporterNews && reporterNews.length > 0 ? (
+        reporterNews.map((item) => (
+          <TouchableOpacity 
+            key={item._id} 
+            style={styles.newsItemContainer}
+            activeOpacity={0.7}
+            onPress={() => handleNewsPress(item)}
+          >
+            <View style={styles.imageWrapper}>
+              {item.images && item.images.length > 0 ? (
+                <Image
+                  source={{ uri: item.images[0] }}
+                  style={styles.newsImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.newsImage, styles.placeholderImage]}>
+                  <Icon name="image-off" size={24} color="#C2C2C2" />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.newsContent}>
+              
+              <View style={styles.headingRow}>
+                <Text style={styles.newsTitle} numberOfLines={2}>
+                  {item.content?.te?.title || item.content?.title || 'No Title'}
+                </Text>
+                
+                {/* NEW: Edit Button */}
+                <TouchableOpacity 
+                  onPress={() => handleEditNews(item)}
+                  style={{padding: 4}}
+                >
+                  <Icon name="pencil" size={20} color="#2196F3" />
+                </TouchableOpacity>
+
+              </View>
+
+              <Text style={styles.timeText}>
+                  {formatTime(item.createdAt)}
+              </Text>
+
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+              </View>
+
+            </View>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>వార్తలు అందుబాటులో లేవు</Text>
+        </View>
+      )}
+    </View>
+  );
+
   const renderDashboardContent = () => (
     <>
-      {/* Location Tabs */}
       <View style={styles.locationTabsContainer}>
         <ScrollView
           horizontal
@@ -100,7 +246,6 @@ const ReporterDashboardScreen = ({navigation}) => {
         </ScrollView>
       </View>
 
-      {/* Info Banner */}
       <View style={styles.infoBanner}>
         <Text style={styles.infoText}>
           ఈ స్థానం లో వార్తలు రాయడానికి అవకాశాలు ఉన్నాయి
@@ -110,7 +255,6 @@ const ReporterDashboardScreen = ({navigation}) => {
         </TouchableOpacity>
       </View>
 
-      {/* Call to Action Card */}
       <TouchableOpacity
         style={styles.ctaCard}
         activeOpacity={0.8}
@@ -126,7 +270,6 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
       </TouchableOpacity>
 
-      {/* My Stories Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>నా వార్తలు ఈ నెలలో</Text>
@@ -149,7 +292,6 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
       </View>
 
-      {/* Earnings Section */}
       <View style={styles.earningsSection}>
         <View style={styles.earningsHeader}>
           <Text style={styles.sectionTitle}>నా ఆదాయం</Text>
@@ -172,7 +314,7 @@ const ReporterDashboardScreen = ({navigation}) => {
               <Text style={styles.earningAmount}>₹100</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.payButton}>
+          <TouchableOpacity style={styles.payButton} onPress={testNotification}>
             <Text style={styles.payButtonText}>
               Pay me <Icon name="arrow-right" size={14} color="#1A1A1A" />
             </Text>
@@ -180,7 +322,6 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
       </View>
 
-      {/* My Stories Activity */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ఎలా సక్సెస్ అవ్వాలి</Text>
 
@@ -209,13 +350,10 @@ const ReporterDashboardScreen = ({navigation}) => {
     </>
   );
 
-
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.menuButton}
@@ -224,7 +362,7 @@ const ReporterDashboardScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>Guest</Text>
+          <Text style={styles.profileName}>{}</Text>
           <Text style={styles.profileRole}>Reporter @తూర్పు గోదావరి</Text>
         </View>
 
@@ -237,20 +375,14 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
       </View>
 
-      {/* Content Area */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {selectedTab === 'డాష్‌బోర్డ్' && renderDashboardContent()}
         {selectedTab === 'నా స్టోరీస్' && <MyStoriesScreen />  }
-        {selectedTab === 'నా జిల్లా' && (
-          <View style={styles.placeholderContent}>
-            <Text style={styles.placeholderText}>నా జిల్లా Content</Text>
-          </View>
-        )}
+        {selectedTab === 'నా జిల్లా' && renderNaaJillaContent()}
         {selectedTab === 'టాప్ వీడియోలు' && <TopReportersScreen />  }
         <View style={{height: 16}} />
       </ScrollView>
 
-      {/* Bottom Tabs */}
       <View style={[styles.bottomTabsContainer,{marginBottom:insets.bottom}]}>
         <ScrollView
           horizontal
@@ -276,6 +408,13 @@ const ReporterDashboardScreen = ({navigation}) => {
           ))}
         </ScrollView>
       </View>
+
+      <NewsDetailModal 
+        visible={modalVisible} 
+        newsItem={selectedNews} 
+        onClose={() => setModalVisible(false)} 
+      />
+
     </SafeAreaView>
   );
 };
@@ -534,16 +673,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 80,
+  naaJillaContainer: {
+    paddingHorizontal: 16,
+    marginTop: 16,
   },
-  placeholderText: {
+  newsItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#C2C2C2',
+    borderStyle: 'dashed',
+    backgroundColor: 'transparent',
+    gap: 16,
+  },
+  imageWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  newsImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    backgroundColor: '#EEEEEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newsContent: {
+    flex: 1,
+    paddingTop: 4,
+    gap: 12,
+    flexDirection: 'column',
+  },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  newsTitle: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: '500',
+    color: '#1F1F1F',
+    lineHeight: 22,
+  },
+  timeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7B7B7B',
+    lineHeight: 14,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 14,
+    color: '#FFFFFF',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    color: '#999',
+    fontSize: 14,
   },
   bottomTabsContainer: {
     backgroundColor: '#F5F6F8',

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -12,116 +12,208 @@ import {
   ScrollView,
   Image,
   Alert,
+  Modal,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {useDispatch, useSelector} from 'react-redux';
+import {getStates, getDistrict, resolveLocation} from '../redux/reducers/location';
+import {applyReporter} from '../redux/reducers/auth'; // Import the new action
+import LocationService from '../utils/LocationService';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ProfileSetupScreen = ({navigation}) => {
+  const dispatch = useDispatch();
+  const {states, districts, loading: locationLoading} = useSelector(state => state.location);
+  const {loading: authLoading} = useSelector(state => state.auth || {}); // Get auth loading state
+
   const [profileImage, setProfileImage] = useState(null);
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
-  const [district, setDistrict] = useState('');
+  const [email, setEmail] = useState(''); // Added Email State
   
+  // Selection State
+  const [selectedState, setSelectedState] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  // Modals Visibility
+  const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const init = async () => {
+      dispatch(getStates());
+      handleDetectLocation(true);
+    };
+    init();
+  }, [dispatch]);
+
+  const handleDetectLocation = async (isAuto = false) => {
+    setIsLocating(true);
+    try {
+      const position = await LocationService.getLocation();
+      const { latitude, longitude } = position.coords;
+      const resultAction = await dispatch(resolveLocation({ latitude, longitude }));
+
+      if (resolveLocation.fulfilled.match(resultAction)) {
+        const data = resultAction.payload;
+        if (data && data.state && data.district) {
+          setSelectedState(data.state);
+          dispatch(getDistrict(data.state._id));
+          setSelectedDistrict(data.district);
+          setErrors(prev => ({...prev, state: null, district: null}));
+          if (!isAuto) Alert.alert('Success', `Location detected: ${data.district.name.en}, ${data.state.name.en}`);
+        } else if (!isAuto) {
+          Alert.alert('Notice', 'Location detected, but could not match to our database exactly.');
+        }
+      } else if (!isAuto) {
+        Alert.alert('Error', 'Could not resolve location details from server.');
+      }
+    } catch (error) {
+      console.log('Location Error:', error);
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Username validation (3-20 chars, alphanumeric and underscore only)
-    if (!username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      newErrors.username = 'Username can only contain letters, numbers and underscore';
-    }
+    // Username validation
+    if (!username.trim()) newErrors.username = 'Username is required';
+    else if (username.length < 3) newErrors.username = 'Min 3 characters';
+    else if (!/^[a-zA-Z0-9_]+$/.test(username)) newErrors.username = 'Alphanumeric & underscore only';
 
-    // Full Name validation (at least 2 chars)
-    if (!fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    } else if (fullName.trim().length < 2) {
-      newErrors.fullName = 'Full name must be at least 2 characters';
-    }
+    // Full Name validation
+    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
+    else if (fullName.trim().length < 2) newErrors.fullName = 'Min 2 characters';
 
-    // District validation
-    if (!district.trim()) {
-      newErrors.district = 'District location is required';
-    }
+    // Email validation (New)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) newErrors.email = 'Email is required';
+    else if (!emailRegex.test(email)) newErrors.email = 'Invalid email format';
+
+    // Location validation
+    if (!selectedState) newErrors.state = 'State is required';
+    if (!selectedDistrict) newErrors.district = 'District is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleImagePick = () => {
-    const options = {
-      mediaType: 'photo',
-      quality: 0.8,
-      maxWidth: 800,
-      maxHeight: 800,
-    };
-
-    launchImageLibrary(options, response => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorCode) {
-        Alert.alert('Error', 'Failed to pick image');
-      } else if (response.assets && response.assets[0]) {
-        setProfileImage(response.assets[0].uri);
-      }
-    });
-  };
-
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (validateForm()) {
-      // Save profile data and navigate to home
-      const profileData = {
-        profileImage,
-        username,
-        fullName,
-        district,
+      // 1. Prepare Payload matching the API requirement
+      const payload = {
+        username: username,
+        full_name: fullName,
+        district_id: selectedDistrict._id, // Using the ID from the selected object
+        email: email,
       };
-      
-      console.log('Profile Data:', profileData);
-      // Navigate to main app
-      navigation.replace('ReporterApp');
+
+      console.log('Submitting Payload:', payload);
+
+      // 2. Dispatch Action
+      try {
+        const resultAction = await dispatch(applyReporter(payload));
+        
+        if (applyReporter.fulfilled.match(resultAction)) {
+          // Success
+          Alert.alert('Success', 'Profile setup completed!', [
+            { text: 'OK', onPress: () => navigation.replace('ReporterApp') } // Navigate to main app
+          ]);
+        } else {
+          // Failure
+          const errorMessage = resultAction.payload?.message || 'Failed to submit application';
+          Alert.alert('Error', errorMessage);
+        }
+      } catch (err) {
+        Alert.alert('Error', 'An unexpected error occurred.');
+      }
     } else {
       Alert.alert('Validation Error', 'Please fill all fields correctly');
     }
   };
 
-  const isFormValid = username.trim().length >= 3 && 
-                      fullName.trim().length >= 2 && 
-                      district.trim().length > 0;
+  const handleImagePick = () => {
+    const options = { mediaType: 'photo', quality: 0.8 };
+    launchImageLibrary(options, response => {
+      if (response.assets && response.assets[0]) {
+        setProfileImage(response.assets[0].uri);
+      }
+    });
+  };
+
+  const handleStateSelect = (item) => {
+    setSelectedState(item);
+    setShowStatePicker(false);
+    setSelectedDistrict(null);
+    dispatch(getDistrict(item._id));
+    if (errors.state) setErrors({...errors, state: null});
+  };
+
+  const handleDistrictSelect = (item) => {
+    setSelectedDistrict(item);
+    setShowDistrictPicker(false);
+    if (errors.district) setErrors({...errors, district: null});
+  };
+
+  const isFormValid = 
+    username.trim().length >= 3 && 
+    fullName.trim().length >= 2 && 
+    email.trim().length > 5 && // Basic check
+    selectedState && 
+    selectedDistrict;
+
+  // Reusable Modal
+  const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color="#333" /></TouchableOpacity>
+          </View>
+          <FlatList
+            data={data}
+            keyExtractor={item => item._id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{paddingBottom: 20}}
+            renderItem={({item}) => (
+              <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
+                <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
+                <Icon name="chevron-right" size={20} color="#ccc" />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={styles.emptyText}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
+          />
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {/* Header with Profile Picture */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          
+          {/* Header */}
           <View style={styles.headerSection}>
-            <TouchableOpacity
-              style={styles.profileImageContainer}
-              onPress={handleImagePick}
-              activeOpacity={0.7}>
+            <TouchableOpacity style={styles.profileImageContainer} onPress={handleImagePick}>
               {profileImage ? (
                 <Image source={{uri: profileImage}} style={styles.profileImage} />
               ) : (
-                <View style={styles.placeholderImage}>
-                  <Icon name="camera" size={32} color="#2196F3" />
-                </View>
+                <View style={styles.placeholderImage}><Icon name="camera" size={32} color="#2196F3" /></View>
               )}
             </TouchableOpacity>
-
             <View style={styles.titleSection}>
               <Text style={styles.completeText}>Complete</Text>
               <Text style={styles.profileTitle}>your basic profile</Text>
@@ -130,182 +222,140 @@ const ProfileSetupScreen = ({navigation}) => {
 
           {/* Form Section */}
           <View style={styles.formSection}>
-            {/* Username Input */}
+            {/* Username */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>User Name</Text>
               <TextInput
                 style={[styles.input, errors.username && styles.inputError]}
                 value={username}
-                onChangeText={(text) => {
-                  setUsername(text);
-                  if (errors.username) {
-                    setErrors({...errors, username: null});
-                  }
-                }}
-                placeholder=""
+                onChangeText={(t) => { setUsername(t); if(errors.username) setErrors({...errors, username: null}) }}
+                placeholder="Enter username"
                 placeholderTextColor="#999"
                 autoCapitalize="none"
               />
-              {errors.username && (
-                <Text style={styles.errorText}>{errors.username}</Text>
-              )}
+              {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
             </View>
 
-            {/* Full Name Input */}
+            {/* Full Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
                 style={[styles.input, errors.fullName && styles.inputError]}
                 value={fullName}
-                onChangeText={(text) => {
-                  setFullName(text);
-                  if (errors.fullName) {
-                    setErrors({...errors, fullName: null});
-                  }
-                }}
-                placeholder=""
+                onChangeText={(t) => { setFullName(t); if(errors.fullName) setErrors({...errors, fullName: null}) }}
+                placeholder="Enter full name"
                 placeholderTextColor="#999"
                 autoCapitalize="words"
               />
-              {errors.fullName && (
-                <Text style={styles.errorText}>{errors.fullName}</Text>
-              )}
+              {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
             </View>
 
-            {/* District Input */}
+            {/* Email Input (Added) */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>District Location</Text>
+              <Text style={styles.label}>Email Address</Text>
               <TextInput
-                style={[styles.input, errors.district && styles.inputError]}
-                value={district}
-                onChangeText={(text) => {
-                  setDistrict(text);
-                  if (errors.district) {
-                    setErrors({...errors, district: null});
-                  }
-                }}
-                placeholder=""
+                style={[styles.input, errors.email && styles.inputError]}
+                value={email}
+                onChangeText={(t) => { setEmail(t); if(errors.email) setErrors({...errors, email: null}) }}
+                placeholder="Enter email address"
                 placeholderTextColor="#999"
-                autoCapitalize="words"
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
-              {errors.district && (
-                <Text style={styles.errorText}>{errors.district}</Text>
-              )}
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
+            {/* Location Header */}
+            <View style={styles.locationHeader}>
+              <Text style={styles.label}>Location Details</Text>
+              <TouchableOpacity style={styles.detectButton} onPress={() => handleDetectLocation(false)} disabled={isLocating}>
+                {isLocating ? <ActivityIndicator size="small" color="#2196F3" /> : <><Icon name="crosshairs-gps" size={16} color="#2196F3" /><Text style={styles.detectButtonText}>Use Current Location</Text></>}
+              </TouchableOpacity>
+            </View>
+
+            {/* State Selection */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.subLabel}>State</Text>
+              <TouchableOpacity style={[styles.input, styles.dropdownInput, errors.state && styles.inputError]} onPress={() => setShowStatePicker(true)}>
+                <Text style={[styles.inputText, !selectedState && styles.placeholderText]}>{selectedState ? selectedState.name.en : 'Select State'}</Text>
+                <Icon name="chevron-down" size={24} color="#999" />
+              </TouchableOpacity>
+              {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
+            </View>
+
+            {/* District Selection */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.subLabel}>District</Text>
+              <TouchableOpacity 
+                style={[styles.input, styles.dropdownInput, errors.district && styles.inputError, !selectedState && styles.disabledInput]} 
+                onPress={() => selectedState && setShowDistrictPicker(true)} 
+                disabled={!selectedState}
+              >
+                <Text style={[styles.inputText, !selectedDistrict && styles.placeholderText]}>{selectedDistrict ? selectedDistrict.name.en : 'Select District'}</Text>
+                <Icon name="chevron-down" size={24} color="#999" />
+              </TouchableOpacity>
+              {!selectedState && <Text style={styles.helperText}>Select state first</Text>}
+              {errors.district && <Text style={styles.errorText}>{errors.district}</Text>}
             </View>
           </View>
 
           {/* Proceed Button */}
           <TouchableOpacity
-            style={[
-              styles.proceedButton,
-              isFormValid && styles.proceedButtonActive,
-            ]}
+            style={[styles.proceedButton, isFormValid && !authLoading && styles.proceedButtonActive]}
             onPress={handleProceed}
-            disabled={!isFormValid}
-            activeOpacity={0.8}>
-            <Text style={styles.proceedButtonText}>proceed</Text>
+            disabled={!isFormValid || authLoading}
+          >
+            {authLoading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.proceedButtonText}>Proceed</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} emptyMessage="No states available" />
+      <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} emptyMessage="No districts available" />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: STATUS_BAR_HEIGHT + 40,
-    paddingHorizontal: 24,
-    paddingBottom: 30,
-  },
-  headerSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 50,
-    gap: 16,
-  },
-  profileImageContainer: {
-    width: 90,
-    height: 90,
-  },
-  profileImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-  },
-  placeholderImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 2,
-    borderColor: '#2196F3',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  titleSection: {
-    flex: 1,
-  },
-  completeText: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 4,
-  },
-  profileTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    letterSpacing: -0.5,
-  },
-  formSection: {
-    marginBottom: 40,
-  },
-  inputGroup: {
-    marginBottom: 30,
-  },
-  label: {
-    fontSize: 16,
-    color: '#999',
-    marginBottom: 12,
-  },
-  input: {
-    fontSize: 16,
-    color: '#1A1A1A',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-  },
-  inputError: {
-    borderBottomColor: '#FF3B30',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#FF3B30',
-    marginTop: 6,
-  },
-  proceedButton: {
-    backgroundColor: '#E0E0E0',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  proceedButtonActive: {
-    backgroundColor: '#1A1A1A',
-  },
-  proceedButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingTop: STATUS_BAR_HEIGHT + 20, paddingHorizontal: 24, paddingBottom: 30 },
+  headerSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 30, gap: 16 },
+  profileImageContainer: { width: 90, height: 90 },
+  profileImage: { width: 90, height: 90, borderRadius: 45 },
+  placeholderImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: '#2196F3', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  titleSection: { flex: 1 },
+  completeText: { fontSize: 18, color: '#666', marginBottom: 4 },
+  profileTitle: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', letterSpacing: -0.5 },
+  formSection: { marginBottom: 30 },
+  inputGroup: { marginBottom: 20 },
+  locationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 10 },
+  detectButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#E3F2FD', borderRadius: 20 },
+  detectButtonText: { fontSize: 13, color: '#2196F3', fontWeight: '600' },
+  label: { fontSize: 16, color: '#666', marginBottom: 8, fontWeight: '600' },
+  subLabel: { fontSize: 15, color: '#666', marginBottom: 8, fontWeight: '500' },
+  input: { fontSize: 16, color: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#E0E0E0', paddingVertical: 12 },
+  dropdownInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  disabledInput: { opacity: 0.5, backgroundColor: '#F9F9F9' },
+  inputText: { fontSize: 16, color: '#1A1A1A' },
+  placeholderText: { color: '#999' },
+  inputError: { borderBottomColor: '#FF3B30' },
+  errorText: { fontSize: 12, color: '#FF3B30', marginTop: 6 },
+  helperText: { fontSize: 12, color: '#999', marginTop: 4 },
+  proceedButton: { backgroundColor: '#E0E0E0', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  proceedButtonActive: { backgroundColor: '#1A1A1A' },
+  proceedButtonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', paddingBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  listItemText: { fontSize: 16, color: '#333' },
+  emptyText: { textAlign: 'center', color: '#999', marginTop: 20, fontSize: 16 },
 });
 
 export default ProfileSetupScreen;
