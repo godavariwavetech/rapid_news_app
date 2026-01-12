@@ -20,7 +20,8 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth', 'settings', 'bookmarks', 'location'],
+  // Added 'news' to the whitelist to cache articles
+  whitelist: ['auth', 'settings', 'bookmarks', 'location', 'news'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

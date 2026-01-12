@@ -10,6 +10,9 @@ import {
   StatusBar,
   Modal,
   Linking,
+  // Import standard RN components for use inside Modal
+  TouchableWithoutFeedback as RNTouchableWithoutFeedback,
+  TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {
@@ -27,7 +30,7 @@ import { applogo } from '../assets';
 
 // Redux Actions
 import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
-import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news'; // Added trackAdClick
+import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const STATUS_BAR_HEIGHT =
@@ -72,12 +75,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   
   // Specific handler for Ad clicks
   const handleAdPress = () => {
-    // 1. Track the ad click (Fire and forget)
     if (news.id) {
         dispatch(trackAdClick(news.id));
     }
-
-    // 2. Open URL
     if (news.redirectUrl) {
       Linking.openURL(news.redirectUrl).catch(err => 
         console.error("Failed to open URL:", err)
@@ -186,7 +186,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             resizeMode={FastImage.resizeMode.cover}
           />
 
-          {/* APP LOGO WATERMARK - Bottom Right */}
+          {/* APP LOGO WATERMARK */}
           <Image source={applogo} style={styles.watermarkLogo} />
 
           {/* Reporter Section with Gradient */}
@@ -248,7 +248,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             {/* Left Side - Comment, Like, Dislike */}
             <View style={styles.statsLeft}>
               
-              {/* Comment Button */}
               <TouchableOpacity
                 style={styles.statButton}
                 onPress={handleCommentsPress}>
@@ -256,7 +255,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 <Text style={styles.statText}>{news.comments}</Text>
               </TouchableOpacity>
 
-              {/* Like Button */}
               <TouchableOpacity style={styles.statButton} onPress={handleLike}>
                 <Icon
                   name={liked ? 'thumb-up' : 'thumb-up-outline'}
@@ -268,7 +266,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 </Text>
               </TouchableOpacity>
 
-              {/* Dislike Button */}
               <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
                 <Icon
                   name={disliked ? 'thumb-down' : 'thumb-down-outline'}
@@ -280,12 +277,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
             {/* Right Side - Menu first, Share last */}
             <View style={styles.actionsRight}>
-              {/* Three Dots Menu */}
               <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
                 <Icon name="dots-vertical" size={22} color="#565B67" />
               </TouchableOpacity>
 
-              {/* Share Button */}
               <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
                 <Icon name="share-variant" size={20} color="#565B67" />
               </TouchableOpacity>
@@ -293,17 +288,19 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           </View>
         </View>
 
-        {/* Menu Modal */}
+        {/* --- FIXED MENU MODAL --- */}
         <Modal
           visible={menuVisible}
           transparent
           animationType="fade"
           onRequestClose={() => setMenuVisible(false)}>
-          <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          {/* Use RNTouchableWithoutFeedback for background overlay */}
+          <RNTouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
             <View style={styles.menuOverlay}>
-              <TouchableWithoutFeedback onPress={() => {}}>
+              {/* Stop propagation so clicking menu doesn't close it */}
+              <RNTouchableWithoutFeedback onPress={() => {}}>
                 <View style={styles.menuContainer}>
-                  <TouchableOpacity
+                  <RNTouchableOpacity
                     style={styles.menuItem}
                     onPress={() => handleMenuAction('bookmark')}>
                     <Icon
@@ -314,38 +311,38 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                     <Text style={styles.menuText}>
                       {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
                     </Text>
-                  </TouchableOpacity>
+                  </RNTouchableOpacity>
 
                   <View style={styles.menuDivider} />
 
-                  <TouchableOpacity
+                  <RNTouchableOpacity
                     style={styles.menuItem}
                     onPress={() => handleMenuAction('report')}>
                     <Icon name="flag" size={24} color="#333" />
                     <Text style={styles.menuText}>Report</Text>
-                  </TouchableOpacity>
+                  </RNTouchableOpacity>
 
                   <View style={styles.menuDivider} />
 
-                  <TouchableOpacity
+                  <RNTouchableOpacity
                     style={styles.menuItem}
                     onPress={() => handleMenuAction('notInterested')}>
                     <Icon name="eye-off" size={24} color="#333" />
                     <Text style={styles.menuText}>Not Interested</Text>
-                  </TouchableOpacity>
+                  </RNTouchableOpacity>
 
                   <View style={styles.menuDivider} />
 
-                  <TouchableOpacity
+                  <RNTouchableOpacity
                     style={styles.menuItem}
                     onPress={() => handleMenuAction('block')}>
                     <Icon name="cancel" size={24} color="#333" />
                     <Text style={styles.menuText}>Block this source</Text>
-                  </TouchableOpacity>
+                  </RNTouchableOpacity>
                 </View>
-              </TouchableWithoutFeedback>
+              </RNTouchableWithoutFeedback>
             </View>
-          </TouchableWithoutFeedback>
+          </RNTouchableWithoutFeedback>
         </Modal>
 
         {/* Full Screen Image Modal */}
@@ -395,7 +392,6 @@ const styles = StyleSheet.create({
     width: responsiveWidth(100),
     height: '100%',
   },
-  // --- Watermark Style ---
   watermarkLogo: {
     position: 'absolute',
     bottom: 15,
@@ -406,7 +402,6 @@ const styles = StyleSheet.create({
     zIndex: 10, 
     opacity: 0.9,
   },
-  // Ad Specific Styles
   adBadgeContainer: {
     position: 'absolute',
     bottom: 40,

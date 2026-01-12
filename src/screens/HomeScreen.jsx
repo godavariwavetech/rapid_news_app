@@ -7,6 +7,8 @@ import {
   Dimensions,
   Text,
   Platform,
+  ToastAndroid, 
+  Alert,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {fetchNews, setMockNews, setSelectedCategory} from '../redux/reducers/news';
@@ -26,8 +28,8 @@ const STATUS_BAR_HEIGHT =
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const articles = useSelector(state => state.news.articles);
-  const selectedCategory = useSelector(state => state.news.selectedCategory);
+  
+  const { articles, selectedCategory, error } = useSelector(state => state.news);
   const {currentLocation} = useSelector(state => state.location)
 
   const [uiVisible, setUiVisible] = useState(true);
@@ -42,12 +44,28 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
 
-  console.log(articles,">>>>>>>>>>>>>>>>>>currentLocation");
-
-
   useEffect(() => {
     dispatch(fetchNews())
   }, [dispatch]);
+
+  // --- UPDATED: Offline Message ---
+  useEffect(() => {
+    if (error === 'No internet connection. Showing cached news.') {
+      // More accurate message:
+      const friendlyMessage = "You seem to be offline. Showing previously fetched news.";
+      
+      if (Platform.OS === 'android') {
+        ToastAndroid.showWithGravity(
+          friendlyMessage,
+          ToastAndroid.LONG,
+          ToastAndroid.BOTTOM
+        );
+      } else {
+        Alert.alert('Offline', friendlyMessage);
+      }
+    }
+  }, [error]);
+  // --------------------------------
 
   useEffect(() => {
     Animated.parallel([
@@ -84,7 +102,6 @@ function HomeScreen({navigation}) {
   const handleCategorySelect = category => {
     dispatch(setSelectedCategory(category));
     setCurrentIndex(0);
-    // Close modal after selection
     setCategoriesModalVisible(false);
   };
 
@@ -95,7 +112,6 @@ function HomeScreen({navigation}) {
         setHeaderTitle('న్యూస్');
         break;
       case 'CategoriesTab':
-        // FIX: Just set state to true. Since component is already mounted, it opens instantly.
         setCategoriesModalVisible(true);
         break;
       case 'LocationTab':
@@ -141,7 +157,7 @@ function HomeScreen({navigation}) {
       {uiVisible && (
         <View style={styles.counterContainer}>
           <Text style={styles.counterText}>
-            {currentIndex + 1} / {filteredNews.length}
+            {currentIndex + 1} / {filteredNews.length || 0}
           </Text>
         </View>
       )}
@@ -151,7 +167,6 @@ function HomeScreen({navigation}) {
         <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
       </Animated.View>
 
-      {/* FIX: Render directly (removed {categoriesModalVisible && ...}) to prevent lag */}
       <CategoriesModal
         visible={categoriesModalVisible}
         onClose={() => setCategoriesModalVisible(false)}
@@ -159,7 +174,6 @@ function HomeScreen({navigation}) {
         selectedCategory={selectedCategory}
       />
 
-      {/* Comments Bottom Sheet */}
       {commentsVisible && (
         <View style={{flex:1, position:"absolute", top:0, left:0, bottom:0, right:0, zIndex: 200}}>
           <CommentsBottomSheet

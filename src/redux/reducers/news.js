@@ -1,24 +1,40 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getUniqueId } from 'react-native-device-info';
+import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native'; 
 import api from '../../utils/api'; 
-import { endpoints } from '../../config/config';
+import { endpoints } from '../../config/config'; 
 
 const initialState = {
+  // --- Existing News List State ---
   articles: [],
   loading: false,
   error: null,
   selectedCategory: 'all',
   refreshing: false,
+
+  // --- New Interaction State (Comments/Likes) ---
   currentComments: [],
   isLoadingComments: false, 
   isPostingComment: false,  
   interactionError: null,
 };
 
+// --- ASYNC THUNKS ---
+
+// 1. Fetch News List
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (category = 'all', { rejectWithValue }) => {
+    // 1. Check for Internet Connection
+    const networkState = await NetInfo.fetch();
+    if (!networkState.isConnected) {
+      console.log(networkState,">>>>>>>>>>>>>>>>>>>>>>>>networkState");
+      // If offline, reject immediately. 
+      // The reducer's rejected case keeps existing 'articles' (cache) and sets the error.
+      return rejectWithValue('No internet connection. Showing cached news.');
+    }
+
     try {
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: {
@@ -31,6 +47,8 @@ export const fetchNews = createAsyncThunk(
           limit: 20,
         }
       });
+
+      console.log(response,">>>>>>>>>>>>>>>>>>>>>Responseeeee>>>>>>>>>>>");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -38,6 +56,7 @@ export const fetchNews = createAsyncThunk(
   }
 );
 
+// 2. React to News (Like/Dislike)
 export const reactToNews = createAsyncThunk(
   'news/reactToNews',
   async ({ newsId, type }, { rejectWithValue }) => {
@@ -61,8 +80,10 @@ export const getComments = createAsyncThunk(
   'news/getComments',
   async (newsId, { rejectWithValue }) => {
     try {
+      // Replace :id in the endpoint
       const url = endpoints.GET_COMMENTS.replace(':id', newsId);
       const response = await api.get(url);
+      // The API returns { page: 1, items: [...] }
       return response.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -81,6 +102,7 @@ export const postComment = createAsyncThunk(
       };
       const response = await api.post(endpoints.ADD_COMMENT, payload);
       
+      // Refresh comments list immediately after successful post
       dispatch(getComments(newsId)); 
       
       return response.data;
@@ -90,14 +112,16 @@ export const postComment = createAsyncThunk(
   }
 );
 
+// 5. Track Ad Click
 export const trackAdClick = createAsyncThunk(
   'news/trackAdClick',
   async (adId, { rejectWithValue }) => {
     try {
       const payload = {
         source: "feed",
-        platform: Platform.OS 
+        platform: Platform.OS // 'android' or 'ios'
       };
+      // Replace :id in the endpoint
       const url = endpoints.TRACK_AD_CLICK.replace(':id', adId);
       const response = await api.post(url, payload);
       return response.data;
@@ -141,6 +165,7 @@ const newsSlice = createSlice({
       })
       .addCase(fetchNews.rejected, (state, action) => {
         state.loading = false;
+        // The error is set, but 'state.articles' retains the cached data (if any)
         state.error = action.payload || 'Failed to fetch news';
       })
 
@@ -151,6 +176,7 @@ const newsSlice = createSlice({
       })
       .addCase(getComments.fulfilled, (state, action) => {
         state.isLoadingComments = false;
+        // Access .items from the pagination object
         state.currentComments = action.payload.items || []; 
       })
       .addCase(getComments.rejected, (state, action) => {
@@ -169,6 +195,12 @@ const newsSlice = createSlice({
       .addCase(postComment.rejected, (state, action) => {
         state.isPostingComment = false;
         state.interactionError = action.payload;
+      })
+
+      // Track Ad Click (No specific state change needed usually, but good for debugging)
+      .addCase(trackAdClick.rejected, (state, action) => {
+        // Just logging or minor state update if needed
+        console.log("Ad click tracking failed", action.payload);
       });
   },
 });
