@@ -12,24 +12,22 @@ import {
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {fetchNews, setMockNews, setSelectedCategory} from '../redux/reducers/news';
-import Way2NewsCard from '../components/Way2NewsCard';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
 import CommentsBottomSheet from '../components/CommentsBottomSheet';
+import OfflineFallback from '../components/OfflineFallback';
 import {MOCK_NEWS} from '../utils/constants';
 import FlipNewsScreen from './FlipNewsScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
-const STATUS_BAR_HEIGHT =
-  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   
-  const { articles, selectedCategory, error } = useSelector(state => state.news);
+  const { articles, selectedCategory, error, loading } = useSelector(state => state.news);
   const {currentLocation} = useSelector(state => state.location)
 
   const [uiVisible, setUiVisible] = useState(true);
@@ -42,30 +40,53 @@ function HomeScreen({navigation}) {
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
-  const flatListRef = useRef(null);
+  const flipScreenRef = useRef(null);
+
+  // --- ENHANCED FALLBACK LOGIC ---
+  const shouldShowFallback = !loading && (!articles || articles.length === 0);
+
+  let fallbackConfig = {
+    // Default: Empty Data (API worked, but returned 0 items)
+    title: "No News Available",
+    message: "There are no stories to display right now. Please check back later.",
+    icon: "newspaper-variant-outline",
+    buttonText: "Refresh Feed"
+  };
+
+  if (error === 'No internet connection. Showing cached news.') {
+    // Scenario 1: Offline
+    fallbackConfig = {
+      title: "No Internet Connection",
+      message: "You seem to be offline. Check your Wi-Fi or mobile data and try again.",
+      icon: "wifi-off",
+      buttonText: "Retry Connection"
+    };
+  } else if (error) {
+    // Scenario 2: Server/API Error
+    fallbackConfig = {
+      title: "Server Unavailable",
+      message: "We're having trouble connecting to Way2News servers. Please try again in a moment.",
+      icon: "server-network-off", // More appropriate icon for server issues
+      buttonText: "Try Again"
+    };
+  }
+  // -------------------------------
 
   useEffect(() => {
     dispatch(fetchNews())
   }, [dispatch]);
 
-  // --- UPDATED: Offline Message ---
+  // Toast Logic (Only show if we have content, otherwise Fallback screen explains it)
   useEffect(() => {
-    if (error === 'No internet connection. Showing cached news.') {
-      // More accurate message:
+    if (error === 'No internet connection. Showing cached news.' && articles.length > 0) {
       const friendlyMessage = "You seem to be offline. Showing previously fetched news.";
-      
       if (Platform.OS === 'android') {
-        ToastAndroid.showWithGravity(
-          friendlyMessage,
-          ToastAndroid.LONG,
-          ToastAndroid.BOTTOM
-        );
+        ToastAndroid.showWithGravity(friendlyMessage, ToastAndroid.LONG, ToastAndroid.BOTTOM);
       } else {
         Alert.alert('Offline', friendlyMessage);
       }
     }
-  }, [error]);
-  // --------------------------------
+  }, [error, articles.length]);
 
   useEffect(() => {
     Animated.parallel([
@@ -105,6 +126,13 @@ function HomeScreen({navigation}) {
     setCategoriesModalVisible(false);
   };
 
+  const handleRefresh = () => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show("Refreshing news...", ToastAndroid.SHORT);
+    }
+    dispatch(fetchNews(selectedCategory));
+  };
+
   const handleTabPress = tabId => {
     switch (tabId) {
       case 'HomeTab':
@@ -125,7 +153,9 @@ function HomeScreen({navigation}) {
       case 'ReloadTab':
         setActiveTab('ReloadTab');
         setHeaderTitle('రిలోడ్');
-        dispatch(setMockNews(MOCK_NEWS));
+        if (flipScreenRef.current) {
+          flipScreenRef.current.scrollToTop();
+        }
         break;
     }
   };
@@ -143,18 +173,32 @@ function HomeScreen({navigation}) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <Animated.View
-        style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
-        <Header title={headerTitle} onProfilePress={onProfilePress}/>
-      </Animated.View>
+      {!shouldShowFallback && (
+        <Animated.View
+          style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
+          <Header title={headerTitle} onProfilePress={onProfilePress}/>
+        </Animated.View>
+      )}
 
-      <FlipNewsScreen
-        toggleUI={toggleUI}
-        hideUI={hideUI}
-        onCommentsPress={handleCommentsPress}
-      />
+      {shouldShowFallback ? (
+        <OfflineFallback 
+          onRetry={handleRefresh} 
+          title={fallbackConfig.title}
+          message={fallbackConfig.message}
+          icon={fallbackConfig.icon}
+          buttonText={fallbackConfig.buttonText} // Pass dynamic button text
+        />
+      ) : (
+        <FlipNewsScreen
+          ref={flipScreenRef}
+          toggleUI={toggleUI}
+          hideUI={hideUI}
+          onCommentsPress={handleCommentsPress}
+          onRefresh={handleRefresh}
+        />
+      )}
 
-      {uiVisible && (
+      {!shouldShowFallback && uiVisible && (
         <View style={styles.counterContainer}>
           <Text style={styles.counterText}>
             {currentIndex + 1} / {filteredNews.length || 0}
@@ -162,10 +206,12 @@ function HomeScreen({navigation}) {
         </View>
       )}
 
-      <Animated.View
-        style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
-        <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
-      </Animated.View>
+      {!shouldShowFallback && (
+        <Animated.View
+          style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
+          <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+        </Animated.View>
+      )}
 
       <CategoriesModal
         visible={categoriesModalVisible}

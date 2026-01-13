@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { View, StyleSheet, Dimensions, StatusBar, Platform } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSelector } from 'react-redux';
 import Way2NewsCard from '../components/Way2NewsCard';
-import ShimmerLoader from '../components/ShimmerLoader'; // Import Shimmer
+import ShimmerLoader from '../components/ShimmerLoader';
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -38,30 +38,19 @@ const formatTimeAgo = (dateString) => {
 // --- SKELETON LOADING COMPONENT ---
 const NewsSkeleton = ({ height }) => {
   const imageHeight = height * 0.45;
-  const contentHeight = height - imageHeight;
-
   return (
     <View style={[styles.skeletonContainer, { height }]}>
-      {/* Image Placeholder */}
       <ShimmerLoader height={imageHeight} borderRadius={0} />
-      
       <View style={styles.skeletonContent}>
-        {/* Title Placeholder */}
         <ShimmerLoader height={30} borderRadius={4} />
         <View style={{height: 10}} />
         <ShimmerLoader height={30} borderRadius={4} />
         <View style={{height: 20}} />
-        
-        {/* Body Placeholder */}
         <ShimmerLoader height={20} borderRadius={4} />
         <View style={{height: 8}} />
         <ShimmerLoader height={20} borderRadius={4} />
         <View style={{height: 8}} />
         <ShimmerLoader height={20} borderRadius={4} />
-        <View style={{height: 8}} />
-        <ShimmerLoader height={20} borderRadius={4} />
-        
-        {/* Stats Bar Placeholder */}
         <View style={{ marginTop: 'auto', marginBottom: 20 }}>
           <ShimmerLoader height={40} borderRadius={4} />
         </View>
@@ -104,22 +93,31 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
   );
 });
 
-const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
-  // Get articles and loading state from Redux
+// WRAP WITH FORWARD REF
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh }, ref) => {
   const { articles, loading } = useSelector(state => state.news);
   
-  // API Data Mapping
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => {
+      if (formattedNews.length > 0) {
+        setCurrIndex(0);
+        // Optional: Reset animation values to ensure clean state
+        scrollY.value = 0;
+        swipeDirection.value = 0;
+      }
+    }
+  }));
+
   const formattedNews = useMemo(() => {
     const rawItems = articles?.items || (Array.isArray(articles) ? articles : []);
-
     return rawItems.map(item => {
-      // Check if it is an AD
       if (item.type === 'AD') {
         return {
           id: item.data._id,
           type: 'AD',
           isAd: true,
-          image: item.data.image, // Base64 string
+          image: item.data.image, 
           redirectUrl: item.data.redirect_url,
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
@@ -127,7 +125,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           comments: 0,
         };
       } 
-      // Handle NEWS type
       else {
         const data = item.data;
         return {
@@ -155,7 +152,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
   
-  // Transition state
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
   
@@ -206,6 +202,12 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     }
   };
 
+  const triggerRefresh = () => {
+    if (onRefresh) onRefresh();
+    // Reset spring to 0 smoothly
+    scrollY.value = withSpring(0, SPRING_CONFIG);
+  };
+
   const pan = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .onStart(() => {
@@ -215,7 +217,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     })
     .onUpdate((e) => {
       if (containerHeight === 0 || isAnimating.value) return;
-      const position = -e.translationY / containerHeight;
+      const position = -e.translationY / containerHeight; // Drag Down = Positive TranslationY = Negative Position
       scrollY.value = position;
       
       if (swipeDirection.value === 0 && Math.abs(position) > 0.05) {
@@ -226,6 +228,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       
+      // Swipe Up (Next News)
       if (position > 0.15 || -e.velocityY > 600) {
         isAnimating.value = true;
         swipeDirection.value = 1;
@@ -235,14 +238,22 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
           (finished) => { if (finished) runOnJS(finishFlip)('next'); }
         );
       } 
+      // Swipe Down (Previous News OR Refresh)
       else if (position < -0.15 || -e.velocityY < -600) {
-        isAnimating.value = true;
-        swipeDirection.value = -1;
-        scrollY.value = withTiming(
-          -1, 
-          { duration: 300, easing: Easing.out(Easing.cubic) }, 
-          (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
-        );
+        // CHECK IF AT TOP
+        if (currIndex === 0) {
+           // We are at the first news and pulling down -> Trigger Refresh
+           runOnJS(triggerRefresh)();
+        } else {
+           // Normal Previous Flip
+           isAnimating.value = true;
+           swipeDirection.value = -1;
+           scrollY.value = withTiming(
+             -1, 
+             { duration: 300, easing: Easing.out(Easing.cubic) }, 
+             (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
+           );
+        }
       } 
       else {
         swipeDirection.value = 0;
@@ -250,7 +261,7 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
       }
     });
 
-  // --- ANIMATED STYLES ---
+  // --- STYLES LOGIC (Unchanged) ---
   const VISIBILITY_THRESHOLD = 0.01;
   const PERSPECTIVE_VAL = 6000; 
 
@@ -322,7 +333,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  // Handle Loading State
   if (loading && formattedNews.length === 0) {
      return (
         <View style={styles.container} onLayout={onLayout}>
@@ -331,7 +341,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
      );
   }
 
-  // Handle Empty Data (non-loading)
   if (!displayNews) {
     return <View style={styles.container} onLayout={onLayout} />;
   }
@@ -340,8 +349,6 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={pan}>
         <Animated.View style={styles.container} onLayout={onLayout}>
-          
-          {/* Destinations */}
           <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
             <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} />
           </Animated.View>
@@ -349,28 +356,14 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
             <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} />
           </Animated.View>
 
-          {/* STATIC LAYERS */}
-          <Animated.View 
-            style={[
-              styles.halfWrapper, 
-              { top: 0, height: halfHeight }, 
-              staticTopStyle, 
-              isSwitching && { opacity: 1, zIndex: 100 }
-            ]}>
+          <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
             <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          <Animated.View 
-            style={[
-              styles.halfWrapper, 
-              { bottom: 0, height: halfHeight }, 
-              staticBottomStyle, 
-              isSwitching && { opacity: 1, zIndex: 100 }
-            ]}>
+          <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
             <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
           </Animated.View>
 
-          {/* FLIPPERS */}
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
             <Animated.View style={[styles.face, nextFrontStyle]}>
               <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} />
@@ -390,12 +383,11 @@ const FlipNewsScreen = ({ toggleUI, hideUI, onCommentsPress }) => {
             </Animated.View>
             <Animated.View style={[styles.shadow, shadowStyle]} />
           </Animated.View>
-
         </Animated.View>
       </GestureDetector>
     </GestureHandlerRootView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -432,7 +424,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'black',
   },
-  // Skeleton Styles
   skeletonContainer: {
     flex: 1,
     backgroundColor: '#FFF',
