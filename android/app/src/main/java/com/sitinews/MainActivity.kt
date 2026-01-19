@@ -1,4 +1,4 @@
-package com.sitinews
+package com.rapidnews
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

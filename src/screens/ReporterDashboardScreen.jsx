@@ -16,7 +16,7 @@ import TopReportersScreen from './TopReportersScreen';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { getReportedNews } from '../redux/reducers/news';
+import { getReporterNews } from '../redux/reducers/news';
 import NewsDetailModal from '../components/NewsDetailModal'; 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 
@@ -81,7 +81,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   console.log(reporterNews,"++++++++++++++++reportert");
 
   useEffect(()=>{
-    dispatch(getReportedNews())
+    dispatch(getReporterNews())
   },[])
 
   const handleNewsPress = (item) => {

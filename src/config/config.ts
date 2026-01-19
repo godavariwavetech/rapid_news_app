@@ -8,6 +8,7 @@ export const endpoints = {
   RESOLVE_LOCATION: 'location/resolve',
   GET_NEWS_FEED: 'news/feed',
   GUEST_REACT_LIKE: 'reactions',
+  VIEW_NEWS:'views/news/:id',
 
   GET_DISTRICTS: 'location/districts',
   GET_STATES: 'location/states',
@@ -23,7 +24,7 @@ export const endpoints = {
   AUTH_REQUEST_OTP: 'auth/request-otp',
   AUTH_VERIFY_OTP: 'auth/verify-otp',
   APPLY_REPORTER:'users/apply-reporter',
+  GET_USER_PROFILE: 'users/my-profile',
 
-  // Added Ad Click Endpoint
   TRACK_AD_CLICK: 'ads/:id/click',
 };

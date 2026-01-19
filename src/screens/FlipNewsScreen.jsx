@@ -102,7 +102,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     scrollToTop: () => {
       if (formattedNews.length > 0) {
         setCurrIndex(0);
-        // Optional: Reset animation values to ensure clean state
         scrollY.value = 0;
         swipeDirection.value = 0;
       }
@@ -134,7 +133,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: data.content?.title || '',
           body: data.content?.body || '',
           short: data.content?.short || '',
-          image: data.images?.length > 0 ? data.images[0] : 'https://via.placeholder.com/600x400',
+          // --- CHANGE: Pass null if no images, enabling fallback in Card ---
+          image: data.images?.length > 0 ? data.images[0] : null,
+          // ---------------------------------------------------------------
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
@@ -204,7 +205,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const triggerRefresh = () => {
     if (onRefresh) onRefresh();
-    // Reset spring to 0 smoothly
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
 
@@ -217,7 +217,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     })
     .onUpdate((e) => {
       if (containerHeight === 0 || isAnimating.value) return;
-      const position = -e.translationY / containerHeight; // Drag Down = Positive TranslationY = Negative Position
+      const position = -e.translationY / containerHeight;
       scrollY.value = position;
       
       if (swipeDirection.value === 0 && Math.abs(position) > 0.05) {
@@ -228,7 +228,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       
-      // Swipe Up (Next News)
       if (position > 0.15 || -e.velocityY > 600) {
         isAnimating.value = true;
         swipeDirection.value = 1;
@@ -238,14 +237,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           (finished) => { if (finished) runOnJS(finishFlip)('next'); }
         );
       } 
-      // Swipe Down (Previous News OR Refresh)
       else if (position < -0.15 || -e.velocityY < -600) {
-        // CHECK IF AT TOP
         if (currIndex === 0) {
-           // We are at the first news and pulling down -> Trigger Refresh
            runOnJS(triggerRefresh)();
         } else {
-           // Normal Previous Flip
            isAnimating.value = true;
            swipeDirection.value = -1;
            scrollY.value = withTiming(
@@ -261,7 +256,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       }
     });
 
-  // --- STYLES LOGIC (Unchanged) ---
   const VISIBILITY_THRESHOLD = 0.01;
   const PERSPECTIVE_VAL = 6000; 
 
