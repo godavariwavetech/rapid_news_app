@@ -53,6 +53,21 @@ export const applyReporter = createAsyncThunk(
   },
 );
 
+export const getProfile = createAsyncThunk(
+  'auth/getProfile',
+  async (_, {getState, rejectWithValue}) => {
+    try {
+      console.log(">>>>>>>>>>>>>CALLING");
+      const response = await api.get(endpoints.GET_USER_PROFILE);
+      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
+      return response.data;
+    } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -83,6 +98,11 @@ const authSlice = createSlice({
         .addCase(verifyOTP.rejected, (state, action) => {
           state.loading = false;
           state.error = action.error.message || 'Failed to fetch news';
+        })
+        .addCase(getProfile.fulfilled, (state, action) => {
+          state.loading = false;
+          console.log(action.payload,">>>>>>>>>>>ACtion payload>>>>");
+          state.reporter=action.payload
         })
     },
 });

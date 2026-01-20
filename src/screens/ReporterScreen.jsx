@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,15 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch, useSelector } from 'react-redux';
+import { getProfile } from '../redux/reducers/auth';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterScreen = ({navigation}) => {
+  const dispatch = useDispatch()
+  const {reporter} = useSelector((state)=>state.auth)
   const [activeTab, setActiveTab] = useState('submitted');
   const [expandedQuestion, setExpandedQuestion] = useState(null);
 
@@ -96,6 +100,10 @@ const ReporterScreen = ({navigation}) => {
     setExpandedQuestion(expandedQuestion === id ? null : id);
   };
 
+  useEffect(()=>{
+    dispatch(getProfile())
+  },[])
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -110,7 +118,7 @@ const ReporterScreen = ({navigation}) => {
             />
             <View style={styles.welcomeSection}>
               <Text style={styles.welcomeText}>Welcome</Text>
-              <Text style={styles.guestText}>Guest</Text>
+              <Text style={styles.guestText}>{reporter?.name}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.homeButton}>

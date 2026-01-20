@@ -19,6 +19,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getReporterNews } from '../redux/reducers/news';
 import NewsDetailModal from '../components/NewsDetailModal'; 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
+import { getProfile } from '../redux/reducers/auth';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -81,6 +82,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   console.log(reporterNews,"++++++++++++++++reportert");
 
   useEffect(()=>{
+    console.log(">>>>>>>>>>>>>CALLING?>>>>>>>");
     dispatch(getReporterNews())
   },[])
 
@@ -362,7 +364,7 @@ const ReporterDashboardScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{}</Text>
+          <Text style={styles.profileName}>{reporter?.name}</Text>
           <Text style={styles.profileRole}>Reporter @తూర్పు గోదావరి</Text>
         </View>
 
