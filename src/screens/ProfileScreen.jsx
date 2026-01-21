@@ -156,7 +156,7 @@ const ProfileScreen = ({navigation}) => {
                 <TouchableOpacity
                   key={category.id}
                   style={styles.categoryCard}
-                  onPress={() => handleCategoryPress(category.id)}
+                  // onPress={() => handleCategoryPress(category.id)}
                   activeOpacity={0.7}>
                   <View
                     style={[

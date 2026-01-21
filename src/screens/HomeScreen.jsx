@@ -27,7 +27,8 @@ function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   
-  const { articles, selectedCategory, error, loading } = useSelector(state => state.news);
+  // Get pagination state from Redux
+  const { articles, selectedCategory, error, loading, hasMore, currentPage, isLoadingMore } = useSelector(state => state.news);
   const {currentLocation} = useSelector(state => state.location)
 
   const [uiVisible, setUiVisible] = useState(true);
@@ -42,11 +43,9 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
 
-  // --- ENHANCED FALLBACK LOGIC ---
   const shouldShowFallback = !loading && (!articles || articles.length === 0);
 
   let fallbackConfig = {
-    // Default: Empty Data (API worked, but returned 0 items)
     title: "No News Available",
     message: "There are no stories to display right now. Please check back later.",
     icon: "newspaper-variant-outline",
@@ -54,7 +53,6 @@ function HomeScreen({navigation}) {
   };
 
   if (error === 'No internet connection. Showing cached news.') {
-    // Scenario 1: Offline
     fallbackConfig = {
       title: "No Internet Connection",
       message: "You seem to be offline. Check your Wi-Fi or mobile data and try again.",
@@ -62,21 +60,18 @@ function HomeScreen({navigation}) {
       buttonText: "Retry Connection"
     };
   } else if (error) {
-    // Scenario 2: Server/API Error
     fallbackConfig = {
       title: "Server Unavailable",
       message: "We're having trouble connecting to Way2News servers. Please try again in a moment.",
-      icon: "server-network-off", // More appropriate icon for server issues
+      icon: "server-network-off", 
       buttonText: "Try Again"
     };
   }
-  // -------------------------------
 
   useEffect(() => {
     dispatch(fetchNews())
   }, [dispatch]);
 
-  // Toast Logic (Only show if we have content, otherwise Fallback screen explains it)
   useEffect(() => {
     if (error === 'No internet connection. Showing cached news.' && articles.length > 0) {
       const friendlyMessage = "You seem to be offline. Showing previously fetched news.";
@@ -133,6 +128,25 @@ function HomeScreen({navigation}) {
     dispatch(fetchNews(selectedCategory));
   };
 
+  // --- NEW: Handle Load More (Pagination) ---
+  const handleLoadMore = () => {
+    if (!loading && !isLoadingMore && hasMore) {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("Loading more news...", ToastAndroid.SHORT);
+      }
+      // Pass the NEXT page index
+      dispatch(fetchNews({ category: selectedCategory, page: currentPage + 1 }));
+    } else if (!hasMore) {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("No more news to load", ToastAndroid.SHORT);
+      }
+    }
+  };
+
+  const handleIndexChange = (index) => {
+    setCurrentIndex(index);
+  };
+
   const handleTabPress = tabId => {
     switch (tabId) {
       case 'HomeTab':
@@ -186,7 +200,7 @@ function HomeScreen({navigation}) {
           title={fallbackConfig.title}
           message={fallbackConfig.message}
           icon={fallbackConfig.icon}
-          buttonText={fallbackConfig.buttonText} // Pass dynamic button text
+          buttonText={fallbackConfig.buttonText} 
         />
       ) : (
         <FlipNewsScreen
@@ -195,16 +209,12 @@ function HomeScreen({navigation}) {
           hideUI={hideUI}
           onCommentsPress={handleCommentsPress}
           onRefresh={handleRefresh}
+          onEndReached={handleLoadMore} // Pass the handler
+          onIndexChange={handleIndexChange} // Capture index updates
         />
       )}
 
-      {!shouldShowFallback && uiVisible && (
-        <View style={styles.counterContainer}>
-          <Text style={styles.counterText}>
-            {currentIndex + 1} / {filteredNews.length || 0}
-          </Text>
-        </View>
-      )}
+      {/* Counter Removed as per previous request, but logic kept in case you want it back */}
 
       {!shouldShowFallback && (
         <Animated.View
@@ -246,21 +256,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     elevation: 10,
-  },
-  counterContainer: {
-    position: 'absolute',
-    top: 120,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    zIndex: 50,
-  },
-  counterText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
   },
   bottomTabOverlay: {
     position: 'absolute',

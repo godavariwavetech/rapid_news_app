@@ -87,7 +87,8 @@ const OTPVerificationScreen = ({navigation, route}) => {
         
         // Handle response based on Redux action result
         if (response.type === 'auth/verifyOTP/fulfilled') {
-          navigation.replace('ProfileSetup');
+          const token = response.payload?.token;
+          navigation.replace('ProfileSetup', { token: token });
         } else if (response.type === 'auth/verifyOTP/rejected') {
           // Extract error message from API response
           const apiError = response.payload?.message || response.error?.message || 'Verification failed. Please try again.';

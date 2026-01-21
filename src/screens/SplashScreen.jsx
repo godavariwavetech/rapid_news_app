@@ -1,25 +1,21 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, StatusBar, Dimensions, Image } from 'react-native';
+import { View, StyleSheet, Text, StatusBar, Image } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withSpring, 
   withSequence, 
-  withDelay, 
   withTiming,
-  runOnJS 
 } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSelector } from 'react-redux';
-import { lightTheme } from '../utils/colors'; //
 import { applogo } from '../assets';
 
 const SplashScreen = ({ navigation }) => {
-  const isOnboardingComplete = useSelector(state => state.auth.isOnboardingComplete); //
+  const isOnboardingComplete = useSelector(state => state.auth.isOnboardingComplete);
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
 
   const handleNavigation = () => {
     if (!isOnboardingComplete) {
@@ -32,15 +28,13 @@ const SplashScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
+    // Logo Animation: Bounce in
     scale.value = withSequence(
       withTiming(0.5, { duration: 300 }),
       withSpring(1, { damping: 10, stiffness: 100 })
     );
     opacity.value = withTiming(1, { duration: 800 });
     
-    // Text fades in
-    textOpacity.value = withDelay(600, withTiming(1, { duration: 500 }));
-
     // Navigate away after 2.5 seconds
     const timer = setTimeout(() => {
       handleNavigation();
@@ -49,24 +43,20 @@ const SplashScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // 5. Animated Styles
+  // Animated Styles
   const animatedLogoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
-  const animatedTextStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateY: withSpring(textOpacity.value ? 0 : 20) }],
-  }));
-
   return (
     <View style={styles.container}>
+      {/* Light content status bar looks best on Blue */}
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       
-      {/* Background Gradient */}
+      {/* BACKGROUND: The Royal Blue Gradient you liked */}
       <LinearGradient
-        colors={[lightTheme.primary, '#E85A2A']} 
+        colors={['#1e3c72', '#2a5298']} 
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -74,20 +64,19 @@ const SplashScreen = ({ navigation }) => {
 
       {/* Logo Section */}
       <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
+        
+        {/* FIX: White Background Circle
+            This ensures the logo sits on White, preventing it 
+            from mixing with the Blue background. 
+        */}
         <View style={styles.logoCircle}>
-          {/* Using your specific app logo asset */}
           <Image 
             source={applogo} 
             style={styles.logoImage}
-            resizeMode="contain"
+            resizeMode="contain" 
           />
         </View>
-      </Animated.View>
 
-      {/* App Name */}
-      <Animated.View style={[styles.textContainer, animatedTextStyle]}>
-        <Text style={styles.title}>Siti News</Text>
-        <Text style={styles.subtitle}>Short News, Big Impact</Text>
       </Animated.View>
 
       {/* Footer Text */}
@@ -103,53 +92,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: lightTheme.primary,
+    backgroundColor: '#1e3c72', // Fallback color
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 20,
-    elevation: 10,
+    elevation: 15,
   },
   logoCircle: {
-    width: 140, // Slightly larger for image logos
-    height: 140,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 70,
+    width: 200, 
+    height: 200,
+    // Pure White Background to protect the logo
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 100, // Perfectly round
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20, // Padding to ensure logo doesn't touch edges
+    padding: 30, // Padding keeps the logo away from the blue edge
   },
   logoImage: {
     width: '100%',
     height: '100%',
-  },
-  textContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: 1,
-    // fontFamily: 'DMSans-Bold', // Uncomment if using custom font
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-    letterSpacing: 0.5,
   },
   footer: {
     position: 'absolute',
     bottom: 50,
   },
   footerText: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.7)', 
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 2,

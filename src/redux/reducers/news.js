@@ -64,12 +64,14 @@ export const fetchNews = createAsyncThunk(
           state_id: '693d34588b5e54c56d55c922',
           lang: 'te',
           page: page, // Dynamic Page
-          limit: 20,
+          limit: 5,
         },
         headers: {
           'x-device-id': deviceId // Header added here
         }
       });
+
+      console.log("API RESPOSNENENEENENENEENENEN");
       
       // Return data + the page number so the reducer knows context
       return { data: response.data, page }; 

@@ -110,12 +110,14 @@ const ProfileSetupScreen = ({navigation}) => {
 
   const handleProceed = async () => {
     if (validateForm()) {
+      const { token } = route.params || {};
       // 1. Prepare Payload matching the API requirement
       const payload = {
         username: username,
         full_name: fullName,
-        district_id: selectedDistrict._id, // Using the ID from the selected object
+        district_id: selectedDistrict._id,
         email: email,
+        token: token,
       };
 
       console.log('Submitting Payload:', payload);

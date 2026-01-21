@@ -43,7 +43,13 @@ export const applyReporter = createAsyncThunk(
   'auth/applyReporter',
   async (payload, {getState, rejectWithValue}) => {
     try {
-      const response = await api.post(endpoints.APPLY_REPORTER, payload);
+      const { token, ...data } = payload;
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
+      const response = await api.post(endpoints.APPLY_REPORTER, payload, config);
       console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {

@@ -76,7 +76,7 @@ function AppNavigator() {
             };
           },
         }}
-        initialRouteName={'ProfileSetup'}>
+        initialRouteName={'SplashScreen'}>
         <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen

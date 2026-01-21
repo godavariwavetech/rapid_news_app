@@ -364,7 +364,7 @@ const ReporterDashboardScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{reporter?.name}</Text>
+          <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
           <Text style={styles.profileRole}>Reporter @తూర్పు గోదావరి</Text>
         </View>
 

@@ -10,7 +10,6 @@ import {
   StatusBar,
   Modal,
   Linking,
-  // Import standard RN components for use inside Modal to ensure clicks work
   TouchableWithoutFeedback as RNTouchableWithoutFeedback,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
@@ -23,7 +22,12 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {responsiveFontSize, responsiveScreenWidth, responsiveWidth} from 'react-native-responsive-dimensions';
+import {
+  responsiveFontSize, 
+  responsiveScreenWidth, 
+  responsiveWidth,
+  responsiveHeight 
+} from 'react-native-responsive-dimensions';
 
 // Assets
 import { applogo } from '../assets'; 
@@ -33,7 +37,6 @@ import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-// We remove the hardcoded STATUS_BAR_HEIGHT logic in favor of insets
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
@@ -66,7 +69,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const imageResizeMode = hasImage ? FastImage.resizeMode.cover : FastImage.resizeMode.contain;
 
   // --- Handlers ---
-
   const handleDoubleTap = () => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
@@ -159,7 +161,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             style={[styles.image, { height: '100%', width: '100%' }]} 
             resizeMode={imageResizeMode} 
           />
-          {/* Ad Watermark */}
           <Image source={applogo} style={styles.watermarkLogo} /> 
           
           <LinearGradient
@@ -231,12 +232,13 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
               )}
             </Text>
-
-            <View style={styles.timestampContainer}>
-              <Icon name="clock-outline" size={14} color="#999" />
-              <Text style={styles.timestamp}>{news.timeAgo}</Text>
-            </View>
           </ScrollView>
+
+          {/* Timestamp Container - ALIGNED LEFT */}
+          <View style={styles.timestampContainer}>
+            <Icon name="clock-outline" size={14} color="#999" />
+            <Text style={styles.timestamp}>{news.timeAgo}</Text>
+          </View>
 
           <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
             <View style={styles.statsLeft}>
@@ -309,12 +311,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           visible={fullScreenImage}
           transparent
           animationType="fade"
-          statusBarTranslucent={true} // Allow content to draw under status bar
+          statusBarTranslucent={true} 
           onRequestClose={() => setFullScreenImage(false)}>
           <View style={styles.fullScreenContainer}>
-            {/* FIX 1: Use RNTouchableOpacity (Standard RN) 
-              FIX 2: Use insets.top for dynamic padding 
-            */}
             <RNTouchableOpacity
               style={[styles.closeButton, { top: Math.max(insets.top, 20) + 15 }]} 
               onPress={() => setFullScreenImage(false)}>
@@ -427,31 +426,39 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     flex: 1,
-    padding: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   title: {
-    fontSize:responsiveFontSize(2.6),
-    fontWeight: '700',
+    // --- INCREASED SIZE & WEIGHT ---
+    fontSize: responsiveFontSize(3), 
+    fontWeight: '800', 
     color: '#1A1A1A',
-    lineHeight: 32,
+    lineHeight: responsiveFontSize(4),
+    // --- ADDED SPACE BELOW TITLE ---
+    marginBottom: responsiveHeight(2), 
+    letterSpacing: 0.2,
   },
   bodyContainer: {
     flex: 1,
   },
   body: {
-    fontSize: responsiveFontSize(2.4),
+    // --- ADJUSTED FOR READABILITY ---
+    fontSize: responsiveFontSize(2.3),
     color: '#333',
-    lineHeight: 27,
+    lineHeight: responsiveFontSize(3.4), 
     paddingBottom: 10,
+    fontWeight: '400', 
+    letterSpacing: 0.3,
   },
   timestampContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 4,
+    justifyContent: 'flex-start',
   },
   timestamp: {
     fontSize: responsiveFontSize(1.5),
@@ -530,7 +537,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EAED',
     marginHorizontal: 16,
   },
-  // Full Screen Modal Styles
   fullScreenContainer: {
     flex: 1,
     backgroundColor: '#000000',
@@ -540,7 +546,7 @@ const styles = StyleSheet.create({
   closeButton: {
     position: 'absolute',
     right: 20,
-    zIndex: 20, // High Z-Index
+    zIndex: 20, 
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 8,
