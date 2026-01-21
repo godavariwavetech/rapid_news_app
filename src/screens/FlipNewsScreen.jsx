@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, StatusBar, Platform } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -11,7 +11,8 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { viewNews } from '../redux/reducers/news'; // Import Action
 import Way2NewsCard from '../components/Way2NewsCard';
 import ShimmerLoader from '../components/ShimmerLoader';
 
@@ -95,6 +96,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
 
 // WRAP WITH FORWARD REF
 const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange }, ref) => {
+  const dispatch = useDispatch();
   const { articles, loading } = useSelector(state => state.news);
   
   // Expose methods to parent
@@ -197,6 +199,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
+  // --- TRIGGER API CALL ON NEWS CHANGE ---
+  useEffect(() => {
+    if (currentNews && currentNews.id && !currentNews.isAd) {
+      dispatch(viewNews(currentNews.id));
+    }
+  }, [currentNews?.id, dispatch]);
+  // -------------------------------------
+
   useEffect(() => {
     if (isSwitching) {
       scrollY.value = 0;
@@ -247,13 +257,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       let position = -e.translationY / containerHeight;
 
       // --- RESISTANCE LOGIC ---
-      // If we are at the end (no next news) and pulling up: Dampen the movement
       if (!hasNext.value && position > 0) {
-        position = position / 3; // Resistance factor
+        position = position / 3; 
       }
-      // If we are at start (no prev news) and pulling down: Dampen
       else if (!hasPrev.value && position < 0) {
-        position = position / 3; // Resistance factor
+        position = position / 3; 
       }
 
       scrollY.value = position;
@@ -268,7 +276,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       // Swipe Up (Next)
       if (position > 0.15 || -e.velocityY > 600) {
-        // If no next news, trigger load more instead of flip
         if (!hasNext.value) {
            runOnJS(triggerLoadMore)();
         } else {
@@ -283,7 +290,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       } 
       // Swipe Down (Prev)
       else if (position < -0.15 || -e.velocityY < -600) {
-        // If no prev news, trigger refresh
         if (!hasPrev.value) {
            runOnJS(triggerRefresh)();
         } else {
@@ -359,8 +365,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     transform: [{ rotateX: '180deg' }],
   }));
 
-  // --- FIX FOR BLACK SCREEN ---
-  // If next/prev does NOT exist, force opacity to 1 so the current card stays visible
   const staticTopStyle = useAnimatedStyle(() => ({
     opacity: (scrollY.value < -VISIBILITY_THRESHOLD && hasPrev.value) ? 0 : 1,
     zIndex: 2,

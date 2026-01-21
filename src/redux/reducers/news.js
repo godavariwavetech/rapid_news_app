@@ -58,20 +58,18 @@ export const fetchNews = createAsyncThunk(
 
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: {
-          village_id: '693d34588b5e54c56d55c925', // Consider fetching these from state.location
+          village_id: '693d34588b5e54c56d55c925',
           mandal_id: '693d34588b5e54c56d55c924',
           district_id: '693d34588b5e54c56d55c923',
           state_id: '693d34588b5e54c56d55c922',
           lang: 'te',
-          page: page, // Dynamic Page
-          limit: 5,
+          page: page,
+          limit: 20,
         },
         headers: {
-          'x-device-id': deviceId // Header added here
+          'x-device-id': deviceId
         }
       });
-
-      console.log("API RESPOSNENENEENENENEENENEN");
       
       // Return data + the page number so the reducer knows context
       return { data: response.data, page }; 
@@ -150,15 +148,27 @@ export const trackAdClick = createAsyncThunk(
   }
 );
 
-// 6. View News
+// 6. View News (UPDATED)
 export const viewNews = createAsyncThunk(
   'news/viewNews',
   async (newsId, { rejectWithValue }) => {
     try {
+      // 1. Get Device ID
+      const deviceId = await getUniqueId();
+      console.log(newsId,">>>>>>>>>>>NewsID",deviceId);
+      
       const url = endpoints.VIEW_NEWS.replace(':id', newsId);
-      const response = await api.post(url,{});
+      
+      // 2. Pass headers in the config object
+      const response = await api.post(url, {}, {
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+      console.log(response,">>>>>>>>>>>>>>>responseeeeee>>>>>>View");
       return response.data;
     } catch (error) {
+      console.log(error,">>>>>>>>>>>ERROR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }

@@ -35,6 +35,7 @@ import { applogo } from '../assets';
 // Redux Actions
 import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
+import { fonts } from '../config/theme';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
@@ -206,12 +207,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 />
                 <View style={styles.reporterInfo}>
                   <Text style={styles.reporterName}>{news.reporter.name}</Text>
-                  <View style={styles.reporterLocationRow}>
+                 {news?.reporter?.location && <View style={styles.reporterLocationRow}>
                     <Icon name="map-marker" size={14} color="#FFFFFFCC" />
                     <Text style={styles.reporterLocation}>
                       {news.reporter.location}
                     </Text>
-                  </View>
+                  </View>}
                 </View>
               </View>
             </>
@@ -433,12 +434,13 @@ const styles = StyleSheet.create({
   title: {
     // --- INCREASED SIZE & WEIGHT ---
     fontSize: responsiveFontSize(3), 
-    fontWeight: '800', 
+    // fontWeight: '800', 
     color: '#1A1A1A',
     lineHeight: responsiveFontSize(4),
     // --- ADDED SPACE BELOW TITLE ---
     marginBottom: responsiveHeight(2), 
     letterSpacing: 0.2,
+    fontFamily:fonts.bold
   },
   bodyContainer: {
     flex: 1,
@@ -451,6 +453,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     fontWeight: '400', 
     letterSpacing: 0.3,
+    fontFamily:fonts.medium
   },
   timestampContainer: {
     flexDirection: 'row',
