@@ -11,14 +11,16 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSelector } from 'react-redux';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterProfileScreen = ({navigation}) => {
+  const {reporter} = useSelector(state=>state.auth)
   // Mock user data
   const userData = {
-    name: 'Guest',
+    name: reporter?.name,
     location: 'తూర్పు గోదావరి',
     profileImage: 'https://i.pravatar.cc/300?img=33',
     published: 0,
@@ -42,7 +44,7 @@ const ReporterProfileScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{userData.name}</Text>
+          <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
           <Text style={styles.profileRole}>
             Reporter @{userData.location}
           </Text>

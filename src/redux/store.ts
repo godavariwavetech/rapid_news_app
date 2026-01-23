@@ -21,7 +21,7 @@ const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
   // Added 'news' to the whitelist to cache articles
-  whitelist: ['auth', 'settings', 'bookmarks', 'location', 'news'],
+  whitelist: ['auth', 'settings', 'bookmarks', 'location'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

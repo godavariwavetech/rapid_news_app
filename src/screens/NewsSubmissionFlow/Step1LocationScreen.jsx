@@ -1,34 +1,115 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
   Platform,
   SafeAreaView,
   ScrollView,
+  Modal,
+  FlatList,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch, useSelector } from 'react-redux';
+// Import location actions
+import { getStates, getDistrict, getVillages } from '../../redux/reducers/location';
 
-const STATUS_BAR_HEIGHT =
-  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step1LocationScreen = ({navigation}) => {
-  const [searchText, setSearchText] = useState('');
+  const dispatch = useDispatch();
+  
+  // Get location data from Redux
+  const { states, districts, villages, loading } = useSelector(state => state.location);
+  
+  // Selection State
+  const [selectedState, setSelectedState] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedVillage, setSelectedVillage] = useState(null);
 
-  const recentLocations = [
-    {id: 1, name: 'Rajamundry NMA'},
-    {id: 2, name: 'Rajamundry Airport road'},
-    {id: 3, name: 'Rajamundry NMA'},
-    {id: 4, name: 'Rajamundry NMA'},
-  ];
+  // Modal Visibility State
+  const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+  const [showVillagePicker, setShowVillagePicker] = useState(false);
 
-  const handleLocationSelect = location => {
-    // Navigate to step 2
-    navigation.navigate('NewsSubmissionStep2', {location});
+  // Fetch States on Load
+  useEffect(() => {
+    dispatch(getStates());
+  }, [dispatch]);
+
+  // Handlers
+  const handleStateSelect = (item) => {
+    setSelectedState(item);
+    setSelectedDistrict(null);
+    setSelectedVillage(null);
+    setShowStatePicker(false);
+    dispatch(getDistrict(item._id)); // Fetch districts for selected state
   };
+
+  const handleDistrictSelect = (item) => {
+    setSelectedDistrict(item);
+    setSelectedVillage(null);
+    setShowDistrictPicker(false);
+    dispatch(getVillages(item._id)); // Fetch villages for selected district
+  };
+
+  const handleVillageSelect = (item) => {
+    setSelectedVillage(item);
+    setShowVillagePicker(false);
+  };
+
+  const handleNext = () => {
+    if (!selectedState || !selectedDistrict || !selectedVillage) {
+      Alert.alert('Required', 'Please select State, District, and Village to proceed.');
+      return;
+    }
+
+    // Pass selected data to the next screen
+    navigation.navigate('NewsSubmissionStep2', {
+      locationData: {
+        state: selectedState,
+        district: selectedDistrict,
+        village: selectedVillage
+      }
+    });
+  };
+
+  // Reusable Selection Modal
+  const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Icon name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={data}
+            keyExtractor={item => item._id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{paddingBottom: 20}}
+            renderItem={({item}) => (
+              <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
+                <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
+                <Icon name="chevron-right" size={20} color="#ccc" />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                {loading ? 'Loading...' : emptyMessage}
+              </Text>
+            }
+          />
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -41,44 +122,103 @@ const Step1LocationScreen = ({navigation}) => {
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>లొకేషన్ ఎంచుకోండి</Text>
+        <Text style={styles.headerTitle}>Select Location</Text>
         <Text style={styles.stepIndicator}>1 / 4</Text>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Location Icon and Title */}
         <View style={styles.titleSection}>
-          <Icon name="map-marker" size={32} color="#E74C3C" />
-          <Text style={styles.title}>సున్నాన్ సొన్నాన్నీ ఎంచుకొండి</Text>
+          <Icon name="map-marker-radius" size={32} color="#E74C3C" />
+          <Text style={styles.title}>Where is this news from?</Text>
         </View>
 
-        {/* Search Input */}
-        <View style={styles.searchContainer}>
-          <Icon name="magnify" size={22} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for village/town/city name"
-            placeholderTextColor="#999"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
+        <View style={styles.formContainer}>
+          {/* State Dropdown */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>State</Text>
+            <TouchableOpacity 
+              style={styles.dropdown} 
+              onPress={() => setShowStatePicker(true)}
+            >
+              <Text style={[styles.dropdownText, !selectedState && styles.placeholderText]}>
+                {selectedState ? (selectedState.name?.en || selectedState.name) : 'Select State'}
+              </Text>
+              <Icon name="chevron-down" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {/* District Dropdown */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>District</Text>
+            <TouchableOpacity 
+              style={[styles.dropdown, !selectedState && styles.disabledDropdown]} 
+              onPress={() => selectedState && setShowDistrictPicker(true)}
+              disabled={!selectedState}
+            >
+              <Text style={[styles.dropdownText, !selectedDistrict && styles.placeholderText]}>
+                {selectedDistrict ? (selectedDistrict.name?.en || selectedDistrict.name) : 'Select District'}
+              </Text>
+              <Icon name="chevron-down" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Village Dropdown */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Village / Mandal</Text>
+            <TouchableOpacity 
+              style={[styles.dropdown, !selectedDistrict && styles.disabledDropdown]} 
+              onPress={() => selectedDistrict && setShowVillagePicker(true)}
+              disabled={!selectedDistrict}
+            >
+              <Text style={[styles.dropdownText, !selectedVillage && styles.placeholderText]}>
+                {selectedVillage ? (selectedVillage.name?.en || selectedVillage.name) : 'Select Village'}
+              </Text>
+              <Icon name="chevron-down" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Recent Locations */}
-        <Text style={styles.sectionTitle}>ఇటీవల లొకేషన్స్</Text>
+        {/* Next Button */}
+        <TouchableOpacity 
+          style={[
+            styles.nextButton, 
+            (!selectedState || !selectedDistrict || !selectedVillage) && styles.disabledButton
+          ]}
+          onPress={handleNext}
+          disabled={!selectedState || !selectedDistrict || !selectedVillage}
+        >
+          <Text style={styles.nextButtonText}>Next Step</Text>
+          <Icon name="arrow-right" size={20} color="#FFF" />
+        </TouchableOpacity>
 
-        {recentLocations.map(location => (
-          <TouchableOpacity
-            key={location.id}
-            style={styles.locationItem}
-            onPress={() => handleLocationSelect(location.name)}
-            activeOpacity={0.7}>
-            <Icon name="clock-outline" size={22} color="#666" />
-            <Text style={styles.locationText}>{location.name}</Text>
-          </TouchableOpacity>
-        ))}
       </ScrollView>
+
+      {/* Modals */}
+      <SelectionModal 
+        visible={showStatePicker} 
+        onClose={() => setShowStatePicker(false)} 
+        title="Select State" 
+        data={states} 
+        onSelect={handleStateSelect} 
+        emptyMessage="No states found"
+      />
+      <SelectionModal 
+        visible={showDistrictPicker} 
+        onClose={() => setShowDistrictPicker(false)} 
+        title="Select District" 
+        data={districts} 
+        onSelect={handleDistrictSelect} 
+        emptyMessage="No districts found"
+      />
+      <SelectionModal 
+        visible={showVillagePicker} 
+        onClose={() => setShowVillagePicker(false)} 
+        title="Select Village" 
+        data={villages} 
+        onSelect={handleVillageSelect} 
+        emptyMessage="No villages found"
+      />
     </SafeAreaView>
   );
 };
@@ -110,6 +250,7 @@ const styles = StyleSheet.create({
   stepIndicator: {
     fontSize: 16,
     color: '#999',
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -123,52 +264,113 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#1A1A1A',
     flex: 1,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F6F8',
-    marginHorizontal: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 24,
+  formContainer: {
+    paddingHorizontal: 20,
   },
-  searchIcon: {
-    marginRight: 10,
+  inputGroup: {
+    marginBottom: 20,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333',
-  },
-  sectionTitle: {
+  label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#999',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    color: '#666',
+    marginBottom: 8,
+    marginLeft: 4,
   },
-  locationItem: {
+  dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 16,
+    justifyContent: 'space-between',
     backgroundColor: '#F5F6F8',
-    marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
-  locationText: {
+  disabledDropdown: {
+    opacity: 0.6,
+    backgroundColor: '#FAFAFA',
+  },
+  dropdownText: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#333',
+    fontWeight: '500',
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E74C3C',
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 40,
+  },
+  disabledButton: {
+    backgroundColor: '#FFCDD2',
+  },
+  nextButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  listItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 20,
+    fontSize: 16,
   },
 });
 

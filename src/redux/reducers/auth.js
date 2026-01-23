@@ -7,7 +7,8 @@ const initialState = {
   user:null,
   reporter: null,
   isAuthenticated: false,
-  reporterToken:null
+  reporterToken:null,
+  userToken:null
 };
 
 
@@ -79,6 +80,7 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     completeOnboarding: state => {
+      console.log("CALLED THE COMPLETED");
       state.isOnboardingComplete = true;
     },
     setUser: (state, action) => {
@@ -98,6 +100,7 @@ const authSlice = createSlice({
         })
         .addCase(verifyOTP.fulfilled, (state, action) => {
           state.loading = false;
+          console.log(action.payload,">>>>>>>>>>>OTP SUCESS>>>>");
           state.reporter=action.payload?.user
           state.reporterToken = action.payload?.token;
         })
@@ -107,7 +110,6 @@ const authSlice = createSlice({
         })
         .addCase(getProfile.fulfilled, (state, action) => {
           state.loading = false;
-          console.log(action.payload,">>>>>>>>>>>ACtion payload>>>>");
           state.reporter=action.payload
         })
     },

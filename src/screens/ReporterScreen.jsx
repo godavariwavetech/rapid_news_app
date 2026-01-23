@@ -19,7 +19,7 @@ const STATUS_BAR_HEIGHT =
 
 const ReporterScreen = ({navigation}) => {
   const dispatch = useDispatch()
-  const {reporter} = useSelector((state)=>state.auth)
+  const {reporter,reporterToken} = useSelector((state)=>state.auth)
   const [activeTab, setActiveTab] = useState('submitted');
   const [expandedQuestion, setExpandedQuestion] = useState(null);
 
@@ -135,7 +135,7 @@ const ReporterScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.actionCard}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('ReporterApp')}>
+          onPress={() =>navigation.navigate(reporterToken  ?  "ReporterApp" :'MobileLogin')}>
           <View style={styles.iconCircle}>
             <Icon name="microphone" size={28} color="#E74C3C" />
           </View>

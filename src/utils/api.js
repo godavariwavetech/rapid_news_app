@@ -11,9 +11,7 @@ api.interceptors.request.use(
   (config) => {
     try {
       const state = store.getState(); 
-      // const token = state?.auth?.reporterToken; 
-      // const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTNiMGQwZDAzYWI0Yzc5MjFhMDlmMyIsInJvbGUiOiJSRVBPUlRFUiIsImlhdCI6MTc2ODgwMTE5OSwiZXhwIjoxNzY5NDA1OTk5fQ.K1TvE4RT0qe-CbQ4oxGiQCYAJeRGcmj1VTg7GIpzLnY'
-      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NmUwNzNjOWY4Mzk1NjY2YmJlYmE0YyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzY4ODE4NDkyLCJleHAiOjE3Njk0MjMyOTJ9.3zGYfR3teaotEerVA2g4QARfU-NNgsiXP38nmmBXPlc"
+      const token = state?.auth?.reporterToken||state?.auth?.userToken||"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NmUwNzNjOWY4Mzk1NjY2YmJlYmE0YyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzY4ODE4NDkyLCJleHAiOjE3Njk0MjMyOTJ9.3zGYfR3teaotEerVA2g4QARfU-NNgsiXP38nmmBXPlc"
       if (token) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }

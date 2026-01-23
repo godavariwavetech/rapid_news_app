@@ -19,38 +19,48 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {useDispatch, useSelector} from 'react-redux';
-import {getStates, getDistrict, resolveLocation} from '../redux/reducers/location';
-import {applyReporter} from '../redux/reducers/auth'; // Import the new action
+import {
+  getStates, 
+  getDistrict, 
+  getVillages, 
+  checkVillageCapacity, // 1. Import the new action
+  resolveLocation
+} from '../redux/reducers/location';
+import {applyReporter} from '../redux/reducers/auth';
 import LocationService from '../utils/LocationService';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
-const ProfileSetupScreen = ({navigation}) => {
+const ProfileSetupScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
-  const {states, districts, loading: locationLoading} = useSelector(state => state.location);
-  const {loading: authLoading} = useSelector(state => state.auth || {}); // Get auth loading state
+  
+  const {states, districts, villages, loading: locationLoading} = useSelector(state => state.location);
+  const {loading: authLoading} = useSelector(state => state.auth || {});
 
   const [profileImage, setProfileImage] = useState(null);
+  const [profileImageBase64, setProfileImageBase64] = useState(null);
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState(''); // Added Email State
+  const [email, setEmail] = useState('');
   
   // Selection State
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedVillage, setSelectedVillage] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [checkingCapacity, setCheckingCapacity] = useState(false); // 2. New Loading State
 
   // Modals Visibility
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+  const [showVillagePicker, setShowVillagePicker] = useState(false);
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     const init = async () => {
       dispatch(getStates());
-      handleDetectLocation(true);
     };
     init();
   }, [dispatch]);
@@ -68,6 +78,10 @@ const ProfileSetupScreen = ({navigation}) => {
           setSelectedState(data.state);
           dispatch(getDistrict(data.state._id));
           setSelectedDistrict(data.district);
+          
+          dispatch(getVillages(data.district._id));
+          setSelectedVillage(null);
+
           setErrors(prev => ({...prev, state: null, district: null}));
           if (!isAuto) Alert.alert('Success', `Location detected: ${data.district.name.en}, ${data.state.name.en}`);
         } else if (!isAuto) {
@@ -86,23 +100,20 @@ const ProfileSetupScreen = ({navigation}) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Username validation
     if (!username.trim()) newErrors.username = 'Username is required';
     else if (username.length < 3) newErrors.username = 'Min 3 characters';
     else if (!/^[a-zA-Z0-9_]+$/.test(username)) newErrors.username = 'Alphanumeric & underscore only';
 
-    // Full Name validation
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     else if (fullName.trim().length < 2) newErrors.fullName = 'Min 2 characters';
 
-    // Email validation (New)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!emailRegex.test(email)) newErrors.email = 'Invalid email format';
 
-    // Location validation
     if (!selectedState) newErrors.state = 'State is required';
     if (!selectedDistrict) newErrors.district = 'District is required';
+    if (!selectedVillage) newErrors.village = 'Village is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -111,28 +122,31 @@ const ProfileSetupScreen = ({navigation}) => {
   const handleProceed = async () => {
     if (validateForm()) {
       const { token } = route.params || {};
-      // 1. Prepare Payload matching the API requirement
+      
+      if (!token) {
+        Alert.alert("Error", "Authentication token missing. Please try logging in again.");
+        return;
+      }
+
       const payload = {
         username: username,
         full_name: fullName,
-        district_id: selectedDistrict._id,
         email: email,
+        state_id: selectedState._id,
+        district_id: selectedDistrict._id,
+        village_id: selectedVillage._id,
         token: token,
+        profile_image: profileImageBase64 ? `data:image/jpeg;base64,${profileImageBase64}` : null
       };
 
-      console.log('Submitting Payload:', payload);
-
-      // 2. Dispatch Action
       try {
         const resultAction = await dispatch(applyReporter(payload));
         
         if (applyReporter.fulfilled.match(resultAction)) {
-          // Success
           Alert.alert('Success', 'Profile setup completed!', [
-            { text: 'OK', onPress: () => navigation.replace('ReporterApp') } // Navigate to main app
+            { text: 'OK', onPress: () => navigation.replace('ReporterApp') }
           ]);
         } else {
-          // Failure
           const errorMessage = resultAction.payload?.message || 'Failed to submit application';
           Alert.alert('Error', errorMessage);
         }
@@ -145,10 +159,15 @@ const ProfileSetupScreen = ({navigation}) => {
   };
 
   const handleImagePick = () => {
-    const options = { mediaType: 'photo', quality: 0.8 };
+    const options = { 
+      mediaType: 'photo', 
+      quality: 0.8,
+      includeBase64: true 
+    };
     launchImageLibrary(options, response => {
       if (response.assets && response.assets[0]) {
         setProfileImage(response.assets[0].uri);
+        setProfileImageBase64(response.assets[0].base64); 
       }
     });
   };
@@ -157,6 +176,7 @@ const ProfileSetupScreen = ({navigation}) => {
     setSelectedState(item);
     setShowStatePicker(false);
     setSelectedDistrict(null);
+    setSelectedVillage(null);
     dispatch(getDistrict(item._id));
     if (errors.state) setErrors({...errors, state: null});
   };
@@ -164,17 +184,52 @@ const ProfileSetupScreen = ({navigation}) => {
   const handleDistrictSelect = (item) => {
     setSelectedDistrict(item);
     setShowDistrictPicker(false);
+    setSelectedVillage(null);
+    dispatch(getVillages(item._id)); 
     if (errors.district) setErrors({...errors, district: null});
+  };
+
+  // 3. UPDATED: Handle Village Select with Capacity Check
+  const handleVillageSelect = async (item) => {
+    setCheckingCapacity(true);
+    try {
+      // Dispatch the check
+      const resultAction = await dispatch(checkVillageCapacity(item._id));
+      
+      if (checkVillageCapacity.fulfilled.match(resultAction)) {
+        const data = resultAction.payload;
+        
+        // Assuming the API returns { available: true } or similar
+        // If the API returns { count: x, capacity: y }, you can adjust the condition:
+        // if (data.count < data.capacity) ...
+        // Here we assume a boolean 'available' property based on standard practices
+        if (data && data.available) {
+          setSelectedVillage(item);
+          setShowVillagePicker(false);
+          if (errors.village) setErrors({...errors, village: null});
+        } else {
+          Alert.alert("Village Full", "This village has reached its maximum reporter capacity. Please select another village.");
+          setSelectedVillage(null); // Ensure it's not selected
+        }
+      } else {
+        Alert.alert("Error", "Could not verify village capacity. Please try again.");
+      }
+    } catch (error) {
+      console.log("Capacity check error:", error);
+      Alert.alert("Error", "An unexpected error occurred while checking capacity.");
+    } finally {
+      setCheckingCapacity(false);
+    }
   };
 
   const isFormValid = 
     username.trim().length >= 3 && 
     fullName.trim().length >= 2 && 
-    email.trim().length > 5 && // Basic check
+    email.trim().length > 5 && 
     selectedState && 
-    selectedDistrict;
+    selectedDistrict &&
+    selectedVillage;
 
-  // Reusable Modal
   const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
@@ -183,19 +238,27 @@ const ProfileSetupScreen = ({navigation}) => {
             <Text style={styles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color="#333" /></TouchableOpacity>
           </View>
-          <FlatList
-            data={data}
-            keyExtractor={item => item._id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{paddingBottom: 20}}
-            renderItem={({item}) => (
-              <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
-                <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
-                <Icon name="chevron-right" size={20} color="#ccc" />
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={<Text style={styles.emptyText}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
-          />
+          {/* Show loader inside modal if checking capacity */}
+          {checkingCapacity && title === "Select Village" ? (
+             <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#2196F3" />
+                <Text style={{ marginTop: 10, color: '#666' }}>Checking availability...</Text>
+             </View>
+          ) : (
+            <FlatList
+              data={data}
+              keyExtractor={item => item._id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{paddingBottom: 20}}
+              renderItem={({item}) => (
+                <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
+                  <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
+                  <Icon name="chevron-right" size={20} color="#ccc" />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={styles.emptyText}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
+            />
+          )}
         </View>
       </TouchableOpacity>
     </Modal>
@@ -207,7 +270,6 @@ const ProfileSetupScreen = ({navigation}) => {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
-          {/* Header */}
           <View style={styles.headerSection}>
             <TouchableOpacity style={styles.profileImageContainer} onPress={handleImagePick}>
               {profileImage ? (
@@ -222,9 +284,7 @@ const ProfileSetupScreen = ({navigation}) => {
             </View>
           </View>
 
-          {/* Form Section */}
           <View style={styles.formSection}>
-            {/* Username */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>User Name</Text>
               <TextInput
@@ -238,7 +298,6 @@ const ProfileSetupScreen = ({navigation}) => {
               {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
             </View>
 
-            {/* Full Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
@@ -252,7 +311,6 @@ const ProfileSetupScreen = ({navigation}) => {
               {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
             </View>
 
-            {/* Email Input (Added) */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <TextInput
@@ -267,7 +325,6 @@ const ProfileSetupScreen = ({navigation}) => {
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
-            {/* Location Header */}
             <View style={styles.locationHeader}>
               <Text style={styles.label}>Location Details</Text>
               <TouchableOpacity style={styles.detectButton} onPress={() => handleDetectLocation(false)} disabled={isLocating}>
@@ -275,7 +332,6 @@ const ProfileSetupScreen = ({navigation}) => {
               </TouchableOpacity>
             </View>
 
-            {/* State Selection */}
             <View style={styles.inputGroup}>
               <Text style={styles.subLabel}>State</Text>
               <TouchableOpacity style={[styles.input, styles.dropdownInput, errors.state && styles.inputError]} onPress={() => setShowStatePicker(true)}>
@@ -285,7 +341,6 @@ const ProfileSetupScreen = ({navigation}) => {
               {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
             </View>
 
-            {/* District Selection */}
             <View style={styles.inputGroup}>
               <Text style={styles.subLabel}>District</Text>
               <TouchableOpacity 
@@ -299,9 +354,23 @@ const ProfileSetupScreen = ({navigation}) => {
               {!selectedState && <Text style={styles.helperText}>Select state first</Text>}
               {errors.district && <Text style={styles.errorText}>{errors.district}</Text>}
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.subLabel}>Village</Text>
+              <TouchableOpacity 
+                style={[styles.input, styles.dropdownInput, errors.village && styles.inputError, !selectedDistrict && styles.disabledInput]} 
+                onPress={() => selectedDistrict && setShowVillagePicker(true)} 
+                disabled={!selectedDistrict}
+              >
+                <Text style={[styles.inputText, !selectedVillage && styles.placeholderText]}>{selectedVillage ? selectedVillage.name.en : 'Select Village'}</Text>
+                <Icon name="chevron-down" size={24} color="#999" />
+              </TouchableOpacity>
+              {!selectedDistrict && <Text style={styles.helperText}>Select district first</Text>}
+              {errors.village && <Text style={styles.errorText}>{errors.village}</Text>}
+            </View>
+
           </View>
 
-          {/* Proceed Button */}
           <TouchableOpacity
             style={[styles.proceedButton, isFormValid && !authLoading && styles.proceedButtonActive]}
             onPress={handleProceed}
@@ -318,6 +387,7 @@ const ProfileSetupScreen = ({navigation}) => {
 
       <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} emptyMessage="No states available" />
       <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} emptyMessage="No districts available" />
+      <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} emptyMessage="No villages available" />
     </SafeAreaView>
   );
 };

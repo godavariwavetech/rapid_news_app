@@ -19,6 +19,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ReporterProfileScreen from '../screens/ReporterProfileScreen';
+import { useSelector } from 'react-redux';
 
 const Drawer = createDrawerNavigator();
 
@@ -27,6 +28,7 @@ const STATUS_BAR_HEIGHT =
 
 // Custom Drawer Content
 function CustomDrawerContent({navigation}) {
+  const {reporter} = useSelector(state=>state.auth)
   // Get current route name
   const state = useNavigationState(state => state);
   const currentRoute = state?.routes[state.index]?.name;
@@ -95,7 +97,7 @@ function CustomDrawerContent({navigation}) {
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Guest</Text>
+            <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
             <Text style={styles.profileRole}>Reporter ( 100 Coins )</Text>
           </View>
           <TouchableOpacity style={styles.editButton}>

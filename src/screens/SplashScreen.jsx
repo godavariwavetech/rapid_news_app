@@ -17,6 +17,8 @@ const SplashScreen = ({ navigation }) => {
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
+  console.log(isAuthenticated,">>>>>>>>>>>>isAuthenticated",isOnboardingComplete);
+
   const handleNavigation = () => {
     if (!isOnboardingComplete) {
       navigation.replace('LanguageSelection');

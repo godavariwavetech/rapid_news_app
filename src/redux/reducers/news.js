@@ -8,10 +8,15 @@ import { endpoints } from '../../config/config';
 const initialState = {
   // --- News List State ---
   articles: [], 
-  loading: false,          // Initial load
-  isLoadingMore: false,    // Pagination load
+  loading: false,          
+  isLoadingMore: false,    
   error: null,
+  
+  // --- Categories State ---
+  categories: [],
+  loadingCategories: false,
   selectedCategory: 'all',
+  
   refreshing: false,
   
   // --- Pagination State ---
@@ -27,11 +32,20 @@ const initialState = {
   // --- Reporter News State ---
   reporterNews: [],
   isLoadingReporterNews: false,
+
+  // --- Create/Update State ---
+  isCreatingNews: false,
+  createNewsSuccess: false,
+  createNewsError: null,
+
+  isUpdatingNews: false,
+  updateNewsSuccess: false,
+  updateNewsError: null,
 };
 
 // --- ASYNC THUNKS ---
 
-// 1. Fetch News List (Supports Pagination & Device ID)
+// 1. Fetch News List
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (arg = 'all', { rejectWithValue }) => {
@@ -55,40 +69,74 @@ export const fetchNews = createAsyncThunk(
 
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: {
-          village_id: '693d34588b5e54c56d55c925',
+          village_id: '693d34588b5e54c56d55c925', // Consider fetching dynamically
           mandal_id: '693d34588b5e54c56d55c924',
           district_id: '693d34588b5e54c56d55c923',
           state_id: '693d34588b5e54c56d55c922',
           lang: 'te',
           page: page,
           limit: 20,
+          category: category !== 'all' ? category : undefined,
         },
         headers: {
           'x-device-id': deviceId
         }
       });
-
-      console.log(response.data,">>>>>>>>>>>>>>>>>>>>>response.data");
       
       return { data: response.data, page }; 
     } catch (error) {
-      console.log(error,">>>>>>>>>>>NEWS ERROR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
 
-// 2. React to News (Like/Dislike)
+// 2. Get Categories
+export const getCategories = createAsyncThunk(
+  'news/getCategories',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(endpoints.CATEGORY);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 3. Create News
+export const createNews = createAsyncThunk(
+  'news/createNews',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.CREATE_NEWS, payload);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 4. Update News
+export const updateNews = createAsyncThunk(
+  'news/updateNews',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const url = endpoints.UPDATE_NEWS.replace(':id', id);
+      const response = await api.put(url, data); 
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 5. React to News (Like/Dislike)
 export const reactToNews = createAsyncThunk(
   'news/reactToNews',
   async ({ newsId, type }, { rejectWithValue }) => {
     try {
       const deviceId = await getUniqueId();
-      const payload = { 
-        news_id: newsId, 
-        type: type, 
-        device_id: deviceId 
-      };
+      const payload = { news_id: newsId, type: type, device_id: deviceId };
       const response = await api.post(endpoints.GUEST_REACT_LIKE, payload); 
       return response.data;
     } catch (error) {
@@ -97,7 +145,7 @@ export const reactToNews = createAsyncThunk(
   }
 );
 
-// 3. Get Comments
+// 6. Get Comments
 export const getComments = createAsyncThunk(
   'news/getComments',
   async (newsId, { rejectWithValue }) => {
@@ -111,15 +159,12 @@ export const getComments = createAsyncThunk(
   }
 );
 
-// 4. Post Comment
+// 7. Post Comment
 export const postComment = createAsyncThunk(
   'news/postComment',
   async ({ newsId, text }, { dispatch, rejectWithValue }) => {
     try {
-      const payload = { 
-        news_id: newsId, 
-        text: text 
-      };
+      const payload = { news_id: newsId, text: text };
       const response = await api.post(endpoints.ADD_COMMENT, payload);
       dispatch(getComments(newsId)); 
       return response.data;
@@ -129,15 +174,12 @@ export const postComment = createAsyncThunk(
   }
 );
 
-// 5. Track Ad Click
+// 8. Track Ad Click
 export const trackAdClick = createAsyncThunk(
   'news/trackAdClick',
   async (adId, { rejectWithValue }) => {
     try {
-      const payload = {
-        source: "feed",
-        platform: Platform.OS 
-      };
+      const payload = { source: "feed", platform: Platform.OS };
       const url = endpoints.TRACK_AD_CLICK.replace(':id', adId);
       const response = await api.post(url, payload);
       return response.data;
@@ -147,17 +189,15 @@ export const trackAdClick = createAsyncThunk(
   }
 );
 
+// 9. View News
 export const viewNews = createAsyncThunk(
   'news/viewNews',
   async (newsId, { rejectWithValue }) => {
     try {
-      // 1. Get Device ID
       const deviceId = await getUniqueId();
       const url = endpoints.VIEW_NEWS.replace(':id', newsId);
       const response = await api.post(url, {}, {
-        headers: {
-          'x-device-id': deviceId
-        }
+        headers: { 'x-device-id': deviceId }
       });
       return response.data;
     } catch (error) {
@@ -166,7 +206,7 @@ export const viewNews = createAsyncThunk(
   }
 );
 
-// 7. Get Reporter News
+// 10. Get Reporter News
 export const getReporterNews = createAsyncThunk(
   'news/getReporterNews',
   async (_, { rejectWithValue }) => {
@@ -178,7 +218,6 @@ export const getReporterNews = createAsyncThunk(
     }
   }
 );
-
 
 // --- SLICE ---
 
@@ -201,18 +240,20 @@ const newsSlice = createSlice({
       state.articles = action.payload;
       state.loading = false;
     },
+    resetNewsStatus: (state) => {
+      state.createNewsSuccess = false;
+      state.createNewsError = null;
+      state.updateNewsSuccess = false;
+      state.updateNewsError = null;
+    }
   },
   extraReducers: (builder) => {
     builder
-      // --- Fetch News (Pagination Logic) ---
+      // --- Fetch News ---
       .addCase(fetchNews.pending, (state, action) => {
-        // Check if we are fetching page 1 (refresh/init) or next page
         const page = typeof action.meta.arg === 'object' ? action.meta.arg.page : 1;
-        if (page === 1) {
-            state.loading = true;
-        } else {
-            state.isLoadingMore = true;
-        }
+        if (page === 1) state.loading = true;
+        else state.isLoadingMore = true;
         state.error = null;
       })
       .addCase(fetchNews.fulfilled, (state, action) => {
@@ -221,28 +262,70 @@ const newsSlice = createSlice({
         state.isLoadingMore = false;
         state.currentPage = page;
 
-        // Normalize data: handle if API returns array directly or object with items
+        // Ensure incomingItems is always an array
         const incomingItems = Array.isArray(data) ? data : (data.items || []);
 
-        // Logic: Replace if page 1, Append if page > 1
         if (page === 1) {
-          state.articles = data; // Keep original structure
+          state.articles = data;
         } else {
-          // Robust append logic for different structures
+          // Robust append logic
           if (Array.isArray(state.articles)) {
              state.articles = [...state.articles, ...incomingItems];
           } else if (state.articles?.items) {
              state.articles.items = [...state.articles.items, ...incomingItems];
           }
         }
-
-        // Update hasMore based on result size (limit is 20)
         state.hasMore = incomingItems.length > 0;
       })
       .addCase(fetchNews.rejected, (state, action) => {
         state.loading = false;
         state.isLoadingMore = false;
         state.error = action.payload || 'Failed to fetch news';
+      })
+
+      // --- Get Categories ---
+      .addCase(getCategories.pending, (state) => {
+        state.loadingCategories = true;
+      })
+      .addCase(getCategories.fulfilled, (state, action) => {
+        state.loadingCategories = false;
+        state.categories = Array.isArray(action.payload) 
+          ? action.payload 
+          : (action.payload.items || []);
+      })
+      .addCase(getCategories.rejected, (state, action) => {
+        state.loadingCategories = false;
+        console.log("Error fetching categories:", action.payload);
+      })
+
+      // --- Create News ---
+      .addCase(createNews.pending, (state) => {
+        state.isCreatingNews = true;
+        state.createNewsSuccess = false;
+        state.createNewsError = null;
+      })
+      .addCase(createNews.fulfilled, (state) => {
+        state.isCreatingNews = false;
+        state.createNewsSuccess = true;
+      })
+      .addCase(createNews.rejected, (state, action) => {
+        state.isCreatingNews = false;
+        state.createNewsError = action.payload;
+      })
+
+      // --- Update News ---
+      .addCase(updateNews.pending, (state) => {
+        state.isUpdatingNews = true;
+        state.updateNewsSuccess = false;
+        state.updateNewsError = null;
+      })
+      .addCase(updateNews.fulfilled, (state) => {
+        state.isUpdatingNews = false;
+        state.updateNewsSuccess = true;
+      })
+      .addCase(updateNews.rejected, (state, action) => {
+        state.isUpdatingNews = false;
+        state.updateNewsError = action.payload;
       })
 
       // --- Get Comments ---
@@ -259,7 +342,7 @@ const newsSlice = createSlice({
         state.interactionError = action.payload;
       })
 
-      // --- Post Comment (Optimistic Update) ---
+      // --- Post Comment ---
       .addCase(postComment.pending, (state) => {
         state.isPostingComment = true;
         state.interactionError = null;
@@ -268,6 +351,7 @@ const newsSlice = createSlice({
         state.isPostingComment = false;
         const { newsId } = action.meta.arg;
         
+        // Optimistic Update for comments count
         const updateItemCommentCount = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
           const index = itemsList.findIndex(item => (item.data && item.data._id === newsId));
@@ -296,9 +380,7 @@ const newsSlice = createSlice({
       })
       .addCase(getReporterNews.fulfilled, (state, action) => {
         state.isLoadingReporterNews = false;
-        state.reporterNews = Array.isArray(action.payload) 
-          ? action.payload 
-          : (action.payload.items || []);
+        state.reporterNews = Array.isArray(action.payload) ? action.payload : (action.payload.items || []);
       })
       .addCase(getReporterNews.rejected, (state, action) => {
         state.isLoadingReporterNews = false;
@@ -312,6 +394,12 @@ const newsSlice = createSlice({
   },
 });
 
-export const { setSelectedCategory, clearNews, setRefreshing, setMockNews } = newsSlice.actions;
+export const { 
+  setSelectedCategory, 
+  clearNews, 
+  setRefreshing, 
+  setMockNews, 
+  resetNewsStatus 
+} = newsSlice.actions;
 
 export default newsSlice.reducer;

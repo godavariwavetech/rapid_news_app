@@ -10,11 +10,13 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSelector } from 'react-redux';
 
 const {width, height} = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.85;
 
 const ProfileDrawer = ({visible, onClose}) => {
+  const {reporter} = useSelector(state=>state.auth)
   const categories = [
     {id: 'education', icon: 'school', label: 'మీ కోసం', color: '#4ECDC4'},
     {id: 'politics', icon: 'account-tie', label: 'రాజకీయాలు', color: '#9B59B6'},
@@ -59,7 +61,7 @@ const ProfileDrawer = ({visible, onClose}) => {
                   <Icon name="account-circle" size={60} color="#CCC" />
                 </View>
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>Guest</Text>
+                  <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
                   <TouchableOpacity>
                     <Text style={styles.profileLink}>Click here to select email id</Text>
                   </TouchableOpacity>

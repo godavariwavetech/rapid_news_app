@@ -70,6 +70,19 @@ export const getVillages = createAsyncThunk(
   }
 );
 
+export const checkVillageCapacity = createAsyncThunk(
+  'location/checkVillageCapacity',
+  async (villageId, { rejectWithValue }) => {
+    try {
+      // API Endpoint provided: /locations/villages/:id/capacity
+      const response = await api.get(`/locations/villages/${villageId}/capacity`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 
 
 

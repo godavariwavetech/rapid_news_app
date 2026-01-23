@@ -30,6 +30,10 @@ const Step4ReviewScreen = ({navigation, route}) => {
     const validCodes = [200, 201, 202, 204];
     let response;
 
+
+    console.log(route.params?.apiPayload,">>>>>>>>>>>>>>>>payload");
+    // return
+
     // Check if we are in Edit Mode
     if (isEditing && newsId) {
       // Dispatch Update Action
@@ -42,7 +46,10 @@ const Step4ReviewScreen = ({navigation, route}) => {
       response = await dispatch(createNews(route.params?.apiPayload));
     }
 
-    if (validCodes.includes(response?.payload?.status)) {
+    console.log(response,">>>>>>>>>>>>>>.responseeee");
+
+
+    if (response?.payload?.news_id) {
       Alert.alert(
         'Success', 
         `Your news has been ${isEditing ? 'updated' : 'submitted'} successfully!`, 

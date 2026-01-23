@@ -84,6 +84,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   useEffect(()=>{
     console.log(">>>>>>>>>>>>>CALLING?>>>>>>>");
     dispatch(getReporterNews())
+    dispatch(getProfile())
   },[])
 
   const handleNewsPress = (item) => {
@@ -379,8 +380,8 @@ const ReporterDashboardScreen = ({navigation}) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {selectedTab === 'డాష్‌బోర్డ్' && renderDashboardContent()}
-        {selectedTab === 'నా స్టోరీస్' && <MyStoriesScreen />  }
-        {selectedTab === 'నా జిల్లా' && renderNaaJillaContent()}
+        {selectedTab === 'నా స్టోరీస్' && renderNaaJillaContent()   }
+        {selectedTab === 'నా జిల్లా' && <MyStoriesScreen />}
         {selectedTab === 'టాప్ వీడియోలు' && <TopReportersScreen />  }
         <View style={{height: 16}} />
       </ScrollView>

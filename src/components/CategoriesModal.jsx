@@ -21,13 +21,15 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSelector } from 'react-redux';
 
 const {width, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
-  const [searchText, setSearchText] = useState('');
   const navigation = useNavigation();
+  const {reporterToken} = useSelector((state)=>state.auth)
+  const [searchText, setSearchText] = useState('');
   const [activeSection, setActiveSection] = useState('news');
   
   // Animation Values
@@ -153,7 +155,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
   const handleReporterNavigation = () => {
     closeModal();
-    setTimeout(() => navigation.navigate('Reporter'), 100);
+    setTimeout(() => navigation.navigate(reporterToken  ?  "ReporterApp" :'Reporter'), 100);
   };
 
   const handleSelection = (cat) => {

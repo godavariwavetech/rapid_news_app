@@ -19,6 +19,7 @@ const STATUS_BAR_HEIGHT =
 const ProfileScreen = ({navigation}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets()
+  const {reporter} = useSelector(state=>state.auth)
   const selectedCategory = useSelector(state => state.news.selectedCategory);
 
   const categories = [
@@ -92,7 +93,7 @@ const ProfileScreen = ({navigation}) => {
             <Icon name="account-circle" size={48} color="#CCC" />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Guest</Text>
+            <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
             <TouchableOpacity>
               <Text style={styles.profileLink}>
                 Click here to select email id
