@@ -35,8 +35,6 @@ const initialState = {
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (arg = 'all', { rejectWithValue }) => {
-    // Handle both simpler calls: dispatch(fetchNews('sports'))
-    // And object calls: dispatch(fetchNews({ category: 'sports', page: 2 }))
     let category = 'all';
     let page = 1;
 
@@ -53,7 +51,6 @@ export const fetchNews = createAsyncThunk(
     }
 
     try {
-      // Get unique Device ID
       const deviceId = await getUniqueId();
 
       const response = await api.get(endpoints.GET_NEWS_FEED, {
@@ -70,10 +67,12 @@ export const fetchNews = createAsyncThunk(
           'x-device-id': deviceId
         }
       });
+
+      console.log(response.data,">>>>>>>>>>>>>>>>>>>>>response.data");
       
-      // Return data + the page number so the reducer knows context
       return { data: response.data, page }; 
     } catch (error) {
+      console.log(error,">>>>>>>>>>>NEWS ERROR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -148,27 +147,20 @@ export const trackAdClick = createAsyncThunk(
   }
 );
 
-// 6. View News (UPDATED)
 export const viewNews = createAsyncThunk(
   'news/viewNews',
   async (newsId, { rejectWithValue }) => {
     try {
       // 1. Get Device ID
       const deviceId = await getUniqueId();
-      console.log(newsId,">>>>>>>>>>>NewsID",deviceId);
-      
       const url = endpoints.VIEW_NEWS.replace(':id', newsId);
-      
-      // 2. Pass headers in the config object
       const response = await api.post(url, {}, {
         headers: {
           'x-device-id': deviceId
         }
       });
-      console.log(response,">>>>>>>>>>>>>>>responseeeeee>>>>>>View");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>ERROR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }

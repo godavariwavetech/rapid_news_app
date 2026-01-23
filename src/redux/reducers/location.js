@@ -1,12 +1,12 @@
-// src/redux/reducers/location.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 
 const initialState = {
-  currentLocation: null, // { id, name, type, lat, long }
-  states: [], // Added to store the list of states
-  districts: [], // Added to store the list of districts
+  currentLocation: null, 
+  states: [], 
+  districts: [], 
+  villages: [], // Added villages to state
   detectedAddress: null,
   loading: false,
   error: null,
@@ -54,6 +54,25 @@ export const getDistrict = createAsyncThunk(
   }
 );
 
+// Fetch Villages (NEW)
+export const getVillages = createAsyncThunk(
+  'location/getVillages',
+  async (districtId, { rejectWithValue }) => {
+    try {
+      // Using the endpoint provided in the requirements
+      const response = await api.get('/location/villages/', {
+        params: { district_id: districtId }
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+
+
+
 const locationSlice = createSlice({
   name: 'location',
   initialState,
@@ -85,7 +104,7 @@ const locationSlice = createSlice({
       })
       .addCase(getStates.fulfilled, (state, action) => {
         state.loading = false;
-        state.states = action.payload; // Store fetched states
+        state.states = action.payload;
       })
       .addCase(getStates.rejected, (state, action) => {
         state.loading = false;
@@ -99,9 +118,23 @@ const locationSlice = createSlice({
       })
       .addCase(getDistrict.fulfilled, (state, action) => {
         state.loading = false;
-        state.districts = action.payload; // Store fetched districts
+        state.districts = action.payload;
       })
       .addCase(getDistrict.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // --- Get Villages (NEW) ---
+      .addCase(getVillages.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getVillages.fulfilled, (state, action) => {
+        state.loading = false;
+        state.villages = action.payload; // Store fetched villages
+      })
+      .addCase(getVillages.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

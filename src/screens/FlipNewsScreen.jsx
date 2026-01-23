@@ -12,7 +12,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSelector, useDispatch } from 'react-redux';
-import { viewNews } from '../redux/reducers/news'; // Import Action
+import { viewNews } from '../redux/reducers/news'; 
 import Way2NewsCard from '../components/Way2NewsCard';
 import ShimmerLoader from '../components/ShimmerLoader';
 
@@ -124,6 +124,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: item.data.label || 'Advertisement',
           likes: 0,
           comments: 0,
+          images: [], 
         };
       } 
       else {
@@ -135,7 +136,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: data.content?.title || '',
           body: data.content?.body || '',
           short: data.content?.short || '',
+          // Use primary image as fallback, but also pass the full array
           image: data.images?.length > 0 ? data.images[0] : null,
+          images: data.images || [], // <--- ADDED THIS LINE
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import {
 import FastImage from 'react-native-fast-image';
 import {
   TouchableWithoutFeedback,
-  TouchableOpacity
+  TouchableOpacity,
+  FlatList 
 } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -55,18 +56,32 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [lastTap, setLastTap] = useState(0);
 
+  // --- CAROUSEL STATE ---
+  const [activeSlide, setActiveSlide] = useState(0);
+  const flatListRef = useRef(null); // 1. Ref for the FlatList
+
+  // 2. Reset State when News ID changes
+  useEffect(() => {
+    setActiveSlide(0);
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [news.id]);
+
+  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+  const onViewRef = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setActiveSlide(viewableItems[0].index || 0);
+    }
+  });
+
   const hasReporter = news.reporter && news.reporter.name;
 
-  // --- DETERMINE IMAGE SOURCE ---
-  const hasImage = !!news.image;
-  const imageSource = hasImage 
-    ? { 
-        uri: news.image, 
-        priority: FastImage.priority.high, 
-        cache: FastImage.cacheControl.immutable 
-      } 
-    : applogo; 
-
+  // --- DETERMINE IMAGE SOURCE(S) ---
+  const images = news.images && news.images.length > 0 ? news.images : (news.image ? [news.image] : []);
+  const hasMultipleImages = images.length > 1;
+  const hasImage = images.length > 0;
+  
   const imageResizeMode = hasImage ? FastImage.resizeMode.cover : FastImage.resizeMode.contain;
 
   // --- Handlers ---
@@ -154,6 +169,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
   // --- RENDER AD CARD ---
   if (news.isAd) {
+    const imageSource = news.image ? { 
+      uri: news.image, 
+      priority: FastImage.priority.high, 
+      cache: FastImage.cacheControl.immutable 
+    } : applogo;
+
     return (
       <TouchableWithoutFeedback onPress={handleAdPress}>
         <View style={styles.card}>
@@ -176,166 +197,218 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     );
   }
 
-  // --- RENDER NEWS CARD ---
-  return (
-    <TouchableWithoutFeedback onPress={handleDoubleTap} >
-      <View style={styles.card}>
-        {/* Image Section */}
-        <View style={styles.imageSection}>
-          <FastImage 
-            source={imageSource} 
-            style={styles.image} 
-            resizeMode={imageResizeMode}
-          />
-
-          <Image source={applogo} style={styles.watermarkLogo} />
-
-          {hasReporter && (
-            <>
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.reporterGradient}
-              />
-              <View style={styles.reporterSection}>
-                <FastImage
-                  source={{
-                    uri: news.reporter.imageUrl,
-                    priority: FastImage.priority.normal
-                  }}
-                  style={styles.reporterImage}
-                  resizeMode={FastImage.resizeMode.cover}
-                />
-                <View style={styles.reporterInfo}>
-                  <Text style={styles.reporterName}>{news.reporter.name}</Text>
-                 {news?.reporter?.location && <View style={styles.reporterLocationRow}>
-                    <Icon name="map-marker" size={14} color="#FFFFFFCC" />
-                    <Text style={styles.reporterLocation}>
-                      {news.reporter.location}
-                    </Text>
-                  </View>}
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Content Section */}
-        <View style={styles.contentSection}>
-          <Text style={styles.title}>{news.title}</Text>
-
-          <ScrollView
-            style={styles.bodyContainer}
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}>
-            <Text style={styles.body}>
-              {news.body || news.description}
-              {news.fullContent && (
-                <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
-              )}
-            </Text>
-          </ScrollView>
-
-          {/* Timestamp Container - ALIGNED LEFT */}
-          <View style={styles.timestampContainer}>
-            <Icon name="clock-outline" size={14} color="#999" />
-            <Text style={styles.timestamp}>{news.timeAgo}</Text>
-          </View>
-
-          <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
-            <View style={styles.statsLeft}>
-              <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
-                <Icon name="comment-outline" size={20} color="#565B67" />
-                <Text style={styles.statText}>{news.comments}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.statButton} onPress={handleLike}>
-                <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={20} color={liked ? '#2196F3' : '#565B67'} />
-                <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
-                  {liked ? parseInt(news?.likes || 0) + 1 : (news.likes || 0)}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
-                <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={20} color={disliked ? '#F44336' : '#565B67'} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.actionsRight}>
-              <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
-                <Icon name="dots-vertical" size={22} color="#565B67" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
-                <Icon name="share-variant" size={20} color="#565B67" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* --- MENU MODAL --- */}
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMenuVisible(false)}>
-          <RNTouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
-            <View style={styles.menuOverlay}>
-              <RNTouchableWithoutFeedback onPress={() => {}}>
-                <View style={styles.menuContainer}>
-                  <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('bookmark')}>
-                    <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-plus'} size={24} color="#333" />
-                    <Text style={styles.menuText}>{isBookmarked ? 'Remove Bookmark' : 'Bookmark'}</Text>
-                  </RNTouchableOpacity>
-                  <View style={styles.menuDivider} />
-                  <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
-                    <Icon name="flag" size={24} color="#333" />
-                    <Text style={styles.menuText}>Report</Text>
-                  </RNTouchableOpacity>
-                  <View style={styles.menuDivider} />
-                  <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('notInterested')}>
-                    <Icon name="eye-off" size={24} color="#333" />
-                    <Text style={styles.menuText}>Not Interested</Text>
-                  </RNTouchableOpacity>
-                  <View style={styles.menuDivider} />
-                  <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('block')}>
-                    <Icon name="cancel" size={24} color="#333" />
-                    <Text style={styles.menuText}>Block this source</Text>
-                  </RNTouchableOpacity>
-                </View>
-              </RNTouchableWithoutFeedback>
-            </View>
-          </RNTouchableWithoutFeedback>
-        </Modal>
-
-        {/* --- FULL SCREEN IMAGE MODAL --- */}
-        <Modal
-          visible={fullScreenImage}
-          transparent
-          animationType="fade"
-          statusBarTranslucent={true} 
-          onRequestClose={() => setFullScreenImage(false)}>
-          <View style={styles.fullScreenContainer}>
-            <RNTouchableOpacity
-              style={[styles.closeButton, { top: Math.max(insets.top, 20) + 15 }]} 
-              onPress={() => setFullScreenImage(false)}>
-              <Icon name="close" size={28} color="#FFF" />
-            </RNTouchableOpacity>
-
-            <RNTouchableWithoutFeedback
-              onPress={() => setFullScreenImage(false)}>
-              <FastImage
-                source={imageSource} 
-                style={styles.fullScreenImage}
-                resizeMode={FastImage.resizeMode.contain}
-              />
-            </RNTouchableWithoutFeedback>
-            <View style={styles.imageInfo}>
-              <Text style={styles.imageTitle}>{news.title}</Text>
-            </View>
-          </View>
-        </Modal>
+  // --- CAROUSEL ITEM RENDERER ---
+  const renderImageItem = ({ item }) => (
+    <TouchableWithoutFeedback onPress={handleDoubleTap}>
+      <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+        <FastImage 
+          source={{ 
+            uri: item, 
+            priority: FastImage.priority.high, 
+            cache: FastImage.cacheControl.immutable 
+          }} 
+          style={styles.image} 
+          resizeMode={imageResizeMode}
+        />
       </View>
     </TouchableWithoutFeedback>
+  );
+
+  return (
+    <View style={styles.card}>
+      {/* Image Section */}
+      <View style={styles.imageSection}>
+        {hasMultipleImages ? (
+          <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+            <FlatList
+              ref={flatListRef} // 3. Attach Ref
+              data={images}
+              renderItem={renderImageItem}
+              keyExtractor={(item, index) => index.toString()}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onViewableItemsChanged={onViewRef.current}
+              viewabilityConfig={viewConfigRef.current}
+              style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}
+            />
+            <View style={styles.paginationContainer}>
+              {images.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.paginationDot,
+                    { backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <TouchableWithoutFeedback onPress={handleDoubleTap}>
+            <FastImage 
+              source={hasImage ? { uri: images[0] } : applogo} 
+              style={styles.image} 
+              resizeMode={imageResizeMode}
+            />
+          </TouchableWithoutFeedback>
+        )}
+
+        <Image source={applogo} style={styles.watermarkLogo} />
+
+        {hasReporter && (
+          <>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.8)']}
+              style={styles.reporterGradient}
+              pointerEvents="none" 
+            />
+            <View style={styles.reporterSection}>
+              <FastImage
+                source={{
+                  uri: news.reporter.imageUrl,
+                  priority: FastImage.priority.normal
+                }}
+                style={styles.reporterImage}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+              <View style={styles.reporterInfo}>
+                <Text style={styles.reporterName}>{news.reporter.name}</Text>
+               {news?.reporter?.location && <View style={styles.reporterLocationRow}>
+                  <Icon name="map-marker" size={14} color="#FFFFFFCC" />
+                  <Text style={styles.reporterLocation}>
+                    {news.reporter.location}
+                  </Text>
+                </View>}
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+
+      {/* Content Section */}
+      <View style={styles.bottomContainer}>
+        <TouchableWithoutFeedback 
+          onPress={handleDoubleTap} 
+          containerStyle={{ flex: 1 }} 
+          style={{ flex: 1 }}
+        >
+          <View style={styles.contentSection}>
+            <Text style={styles.title}>{news.title}</Text>
+
+            <ScrollView
+              style={styles.bodyContainer}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}>
+              <Text style={styles.body}>
+                {news.body || news.description}
+                {news.fullContent && (
+                  <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
+                )}
+              </Text>
+            </ScrollView>
+
+            <View style={styles.timestampContainer}>
+              <Icon name="clock-outline" size={14} color="#999" />
+              <Text style={styles.timestamp}>{news.timeAgo}</Text>
+            </View>
+
+            <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
+              <View style={styles.statsLeft}>
+                <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
+                  <Icon name="comment-outline" size={20} color="#565B67" />
+                  <Text style={styles.statText}>{news.comments}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.statButton} onPress={handleLike}>
+                  <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={20} color={liked ? '#2196F3' : '#565B67'} />
+                  <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
+                    {liked ? parseInt(news?.likes || 0) + 1 : (news.likes || 0)}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
+                  <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={20} color={disliked ? '#F44336' : '#565B67'} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.actionsRight}>
+                <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
+                  <Icon name="dots-vertical" size={22} color="#565B67" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+                  <Icon name="share-variant" size={20} color="#565B67" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+
+      {/* --- MENU MODAL --- */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}>
+        <RNTouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuOverlay}>
+            <RNTouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.menuContainer}>
+                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('bookmark')}>
+                  <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-plus'} size={24} color="#333" />
+                  <Text style={styles.menuText}>{isBookmarked ? 'Remove Bookmark' : 'Bookmark'}</Text>
+                </RNTouchableOpacity>
+                <View style={styles.menuDivider} />
+                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
+                  <Icon name="flag" size={24} color="#333" />
+                  <Text style={styles.menuText}>Report</Text>
+                </RNTouchableOpacity>
+                <View style={styles.menuDivider} />
+                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('notInterested')}>
+                  <Icon name="eye-off" size={24} color="#333" />
+                  <Text style={styles.menuText}>Not Interested</Text>
+                </RNTouchableOpacity>
+                <View style={styles.menuDivider} />
+                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('block')}>
+                  <Icon name="cancel" size={24} color="#333" />
+                  <Text style={styles.menuText}>Block this source</Text>
+                </RNTouchableOpacity>
+              </View>
+            </RNTouchableWithoutFeedback>
+          </View>
+        </RNTouchableWithoutFeedback>
+      </Modal>
+
+      {/* --- FULL SCREEN IMAGE MODAL --- */}
+      <Modal
+        visible={fullScreenImage}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true} 
+        onRequestClose={() => setFullScreenImage(false)}>
+        <View style={styles.fullScreenContainer}>
+          <RNTouchableOpacity
+            style={[styles.closeButton, { top: Math.max(insets.top, 20) + 15 }]} 
+            onPress={() => setFullScreenImage(false)}>
+            <Icon name="close" size={28} color="#FFF" />
+          </RNTouchableOpacity>
+
+          <RNTouchableWithoutFeedback
+            onPress={() => setFullScreenImage(false)}>
+            <FastImage
+              source={hasImage ? { uri: images[activeSlide] || images[0] } : applogo} 
+              style={styles.fullScreenImage}
+              resizeMode={FastImage.resizeMode.contain}
+            />
+          </RNTouchableWithoutFeedback>
+          <View style={styles.imageInfo}>
+            <Text style={styles.imageTitle}>{news.title}</Text>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -351,9 +424,29 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#f0f0f0', 
   },
+  bottomContainer: {
+    flex: 1, 
+    width: '100%',
+  },
   image: {
     width: responsiveWidth(100),
     height: '100%',
+  },
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 20, 
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 15,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   watermarkLogo: {
     position: 'absolute',
@@ -397,6 +490,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    zIndex: 20,
   },
   reporterImage: {
     width: responsiveScreenWidth(10),
@@ -432,12 +526,9 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   title: {
-    // --- INCREASED SIZE & WEIGHT ---
     fontSize: responsiveFontSize(3), 
-    // fontWeight: '800', 
     color: '#1A1A1A',
     lineHeight: responsiveFontSize(4),
-    // --- ADDED SPACE BELOW TITLE ---
     marginBottom: responsiveHeight(2), 
     letterSpacing: 0.2,
     fontFamily:fonts.bold
@@ -446,7 +537,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   body: {
-    // --- ADJUSTED FOR READABILITY ---
     fontSize: responsiveFontSize(2.3),
     color: '#333',
     lineHeight: responsiveFontSize(3.4), 
