@@ -147,7 +147,6 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                 
                 {currentComments && currentComments.length > 0 ? (
                   currentComments.map((comment, index) => {
-                    // UPDATED: Handle nested user object and createdAt
                     const userName = comment.user_id?.name || 'User';
                     const userInitial = userName.charAt(0).toUpperCase();
                     const timeString = comment.createdAt 
@@ -172,12 +171,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
                           <View style={styles.commentActions}>
                             <Text style={styles.commentTime}>{timeString}</Text>
-                            <View style={styles.actionButtons}>
-                              <TouchableOpacity style={styles.actionButton}>
-                                <Icon name="reply" size={18} color="#666" />
-                                <Text style={styles.actionText}>Reply</Text>
-                              </TouchableOpacity>
-                            </View>
+                            {/* Reply button removed here */}
                           </View>
                         </View>
                       </View>
@@ -324,7 +318,7 @@ const styles = StyleSheet.create({
   },
   commentBubble: {
     borderRadius: 16,
-    padding: 14,
+    padding: 7,
     borderTopLeftRadius: 4,
   },
   commentHeader: {
@@ -341,33 +335,18 @@ const styles = StyleSheet.create({
   commentText: {
     fontSize: 14,
     color: '#333',
-    lineHeight: 20,
+    // lineHeight: 20,
   },
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    justifyContent: 'flex-start',
+    marginTop: 0, // Reduced space (was 8)
     paddingHorizontal: 4,
   },
   commentTime: {
     fontSize: 12,
     color: '#999',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
   },
   inputContainer: {
     flexDirection: 'row',

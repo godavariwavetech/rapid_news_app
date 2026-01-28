@@ -14,12 +14,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
 import { verifyOTP } from '../redux/reducers/auth';
+import { setReporterTempToken } from '../redux/reducers/location';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const OTPVerificationScreen = ({navigation, route}) => {
-  const disptach = useDispatch();
+  const dispatch = useDispatch(); // Fixed typo: disptach -> dispatch
   const {mobile} = route.params;
   const [otp, setOtp] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(23);
@@ -69,6 +70,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
     }
   };
 
+  // --- UPDATED VERIFY LOGIC STARTS HERE ---
   const handleVerify = async () => {
     const otpCode = otp.join('');
     if (otpCode.length === 4) {
@@ -81,35 +83,54 @@ const OTPVerificationScreen = ({navigation, route}) => {
       };
       
       try {
-        const response = await disptach(verifyOTP(payload));
+        const response = await dispatch(verifyOTP(payload));
         
-        console.log(response, '>>>>>>>>>>>>>response');
+        console.log('Verify OTP Response:', response);
         
-        // Handle response based on Redux action result
         if (response.type === 'auth/verifyOTP/fulfilled') {
-          const token = response.payload?.token;
-          navigation.replace('ProfileSetup', { token: token });
+          const { token, user } = response.payload;
+          console.log(response.payload,">>>>>>>>>>>>response.payload");
+          // Logic based on User Name and Reporter Status
+          if (!user.reporter_profile?.full_name) {
+            dispatch(setReporterTempToken(token))
+            // Case 1: Name is null -> Go to Profile Setup
+            navigation.replace('ProfileSetup', { token: token });
+          } else {
+            // Case 2: Name exists -> Check Reporter Status
+            const status = user?.reporter_profile?.status;
+
+            if (status === 'APPROVED') {
+              // Case 2a: Approved -> Go to Reporter App
+              navigation.replace('ReporterApp');
+            } else {
+              // Case 2b: Disapproved/Pending -> Go to Status Screen
+              // We pass the status to display the correct message
+              navigation.replace('ReporterStatus', { status: status });
+            }
+          }
+
         } else if (response.type === 'auth/verifyOTP/rejected') {
-          // Extract error message from API response
           const apiError = response.payload?.message || response.error?.message || 'Verification failed. Please try again.';
           setErrorMessage(apiError);
         }
       } catch (error) {
+        console.error(error);
         setErrorMessage('Something went wrong. Please try again.');
       } finally {
         setIsLoading(false);
       }
     }
   };
+  // --- UPDATED VERIFY LOGIC ENDS HERE ---
 
   const handleResend = () => {
     if (canResend) {
-      // Resend OTP logic here
       setTimer(23);
       setCanResend(false);
       setOtp(['', '', '', '']);
       setErrorMessage('');
       inputRefs.current[0]?.focus();
+      // Add actual resend API call here if needed
     }
   };
 
@@ -202,7 +223,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
             {isLoading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.proceedButtonText}>proceed</Text>
+              <Text style={styles.proceedButtonText}>Proceed</Text>
             )}
           </TouchableOpacity>
         </View>

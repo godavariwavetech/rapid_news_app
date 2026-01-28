@@ -82,7 +82,7 @@ export const fetchNews = createAsyncThunk(
           'x-device-id': deviceId
         }
       });
-      
+      console.log(response.data,">>>>>>>>>>>>>>response.data");
       return { data: response.data, page }; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

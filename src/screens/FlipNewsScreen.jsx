@@ -138,7 +138,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           short: data.content?.short || '',
           // Use primary image as fallback, but also pass the full array
           image: data.images?.length > 0 ? data.images[0] : null,
-          images: data.images || [], // <--- ADDED THIS LINE
+          images: data.images || [], 
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
@@ -214,11 +214,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (isSwitching) {
       scrollY.value = 0;
       swipeDirection.value = 0;
+      // Reduced timeout to 0ms to instantly unlock gestures after state update
       setTimeout(() => {
         setIsSwitching(false);
         setOverrideNews(null);
         isAnimating.value = false;
-      }, 50);
+      }, 0); 
     }
   }, [currIndex, isSwitching]);
 
@@ -278,7 +279,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       const position = -e.translationY / containerHeight;
       
       // Swipe Up (Next)
-      if (position > 0.15 || -e.velocityY > 600) {
+      // Optimized threshold: position > 0.15 OR velocity > 400 (easier swipe)
+      if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
            runOnJS(triggerLoadMore)();
         } else {
@@ -286,13 +288,13 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = 1;
            scrollY.value = withTiming(
              1, 
-             { duration: 300, easing: Easing.out(Easing.cubic) }, 
+             { duration: 200, easing: Easing.out(Easing.cubic) }, // Faster duration (200ms)
              (finished) => { if (finished) runOnJS(finishFlip)('next'); }
            );
         }
       } 
       // Swipe Down (Prev)
-      else if (position < -0.15 || -e.velocityY < -600) {
+      else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
            runOnJS(triggerRefresh)();
         } else {
@@ -300,7 +302,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = -1;
            scrollY.value = withTiming(
              -1, 
-             { duration: 300, easing: Easing.out(Easing.cubic) }, 
+             { duration: 200, easing: Easing.out(Easing.cubic) }, // Faster duration (200ms)
              (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
            );
         }

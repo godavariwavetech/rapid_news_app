@@ -82,7 +82,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
   
-  const imageResizeMode = hasImage ? FastImage.resizeMode.cover : FastImage.resizeMode.contain;
+  const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
 
   // --- Handlers ---
   const handleDoubleTap = () => {

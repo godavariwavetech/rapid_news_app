@@ -10,6 +10,7 @@ import {
   TextInput,
   Keyboard,
   Platform,
+  BackHandler,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, {
@@ -29,7 +30,6 @@ const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
   const navigation = useNavigation();
   const {reporterToken} = useSelector((state)=>state.auth)
-  const [searchText, setSearchText] = useState('');
   const [activeSection, setActiveSection] = useState('news');
   
   // Animation Values
@@ -67,6 +67,24 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     });
     opacity.value = withTiming(0, { duration: 250 });
   }, [onClose, translateY, opacity]);
+
+  // --- BACK BUTTON HANDLER ---
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (visible) {
+        closeModal();
+        return true; 
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+
+    return () => backHandler.remove();
+  }, [visible, closeModal]);
 
   useEffect(() => {
     if (visible) {
@@ -128,8 +146,6 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const scrollY = contentOffset.y;
 
-    // FIX: Check if we are at the very bottom of the list
-    // If so, force highlight the last item ('reporter')
     const isCloseToBottom = layoutMeasurement.height + scrollY >= contentSize.height - 50;
     if (isCloseToBottom) {
       const lastItemId = sidebarItems[sidebarItems.length - 1].id;
@@ -139,13 +155,11 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
       return;
     }
 
-    // Standard Spy Logic
     const sections = Object.entries(sectionRefs.current).sort((a, b) => a[1] - b[1]);
     for (let i = 0; i < sections.length; i++) {
       const [id, offset] = sections[i];
       const nextOffset = sections[i + 1] ? sections[i + 1][1] : Infinity;
       
-      // Highlight if within range (with -150 offset for better triggering)
       if (scrollY >= offset - 150 && scrollY < nextOffset - 150) {
         if (activeSection !== id) setActiveSection(id);
         break;
@@ -156,6 +170,13 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
   const handleReporterNavigation = () => {
     closeModal();
     setTimeout(() => navigation.navigate(reporterToken  ?  "ReporterApp" :'Reporter'), 100);
+  };
+
+  // 1. New Handler for Search Navigation
+  const handleSearchNavigation = () => {
+    closeModal();
+    // Navigate to Search Screen (ensure 'Search' matches your route name in AppNavigator)
+    setTimeout(() => navigation.navigate('Search'), 100);
   };
 
   const handleSelection = (cat) => {
@@ -215,20 +236,21 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}>
             
-            {/* Search */}
+            {/* Search - UPDATED to TouchableOpacity */}
             <View
               style={styles.section}
               onLayout={(event) => { sectionRefs.current['news'] = event.nativeEvent.layout.y; }}>
-              <View style={styles.searchContainer}>
+              <TouchableOpacity 
+                style={styles.searchContainer} 
+                onPress={handleSearchNavigation}
+                activeOpacity={0.8}
+              >
                 <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="సెర్చ్ చేయండి"
-                  placeholderTextColor={"grey"}
-                  value={searchText}
-                  onChangeText={setSearchText}
-                />
-              </View>
+                {/* Simulated Input Text */}
+                <Text style={[styles.searchInput, { color: 'grey', textAlignVertical: 'center', paddingTop: Platform.OS === 'android' ? 0 : 0 }]}>
+                  సెర్చ్ చేయండి
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Main Edition */}
@@ -403,7 +425,6 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
               </View>
             </View>
             
-            {/* FIX: Increased Bottom Padding for smooth scrolling */}
             <View style={{height: 300}} />
           </ScrollView>
         </View>
@@ -506,6 +527,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#333',
+    justifyContent: 'center', // Helps align Text vertically on some platforms
   },
   mainEditionCard: {
     backgroundColor: '#00BFFF',

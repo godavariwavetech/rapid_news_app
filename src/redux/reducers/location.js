@@ -10,6 +10,7 @@ const initialState = {
   detectedAddress: null,
   loading: false,
   error: null,
+  tempReporterToken:null
 };
 
 // Resolve Lat/Long to Backend Location ID
@@ -75,7 +76,7 @@ export const checkVillageCapacity = createAsyncThunk(
   async (villageId, { rejectWithValue }) => {
     try {
       // API Endpoint provided: /locations/villages/:id/capacity
-      const response = await api.get(`/locations/villages/${villageId}/capacity`);
+      const response = await api.get(`/location/villages/${villageId}/capacity`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -93,6 +94,9 @@ const locationSlice = createSlice({
     setManualLocation: (state, action) => {
       state.currentLocation = action.payload;
     },
+    setReporterTempToken:(state,action)=>{
+      state.tempReporterToken = action.payload
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -154,5 +158,5 @@ const locationSlice = createSlice({
   },
 });
 
-export const { setManualLocation } = locationSlice.actions;
+export const { setManualLocation,setReporterTempToken } = locationSlice.actions;
 export default locationSlice.reducer;

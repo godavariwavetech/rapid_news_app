@@ -30,6 +30,7 @@ import ReporterProfileScreen from '../screens/ReporterProfileScreen';
 import ReporterDrawerNavigator from './ReporterDrawerNavigator';
 import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
+import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -168,43 +169,48 @@ function AppNavigator() {
           component={ProfileSetupScreen}
           options={{headerShown: false}}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="ReporterDashboardScreen"
           component={ReporterDashboardScreen}
           options={{headerShown: false}}
         />
 
-          <Stack.Screen 
-          name="NewsSubmissionStep1" 
-          component={Step1LocationScreen} 
+        <Stack.Screen
+          name="NewsSubmissionStep1"
+          component={Step1LocationScreen}
         />
-        <Stack.Screen 
-          name="NewsSubmissionStep2" 
-          component={Step2SelectionScreen} 
+        <Stack.Screen
+          name="NewsSubmissionStep2"
+          component={Step2SelectionScreen}
         />
-        <Stack.Screen 
-          name="NewsSubmissionStep3" 
-          component={Step3NewsDetailsScreen} 
+        <Stack.Screen
+          name="NewsSubmissionStep3"
+          component={Step3NewsDetailsScreen}
         />
-        <Stack.Screen 
-          name="NewsSubmissionStep4" 
-          component={Step4ReviewScreen} 
+        <Stack.Screen
+          name="NewsSubmissionStep4"
+          component={Step4ReviewScreen}
         />
-        <Stack.Screen 
-          name="ReporterProfileScreen" 
-          component={ReporterProfileScreen} 
+        <Stack.Screen
+          name="ReporterProfileScreen"
+          component={ReporterProfileScreen}
         />
-        
+
         <Stack.Screen
           name="ReporterApp"
           component={ReporterDrawerNavigator}
           options={{headerShown: false}}
         />
 
-        <Stack.Screen 
-          name="FlipNews" 
-          component={FlipNewsScreen} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="FlipNews"
+          component={FlipNewsScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="ReporterStatus"
+          component={ReporterStatusScreen}
+          options={{headerShown: false}}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -135,16 +135,19 @@ const ProfileSetupScreen = ({navigation, route}) => {
         state_id: selectedState._id,
         district_id: selectedDistrict._id,
         village_id: selectedVillage._id,
-        token: token,
-        profile_image: profileImageBase64 ? `data:image/jpeg;base64,${profileImageBase64}` : null
+        // profile_image: profileImageBase64 ? `data:image/jpeg;base64,${profileImageBase64}` : null
+        profile_image:"https://png.pngtree.com/png-vector/20190710/ourmid/pngtree-user-vector-avatar-png-image_1541962.jpg"
       };
+
+      console.log(payload,">>>>>PAYLOADDDDD");
+      // return
 
       try {
         const resultAction = await dispatch(applyReporter(payload));
         
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [
-            { text: 'OK', onPress: () => navigation.replace('ReporterApp') }
+            { text: 'OK', onPress: () => navigation.replace('ReporterStatus', { status: 'PENDING' }) }
           ]);
         } else {
           const errorMessage = resultAction.payload?.message || 'Failed to submit application';
@@ -195,15 +198,19 @@ const ProfileSetupScreen = ({navigation, route}) => {
     try {
       // Dispatch the check
       const resultAction = await dispatch(checkVillageCapacity(item._id));
+
+      console.log(checkVillageCapacity.fulfilled.match(resultAction),">>>>>>>>>>>>>>checkVillageCapacity",resultAction);
+
+      // console.log(object);
       
       if (checkVillageCapacity.fulfilled.match(resultAction)) {
         const data = resultAction.payload;
-        
+        console.log(data,">>>>>>>>>>>>>>>DATATATATA");
         // Assuming the API returns { available: true } or similar
         // If the API returns { count: x, capacity: y }, you can adjust the condition:
         // if (data.count < data.capacity) ...
         // Here we assume a boolean 'available' property based on standard practices
-        if (data && data.available) {
+        if (data) {
           setSelectedVillage(item);
           setShowVillagePicker(false);
           if (errors.village) setErrors({...errors, village: null});
