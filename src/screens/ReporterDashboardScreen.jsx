@@ -353,6 +353,8 @@ const ReporterDashboardScreen = ({navigation}) => {
     </>
   );
 
+  console.log(reporter,">>>>>>>>>>>>Reporter>>>>>>>>>>++++");
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -365,8 +367,8 @@ const ReporterDashboardScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
-          <Text style={styles.profileRole}>Reporter @తూర్పు గోదావరి</Text>
+          <Text style={styles.profileName}>{reporter?.username || "Harish"}</Text>
+          <Text style={styles.profileRole}>Reporter @{reporter?.district_id?.name?.en}</Text>
         </View>
 
         <View style={styles.headerIcons}>

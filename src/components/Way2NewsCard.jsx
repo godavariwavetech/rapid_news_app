@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   responsiveFontSize, 
   responsiveScreenWidth, 
-  responsiveWidth,
+  responsiveWidth, 
   responsiveHeight 
 } from 'react-native-responsive-dimensions';
 
@@ -315,10 +315,14 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
             <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
               <View style={styles.statsLeft}>
-                <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
-                  <Icon name="comment-outline" size={20} color="#565B67" />
-                  <Text style={styles.statText}>{news.comments}</Text>
-                </TouchableOpacity>
+                
+                {/* CHECK ENABLED STATUS */}
+                {news.commentsEnabled !== false && (
+                  <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
+                    <Icon name="comment-outline" size={20} color="#565B67" />
+                    <Text style={styles.statText}>{news.comments}</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity style={styles.statButton} onPress={handleLike}>
                   <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={20} color={liked ? '#2196F3' : '#565B67'} />
@@ -539,7 +543,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: responsiveFontSize(2.3),
     color: '#333',
-    lineHeight: responsiveFontSize(3.4), 
+    lineHeight: responsiveFontSize(4.0), // Updated Line Height
     paddingBottom: 10,
     fontWeight: '400', 
     letterSpacing: 0.3,

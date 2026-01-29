@@ -97,7 +97,7 @@ function CustomDrawerContent({navigation}) {
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
+            <Text style={styles.profileName}>{reporter?.username || "Harish"}</Text>
             <Text style={styles.profileRole}>Reporter ( 100 Coins )</Text>
           </View>
           <TouchableOpacity style={styles.editButton}>

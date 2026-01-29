@@ -124,6 +124,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: item.data.label || 'Advertisement',
           likes: 0,
           comments: 0,
+          commentsEnabled: false, // Ads don't have comments
           images: [], 
         };
       } 
@@ -143,6 +144,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
           comments: data?.comments?.count || 0,
+          commentsEnabled: data?.comments?.enabled !== false, // Default to true if undefined
           reporter: data.reporter || {
             name: 'Reporter',
             imageUrl: 'https://via.placeholder.com/100',

@@ -93,7 +93,7 @@ const ProfileScreen = ({navigation}) => {
             <Icon name="account-circle" size={48} color="#CCC" />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{reporter?.name || "Harish"}</Text>
+            <Text style={styles.profileName}>{reporter?.username || "Harish"}</Text>
             <TouchableOpacity>
               <Text style={styles.profileLink}>
                 Click here to select email id

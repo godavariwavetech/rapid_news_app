@@ -100,9 +100,10 @@ const authSlice = createSlice({
         })
         .addCase(verifyOTP.fulfilled, (state, action) => {
           state.loading = false;
-          console.log(action.payload,">>>>>>>>>>>OTP SUCESS>>>>");
-          // state.reporter=action.payload?.user
-          // state.reporterToken = action.payload?.token;
+          if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
+            state.reporter = action.payload?.user?.reporter_profile;
+             state.reporterToken = action.payload?.token;
+          }
         })
         .addCase(verifyOTP.rejected, (state, action) => {
           state.loading = false;
@@ -110,7 +111,8 @@ const authSlice = createSlice({
         })
         .addCase(getProfile.fulfilled, (state, action) => {
           state.loading = false;
-          state.reporter=action.payload
+          console.log(action.payload,">>>>>>>>>>>>>>>>>ACTION>>>>>");
+          state.reporter=action.payload?.reporter_profile
         })
     },
 });
