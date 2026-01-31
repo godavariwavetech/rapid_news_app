@@ -118,7 +118,7 @@ const ReporterScreen = ({navigation}) => {
             />
             <View style={styles.welcomeSection}>
               <Text style={styles.welcomeText}>Welcome</Text>
-              <Text style={styles.guestText}>{reporter?.username || "Harish"}</Text>
+              <Text style={styles.guestText}>{reporter?.username || "Guest"}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.homeButton}>

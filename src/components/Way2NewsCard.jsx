@@ -256,7 +256,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
         <Image source={applogo} style={styles.watermarkLogo} />
 
-        {hasReporter && (
+        {/* {hasReporter && (
           <>
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -283,7 +283,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               </View>
             </View>
           </>
-        )}
+        )} */}
       </View>
 
       {/* Content Section */}
@@ -461,6 +461,8 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     zIndex: 10, 
     opacity: 0.9,
+    backgroundColor:"#fff",
+    borderRadius:12
   },
   adBadgeContainer: {
     position: 'absolute',

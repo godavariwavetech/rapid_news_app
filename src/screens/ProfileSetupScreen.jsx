@@ -145,6 +145,9 @@ const ProfileSetupScreen = ({navigation, route}) => {
       try {
         const resultAction = await dispatch(applyReporter(payload));
         
+
+        console.log(resultAction.payload,"resultAction.payload?");
+        
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [
             { text: 'OK', onPress: () => navigation.replace('ReporterStatus', { status: 'PENDING' }) }

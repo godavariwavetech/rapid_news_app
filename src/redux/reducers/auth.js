@@ -8,7 +8,8 @@ const initialState = {
   reporter: null,
   isAuthenticated: false,
   reporterToken:null,
-  userToken:null
+  userToken:null,
+  isActive: true,
 };
 
 
@@ -75,12 +76,28 @@ export const getProfile = createAsyncThunk(
   },
 );
 
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (payload, { rejectWithValue }) => {
+    console.log("Called here>>>>>>>>>>>>");
+    try {
+      // endpoints.GET_USER_PROFILE maps to 'users/my-profile'
+      const response = await api.patch(endpoints.GET_USER_PROFILE, payload);
+
+      console.log(response,">>>>>>>>>>responseeeeee update profile");
+      return response.data;
+    } catch (error) {
+      console.log(error,"ERROR Updating");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
     completeOnboarding: state => {
-      console.log("CALLED THE COMPLETED");
       state.isOnboardingComplete = true;
     },
     setUser: (state, action) => {
@@ -112,7 +129,8 @@ const authSlice = createSlice({
         .addCase(getProfile.fulfilled, (state, action) => {
           state.loading = false;
           console.log(action.payload,">>>>>>>>>>>>>>>>>ACTION>>>>>");
-          state.reporter=action.payload?.reporter_profile
+          state.isActive = action.payload?.is_active;
+          state.reporter=action.payload
         })
     },
 });

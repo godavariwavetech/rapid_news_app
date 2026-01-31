@@ -212,6 +212,7 @@ export const getReporterNews = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.GET_REPORTER_NEWS);
+      console.log(response,">>>>>>>>>>>>>>>>responseeee>>>>>>>>>>>>>>Neews");
       return response.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

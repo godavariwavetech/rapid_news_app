@@ -20,6 +20,7 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ReporterProfileScreen from '../screens/ReporterProfileScreen';
 import { useSelector } from 'react-redux';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Drawer = createDrawerNavigator();
 
@@ -93,14 +94,14 @@ function CustomDrawerContent({navigation}) {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <Image
-            source={{uri: 'https://i.pravatar.cc/150?img=33'}}
+            source={{uri: reporter?.profile_image || 'https://i.pravatar.cc/150?img=33'}}
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{reporter?.username || "Harish"}</Text>
+            <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
             <Text style={styles.profileRole}>Reporter ( 100 Coins )</Text>
           </View>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} style={styles.editButton}>
             <Icon name="pencil" size={20} color="#666" />
             <Text style={styles.editText}>edit</Text>
           </TouchableOpacity>
@@ -188,6 +189,7 @@ function ReporterDrawerNavigator() {
       }}>
       <Drawer.Screen name="ReporterDashboard" component={ReporterDashboardScreen} />
       <Drawer.Screen name="Profile" component={ReporterProfileScreen} />
+      <Drawer.Screen name="EditProfile" component={EditProfileScreen} />
       <Drawer.Screen name="Reports" component={ReportsScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>

@@ -20,7 +20,7 @@ const ReporterProfileScreen = ({navigation}) => {
   const {reporter} = useSelector(state=>state.auth)
   // Mock user data
   const userData = {
-    name: reporter?.username,
+    name: reporter?.reporter_profile?.username,
     location: 'తూర్పు గోదావరి',
     profileImage: 'https://i.pravatar.cc/300?img=33',
     published: 0,
@@ -44,9 +44,9 @@ const ReporterProfileScreen = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{reporter?.username || "Harish"}</Text>
+          <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
           <Text style={styles.profileRole}>
-            Reporter @{reporter?.district_id?.name?.en}
+            Reporter @{reporter?.reporter_profile?.district_id?.name?.en}
           </Text>
         </View>
 

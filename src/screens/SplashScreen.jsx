@@ -20,13 +20,14 @@ const SplashScreen = ({ navigation }) => {
   console.log(isAuthenticated,">>>>>>>>>>>>isAuthenticated",isOnboardingComplete);
 
   const handleNavigation = () => {
-    if (!isOnboardingComplete) {
-      navigation.replace('LanguageSelection');
-    } else if (isAuthenticated) {
-      navigation.replace('Main');
-    } else {
-      navigation.replace('Main');
-    }
+    navigation.replace('Main');
+    // if (!isOnboardingComplete) {
+    //   navigation.replace('LanguageSelection');
+    // } else if (isAuthenticated) {
+    //   navigation.replace('Main');
+    // } else {
+    //   navigation.replace('Main');
+    // }
   };
 
   useEffect(() => {
