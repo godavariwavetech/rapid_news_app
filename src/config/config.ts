@@ -18,6 +18,7 @@ export const endpoints = {
   GET_COMMENTS: 'comments/:id',
   GET_REACTION_COUNTS: 'reactions/:id',
 
+
   ADD_COMMENT: 'comments',
 
   CREATE_NEWS: 'news',
@@ -28,6 +29,8 @@ export const endpoints = {
   AUTH_VERIFY_OTP: 'auth/verify-otp',
   APPLY_REPORTER:'users/apply-reporter',
   GET_USER_PROFILE: 'users/my-profile',
+
+  GET_STATS:'news/myStats',
 
   TRACK_AD_CLICK: 'ads/:id/click',
 };

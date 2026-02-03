@@ -125,7 +125,7 @@ function HomeScreen({navigation}) {
     if (Platform.OS === 'android') {
       ToastAndroid.show("Refreshing news...", ToastAndroid.SHORT);
     }
-    dispatch(fetchNews(selectedCategory));
+    dispatch(fetchNews({currentLocation,category:"all"}));
   };
 
   // --- NEW: Handle Load More (Pagination) ---
@@ -135,7 +135,7 @@ function HomeScreen({navigation}) {
         ToastAndroid.show("Loading more news...", ToastAndroid.SHORT);
       }
       // Pass the NEXT page index
-      dispatch(fetchNews({ category: selectedCategory, page: currentPage + 1 }));
+      dispatch(fetchNews({currentLocation,category: selectedCategory, page: currentPage + 1 }));
     } else if (!hasMore) {
       if (Platform.OS === 'android') {
         ToastAndroid.show("No more news to load", ToastAndroid.SHORT);

@@ -86,14 +86,22 @@ export const fetchNews = createAsyncThunk(
           state_id: location.state_id,
           lang: 'te',
           page: page,
-          limit: 20,
+          limit: 5,
           category: category !== 'all' ? category : undefined,
         },
         headers: {
           'x-device-id': deviceId
         }
       });
-      console.log(response.data,">>>>>>>>>>>>>>response.data");
+      console.log(response.data,">>>>>>>>>>>>>>response.data",{
+          village_id: location.village_id, // Consider fetching dynamically
+          district_id: location.district_id,
+          state_id: location.state_id,
+          lang: 'te',
+          page: page,
+          limit: 20,
+          category: category !== 'all' ? category : undefined,
+        });
       return { data: response.data, page }; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -264,7 +272,8 @@ const newsSlice = createSlice({
       // --- Fetch News ---
       .addCase(fetchNews.pending, (state, action) => {
         const page = typeof action.meta.arg === 'object' ? action.meta.arg.page : 1;
-        if (page === 1) state.loading = true;
+        console.log(page,">>>>>>>>>>>PAGEEEEE");
+        if (page === 1 || !page) state.loading = true;
         else state.isLoadingMore = true;
         state.error = null;
       })

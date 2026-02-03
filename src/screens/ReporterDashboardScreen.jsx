@@ -21,6 +21,7 @@ import NewsDetailModal from '../components/NewsDetailModal';
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import { getProfile } from '../redux/reducers/auth';
 import { fonts } from '../config/theme';
+import { getReporterStats } from '../redux/reducers/profile';
 
 const ReporterDashboardScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
@@ -60,6 +61,8 @@ const ReporterDashboardScreen = ({navigation}) => {
         dispatch(getReporterNews()).unwrap(),
         dispatch(getProfile()).unwrap()
       ]);
+      const res = await dispatch(getReporterStats())
+      console.log(">>>>>>>>>>>>>>>>>ressssss",res);
     } catch (error) {
       console.error("Refresh Error:", error);
     } finally {
@@ -70,6 +73,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   useEffect(() => {
     dispatch(getReporterNews());
     dispatch(getProfile());
+    dispatch(getReporterStats())
   }, [dispatch]);
 
   const handleHomeNavigation = () => {

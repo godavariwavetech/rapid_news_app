@@ -12,6 +12,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,13 +25,22 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   
+  // Selectors for news data
   const { currentComments, isLoadingComments, isPostingComment } = useSelector(
     state => state.news
+  );
+
+  // Selectors for authentication status
+  const { isAuthenticated, userToken, reporterToken } = useSelector(
+    state => state.auth
   );
 
   const [commentText, setCommentText] = useState('');
   const [modalVisible, setModalVisible] = useState(visible);
   
+  // Logic to determine if the user is logged in
+  const hasToken = userToken || reporterToken || isAuthenticated;
+
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const opacity = useRef(new Animated.Value(0)).current; 
 
@@ -79,6 +89,16 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   };
 
   const handleSendComment = () => {
+    // Stop the user if no token is found
+    if (!hasToken) {
+      Alert.alert(
+        'Login Required',
+        'Please login to post a comment.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     if (!commentText.trim()) return;
 
     dispatch(postComment({ newsId, text: commentText }))
@@ -171,7 +191,6 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
                           <View style={styles.commentActions}>
                             <Text style={styles.commentTime}>{timeString}</Text>
-                            {/* Reply button removed here */}
                           </View>
                         </View>
                       </View>
@@ -185,19 +204,24 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
               </ScrollView>
             )}
 
+            {/* Guarded Input Container */}
             <View style={[styles.inputContainer, {marginBottom: insets.bottom}]}>
               <TextInput
-                style={styles.input}
-                placeholder="Write a comment..."
+                style={[styles.input, !hasToken && { backgroundColor: '#f0f0f0' }]}
+                placeholder={hasToken ? "Write a comment..." : "Login to comment"}
                 placeholderTextColor="#999"
                 value={commentText}
                 onChangeText={setCommentText}
                 multiline
+                editable={hasToken!= null} // Disable typing if not authenticated
               />
               <TouchableOpacity
-                style={[styles.sendButton, !commentText.trim() && { backgroundColor: '#ccc' }]}
+                style={[
+                  styles.sendButton, 
+                  (!commentText.trim() || !hasToken) && { backgroundColor: '#ccc' }
+                ]}
                 onPress={handleSendComment}
-                disabled={isPostingComment || !commentText.trim()}
+                disabled={isPostingComment || !commentText.trim() || !hasToken}
                 activeOpacity={0.8}>
                 {isPostingComment ? (
                   <ActivityIndicator size="small" color="#FFF" />
@@ -335,13 +359,12 @@ const styles = StyleSheet.create({
   commentText: {
     fontSize: 14,
     color: '#333',
-    // lineHeight: 20,
   },
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    marginTop: 0, // Reduced space (was 8)
+    marginTop: 0,
     paddingHorizontal: 4,
   },
   commentTime: {

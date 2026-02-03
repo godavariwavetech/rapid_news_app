@@ -8,6 +8,7 @@ import newsReducer from './reducers/news';
 import settingsReducer from './reducers/settings';
 import bookmarksReducer from './reducers/bookmarks';
 import locationReducer from './reducers/location';
+import profile from "./reducers/profile"
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -15,12 +16,12 @@ const rootReducer = combineReducers({
   settings: settingsReducer,
   bookmarks: bookmarksReducer,
   location: locationReducer,
+  profile
 });
 
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  // Added 'news' to the whitelist to cache articles
   whitelist: ['auth', 'settings', 'bookmarks', 'location'],
 };
 

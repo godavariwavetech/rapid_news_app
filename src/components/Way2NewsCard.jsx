@@ -12,6 +12,7 @@ import {
   Linking,
   TouchableWithoutFeedback as RNTouchableWithoutFeedback,
   TouchableOpacity as RNTouchableOpacity,
+  Alert,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {
@@ -48,7 +49,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   
   // Selectors
   const bookmarks = useSelector(state => state.bookmarks.items);
-  const isBookmarked = news.id ? bookmarks.some(item => item.id === news.id) : false;
+  const isBookmarked = news?.id ? bookmarks.some(item => item.id === news.id) : false;
 
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
@@ -58,9 +59,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
   // --- CAROUSEL STATE ---
   const [activeSlide, setActiveSlide] = useState(0);
-  const flatListRef = useRef(null); // 1. Ref for the FlatList
+  const flatListRef = useRef(null);
 
-  // 2. Reset State when News ID changes
+  // Reset State when News ID changes
   useEffect(() => {
     setActiveSlide(0);
     if (flatListRef.current) {
@@ -74,8 +75,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       setActiveSlide(viewableItems[0].index || 0);
     }
   });
-
-  const hasReporter = news.reporter && news.reporter.name;
 
   // --- DETERMINE IMAGE SOURCE(S) ---
   const images = news.images && news.images.length > 0 ? news.images : (news.image ? [news.image] : []);
@@ -156,13 +155,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         }
         break;
       case 'report':
-        console.log('Report news:', news.id);
+        Alert.alert("Report", "Thank you for reporting. This content will be reviewed.");
         break;
-      case 'notInterested':
-        console.log('Not interested:', news.id);
-        break;
-      case 'block':
-        console.log('Block source:', news.id);
+      case 'download':
+        Alert.alert("Download", "Starting image download...");
         break;
     }
   };
@@ -183,7 +179,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             style={[styles.image, { height: '100%', width: '100%' }]} 
             resizeMode={imageResizeMode} 
           />
-          <Image source={applogo} style={styles.watermarkLogo} /> 
+          {/* FIX: Removed watermarkLogo from Ad Image */}
           
           <LinearGradient
             colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
@@ -197,7 +193,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     );
   }
 
-  // --- CAROUSEL ITEM RENDERER ---
   const renderImageItem = ({ item }) => (
     <TouchableWithoutFeedback onPress={handleDoubleTap}>
       <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
@@ -216,12 +211,11 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
   return (
     <View style={styles.card}>
-      {/* Image Section */}
       <View style={styles.imageSection}>
         {hasMultipleImages ? (
           <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
             <FlatList
-              ref={flatListRef} // 3. Attach Ref
+              ref={flatListRef}
               data={images}
               renderItem={renderImageItem}
               keyExtractor={(item, index) => index.toString()}
@@ -254,39 +248,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           </TouchableWithoutFeedback>
         )}
 
+        {/* Standard News gets the logo */}
         <Image source={applogo} style={styles.watermarkLogo} />
-
-        {/* {hasReporter && (
-          <>
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.8)']}
-              style={styles.reporterGradient}
-              pointerEvents="none" 
-            />
-            <View style={styles.reporterSection}>
-              <FastImage
-                source={{
-                  uri: news.reporter.imageUrl,
-                  priority: FastImage.priority.normal
-                }}
-                style={styles.reporterImage}
-                resizeMode={FastImage.resizeMode.cover}
-              />
-              <View style={styles.reporterInfo}>
-                <Text style={styles.reporterName}>{news.reporter.name}</Text>
-               {news?.reporter?.location && <View style={styles.reporterLocationRow}>
-                  <Icon name="map-marker" size={14} color="#FFFFFFCC" />
-                  <Text style={styles.reporterLocation}>
-                    {news.reporter.location}
-                  </Text>
-                </View>}
-              </View>
-            </View>
-          </>
-        )} */}
       </View>
 
-      {/* Content Section */}
       <View style={styles.bottomContainer}>
         <TouchableWithoutFeedback 
           onPress={handleDoubleTap} 
@@ -315,8 +280,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
             <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
               <View style={styles.statsLeft}>
-                
-                {/* CHECK ENABLED STATUS */}
                 {news.commentsEnabled !== false && (
                   <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
                     <Icon name="comment-outline" size={20} color="#565B67" />
@@ -350,7 +313,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         </TouchableWithoutFeedback>
       </View>
 
-      {/* --- MENU MODAL --- */}
+      {/* --- MENU MODAL (Only 3 Options) --- */}
       <Modal
         visible={menuVisible}
         transparent
@@ -361,23 +324,22 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             <RNTouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.menuContainer}>
                 <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('bookmark')}>
-                  <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-plus'} size={24} color="#333" />
+                  <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-outline'} size={24} color="#333" />
                   <Text style={styles.menuText}>{isBookmarked ? 'Remove Bookmark' : 'Bookmark'}</Text>
                 </RNTouchableOpacity>
+                
                 <View style={styles.menuDivider} />
+                
                 <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
-                  <Icon name="flag" size={24} color="#333" />
+                  <Icon name="alert-circle-outline" size={24} color="#333" />
                   <Text style={styles.menuText}>Report</Text>
                 </RNTouchableOpacity>
+                
                 <View style={styles.menuDivider} />
-                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('notInterested')}>
-                  <Icon name="eye-off" size={24} color="#333" />
-                  <Text style={styles.menuText}>Not Interested</Text>
-                </RNTouchableOpacity>
-                <View style={styles.menuDivider} />
-                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('block')}>
-                  <Icon name="cancel" size={24} color="#333" />
-                  <Text style={styles.menuText}>Block this source</Text>
+                
+                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('download')}>
+                  <Icon name="download-outline" size={24} color="#333" />
+                  <Text style={styles.menuText}>Download Image</Text>
                 </RNTouchableOpacity>
               </View>
             </RNTouchableWithoutFeedback>
@@ -488,43 +450,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 100,
   },
-  reporterSection: {
-    position: 'absolute',
-    bottom: 16,
-    left: 20,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    zIndex: 20,
-  },
-  reporterImage: {
-    width: responsiveScreenWidth(10),
-    height: responsiveScreenWidth(10),
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#E0E0E0',
-  },
-  reporterInfo: {
-    flex: 1,
-  },
-  reporterName: {
-    fontSize: responsiveFontSize(1.8),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  reporterLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reporterLocation: {
-    fontSize: responsiveFontSize(1.6),
-    fontWeight: '500',
-    color: '#FFFFFFCC',
-  },
   contentSection: {
     flex: 1,
     paddingHorizontal: 20,
@@ -545,7 +470,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: responsiveFontSize(2.3),
     color: '#333',
-    lineHeight: responsiveFontSize(4.0), // Updated Line Height
+    lineHeight: responsiveFontSize(4.0),
     paddingBottom: 10,
     fontWeight: '400', 
     letterSpacing: 0.3,
@@ -610,7 +535,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 280,
     paddingVertical: 8,
     elevation: 5,
     shadowColor: '#000',
@@ -627,13 +552,13 @@ const styles = StyleSheet.create({
   },
   menuText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#333',
     flex: 1,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#E8EAED',
+    backgroundColor: '#F0F0F0',
     marginHorizontal: 16,
   },
   fullScreenContainer: {

@@ -386,6 +386,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
+  console.log(loading, formattedNews.length === 0,">>>>>>>>>>LOADINGGGGG");
+
   if (loading && formattedNews.length === 0) {
      return (
         <View style={styles.container} onLayout={onLayout}>
