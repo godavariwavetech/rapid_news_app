@@ -43,7 +43,7 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
 
-  const shouldShowFallback = !loading && (!articles || articles.length === 0);
+  const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
 
   let fallbackConfig = {
     title: "No News Available",
@@ -69,8 +69,8 @@ function HomeScreen({navigation}) {
   }
 
   useEffect(() => {
-    dispatch(fetchNews())
-  }, [dispatch]);
+    dispatch(fetchNews({currentLocation,category:"all"}))
+  }, [dispatch,currentLocation]);
 
   useEffect(() => {
     if (error === 'No internet connection. Showing cached news.' && articles.length > 0) {

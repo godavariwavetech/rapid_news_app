@@ -48,13 +48,25 @@ const initialState = {
 // 1. Fetch News List
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
-  async (arg = 'all', { rejectWithValue }) => {
+  async (arg = 'all', { getState,rejectWithValue }) => {
     let category = 'all';
     let page = 1;
+    let location = {
+      village_id: '693d34588b5e54c56d55c925', // Consider fetching dynamically
+      district_id: '693d34588b5e54c56d55c923',
+      state_id: '693d34588b5e54c56d55c922',
+    };
+
+    console.log(arg,">>>>>>>>>>>>ARG >>>>");
 
     if (typeof arg === 'object') {
       category = arg.category || 'all';
       page = arg.page || 1;
+      location = {
+        village_id: arg.currentLocation.village?._id, // Consider fetching dynamically
+        district_id: arg.currentLocation.district?._id,
+        state_id:arg.currentLocation.state?._id,
+      };
     } else {
       category = arg;
     }
@@ -69,10 +81,9 @@ export const fetchNews = createAsyncThunk(
 
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: {
-          village_id: '693d34588b5e54c56d55c925', // Consider fetching dynamically
-          mandal_id: '693d34588b5e54c56d55c924',
-          district_id: '693d34588b5e54c56d55c923',
-          state_id: '693d34588b5e54c56d55c922',
+          village_id: location.village_id, // Consider fetching dynamically
+          district_id: location.district_id,
+          state_id: location.state_id,
           lang: 'te',
           page: page,
           limit: 20,

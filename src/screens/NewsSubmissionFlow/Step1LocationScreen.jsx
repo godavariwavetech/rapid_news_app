@@ -5,56 +5,48 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform,
-  SafeAreaView,
   ScrollView,
   Modal,
   FlatList,
-  ActivityIndicator,
-  Alert
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useDispatch, useSelector } from 'react-redux';
-// Import location actions
-import { getStates, getDistrict, getVillages } from '../../redux/reducers/location';
-
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+import {useDispatch, useSelector} from 'react-redux';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {getStates, getDistrict, getVillages} from '../../redux/reducers/location';
+import {fonts} from '../../config/theme';
 
 const Step1LocationScreen = ({navigation}) => {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   
-  // Get location data from Redux
-  const { states, districts, villages, loading } = useSelector(state => state.location);
+  const {states, districts, villages, loading} = useSelector(state => state.location);
   
-  // Selection State
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
 
-  // Modal Visibility State
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
   const [showVillagePicker, setShowVillagePicker] = useState(false);
 
-  // Fetch States on Load
   useEffect(() => {
     dispatch(getStates());
   }, [dispatch]);
 
-  // Handlers
   const handleStateSelect = (item) => {
     setSelectedState(item);
     setSelectedDistrict(null);
     setSelectedVillage(null);
     setShowStatePicker(false);
-    dispatch(getDistrict(item._id)); // Fetch districts for selected state
+    dispatch(getDistrict(item._id));
   };
 
   const handleDistrictSelect = (item) => {
     setSelectedDistrict(item);
     setSelectedVillage(null);
     setShowDistrictPicker(false);
-    dispatch(getVillages(item._id)); // Fetch villages for selected district
+    dispatch(getVillages(item._id));
   };
 
   const handleVillageSelect = (item) => {
@@ -64,314 +56,154 @@ const Step1LocationScreen = ({navigation}) => {
 
   const handleNext = () => {
     if (!selectedState || !selectedDistrict || !selectedVillage) {
-      Alert.alert('Required', 'Please select State, District, and Village to proceed.');
+      Alert.alert('Required', 'Please complete all location fields.');
       return;
     }
-
-    // Pass selected data to the next screen
     navigation.navigate('NewsSubmissionStep2', {
-      locationData: {
-        state: selectedState,
-        district: selectedDistrict,
-        village: selectedVillage
-      }
+      locationData: { state: selectedState, district: selectedDistrict, village: selectedVillage }
     });
   };
 
-  // Reusable Selection Modal
-  const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={data}
-            keyExtractor={item => item._id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{paddingBottom: 20}}
-            renderItem={({item}) => (
-              <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
-                <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
-                <Icon name="chevron-right" size={20} color="#ccc" />
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                {loading ? 'Loading...' : emptyMessage}
-              </Text>
-            }
-          />
-        </View>
+  const LocationField = ({label, value, onPress, disabled, active}) => (
+    <View style={[styles.fieldWrapper, disabled && {opacity: 0.3}]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity 
+        style={[styles.fieldInput, active && styles.fieldInputActive]} 
+        onPress={onPress} 
+        disabled={disabled}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.fieldValue, !active && {color: '#A0A0A0'}]}>{value}</Text>
+        <Icon name="chevron-down" size={20} color="#000000" />
       </TouchableOpacity>
-    </Modal>
+    </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
+      {/* Professional Minimal Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-left" size={26} color="#000000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Location</Text>
-        <Text style={styles.stepIndicator}>1 / 4</Text>
+        <Text style={styles.headerTitle}>Submit News</Text>
+        <Text style={styles.stepIndicator}>Step 1/4</Text>
       </View>
 
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.titleSection}>
-          <Icon name="map-marker-radius" size={32} color="#E74C3C" />
-          <Text style={styles.title}>Where is this news from?</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.mainTitle}>Location</Text>
+          <Text style={styles.subTitle}>Select the origin of the report.</Text>
         </View>
 
         <View style={styles.formContainer}>
-          {/* State Dropdown */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>State</Text>
-            <TouchableOpacity 
-              style={styles.dropdown} 
-              onPress={() => setShowStatePicker(true)}
-            >
-              <Text style={[styles.dropdownText, !selectedState && styles.placeholderText]}>
-                {selectedState ? (selectedState.name?.en || selectedState.name) : 'Select State'}
-              </Text>
-              <Icon name="chevron-down" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
+          <LocationField 
+            label="STATE"
+            value={selectedState ? (selectedState.name?.en || selectedState.name) : 'Select State'}
+            onPress={() => setShowStatePicker(true)}
+            active={!!selectedState}
+          />
 
-          {/* District Dropdown */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>District</Text>
-            <TouchableOpacity 
-              style={[styles.dropdown, !selectedState && styles.disabledDropdown]} 
-              onPress={() => selectedState && setShowDistrictPicker(true)}
-              disabled={!selectedState}
-            >
-              <Text style={[styles.dropdownText, !selectedDistrict && styles.placeholderText]}>
-                {selectedDistrict ? (selectedDistrict.name?.en || selectedDistrict.name) : 'Select District'}
-              </Text>
-              <Icon name="chevron-down" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
+          <LocationField 
+            label="DISTRICT"
+            value={selectedDistrict ? (selectedDistrict.name?.en || selectedDistrict.name) : 'Select District'}
+            onPress={() => setShowDistrictPicker(true)}
+            disabled={!selectedState}
+            active={!!selectedDistrict}
+          />
 
-          {/* Village Dropdown */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Village / Mandal</Text>
-            <TouchableOpacity 
-              style={[styles.dropdown, !selectedDistrict && styles.disabledDropdown]} 
-              onPress={() => selectedDistrict && setShowVillagePicker(true)}
-              disabled={!selectedDistrict}
-            >
-              <Text style={[styles.dropdownText, !selectedVillage && styles.placeholderText]}>
-                {selectedVillage ? (selectedVillage.name?.en || selectedVillage.name) : 'Select Village'}
-              </Text>
-              <Icon name="chevron-down" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
+          <LocationField 
+            label="VILLAGE / MANDAL"
+            value={selectedVillage ? (selectedVillage.name?.en || selectedVillage.name) : 'Select Village'}
+            onPress={() => setShowVillagePicker(true)}
+            disabled={!selectedDistrict}
+            active={!!selectedVillage}
+          />
         </View>
+      </ScrollView>
 
-        {/* Next Button */}
+      <View style={[styles.footer, {paddingBottom: Math.max(insets.bottom, 24)}]}>
         <TouchableOpacity 
-          style={[
-            styles.nextButton, 
-            (!selectedState || !selectedDistrict || !selectedVillage) && styles.disabledButton
-          ]}
+          style={[styles.nextButton, (!selectedState || !selectedDistrict || !selectedVillage) && styles.nextButtonDisabled]}
           onPress={handleNext}
           disabled={!selectedState || !selectedDistrict || !selectedVillage}
         >
-          <Text style={styles.nextButtonText}>Next Step</Text>
-          <Icon name="arrow-right" size={20} color="#FFF" />
+          <Text style={styles.nextButtonText}>Continue</Text>
         </TouchableOpacity>
+      </View>
 
-      </ScrollView>
-
-      {/* Modals */}
-      <SelectionModal 
-        visible={showStatePicker} 
-        onClose={() => setShowStatePicker(false)} 
-        title="Select State" 
-        data={states} 
-        onSelect={handleStateSelect} 
-        emptyMessage="No states found"
-      />
-      <SelectionModal 
-        visible={showDistrictPicker} 
-        onClose={() => setShowDistrictPicker(false)} 
-        title="Select District" 
-        data={districts} 
-        onSelect={handleDistrictSelect} 
-        emptyMessage="No districts found"
-      />
-      <SelectionModal 
-        visible={showVillagePicker} 
-        onClose={() => setShowVillagePicker(false)} 
-        title="Select Village" 
-        data={villages} 
-        onSelect={handleVillageSelect} 
-        emptyMessage="No villages found"
-      />
-    </SafeAreaView>
+      {/* Selection Modals */}
+      <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} />
+      <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} />
+      <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} />
+    </View>
   );
 };
 
+const SelectionModal = ({visible, onClose, title, data, onSelect}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <TouchableOpacity onPress={onClose}><Icon name="close" size={22} color="#000" /></TouchableOpacity>
+        </View>
+        <FlatList
+          data={data}
+          keyExtractor={item => item._id}
+          showsVerticalScrollIndicator={false}
+          renderItem={({item}) => (
+            <TouchableOpacity style={styles.modalItem} onPress={() => onSelect(item)}>
+              <Text style={styles.modalItemText}>{item.name?.en || item.name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </View>
+  </Modal>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: STATUS_BAR_HEIGHT + 10,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 12,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  stepIndicator: {
-    fontSize: 16,
-    color: '#999',
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-  },
-  titleSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    flex: 1,
-  },
-  formContainer: {
-    paddingHorizontal: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F5F6F8',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8EAED',
-  },
-  disabledDropdown: {
-    opacity: 0.6,
-    backgroundColor: '#FAFAFA',
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  placeholderText: {
-    color: '#999',
-  },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E74C3C',
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 40,
-  },
-  disabledButton: {
-    backgroundColor: '#FFCDD2',
-  },
-  nextButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
-    paddingBottom: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  listItem: {
+  backButton: { padding: 4 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontFamily: fonts.bold, color: '#000000' },
+  stepIndicator: { fontSize: 13, fontFamily: fonts.medium, color: '#A0A0A0' },
+  scrollBody: { paddingHorizontal: 24, paddingTop: 30 },
+  titleContainer: { marginBottom: 40 },
+  mainTitle: { fontSize: 32, fontFamily: fonts.bold, color: '#000000' },
+  subTitle: { fontSize: 16, fontFamily: fonts.regular, color: '#606060', marginTop: 4 },
+  formContainer: { gap: 28 },
+  fieldLabel: { fontSize: 11, fontFamily: fonts.bold, color: '#000000', letterSpacing: 1.5, marginBottom: 10 },
+  fieldInput: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E0E0E0',
+    paddingVertical: 12,
   },
-  listItemText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    marginTop: 20,
-    fontSize: 16,
-  },
+  fieldInputActive: { borderBottomColor: '#000000' },
+  fieldValue: { fontSize: 18, fontFamily: fonts.medium, color: '#000000' },
+  footer: { paddingHorizontal: 24 },
+  nextButton: { backgroundColor: '#000000', paddingVertical: 18, borderRadius: 4, alignItems: 'center' },
+  nextButtonDisabled: { backgroundColor: '#E0E0E0' },
+  nextButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 30 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 8, padding: 20, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontFamily: fonts.bold, color: '#000' },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  modalItemText: { fontSize: 16, fontFamily: fonts.medium, color: '#000' }
 });
 
 export default Step1LocationScreen;

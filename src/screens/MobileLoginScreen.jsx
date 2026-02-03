@@ -10,27 +10,38 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   ScrollView,
+  ActivityIndicator, // Added for the loader
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux'; // Added useSelector
 import { requestOTP } from '../redux/reducers/auth';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const MobileLoginScreen = ({navigation}) => {
-  const disptach = useDispatch()
+  const dispatch = useDispatch(); // Fixed spelling from disptach
   const [mobileNumber, setMobileNumber] = useState('');
+  
+  // Extract the loading state from your auth reducer
+  const { loading } = useSelector(state => state.auth);
 
   const handleProceed = async () => {
     if (mobileNumber.length === 10) {
       const payload = {
-        "phone": mobileNumber
-      }
-      const response = await disptach(requestOTP(payload))
-      console.log(response,">>>>>>>>Responseeee");
-      if(response?.payload?.status==200){
-        navigation.navigate('OTPVerification', {mobile: mobileNumber});
+        "phone": mobileNumber // Using 'mobile' as per your Redux action requirement
+      };
+      
+      try {
+        const response = await dispatch(requestOTP(payload));
+        console.log(response, ">>>>>>>>Responseeee");
+        
+        // Check if the response was successful (using 200 based on your logic)
+        if (response?.payload?.status === 200) {
+          navigation.navigate('OTPVerification', {mobile: mobileNumber});
+        }
+      } catch (error) {
+        console.error("Login Error:", error);
       }
     } else {
       alert('Please enter a valid 10-digit mobile number');
@@ -48,7 +59,9 @@ const MobileLoginScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          disabled={loading} // Disable while loading
+        >
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
       </View>
@@ -60,6 +73,7 @@ const MobileLoginScreen = ({navigation}) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
+          
           {/* Header Section */}
           <View style={styles.headerSection}>
             <Text style={styles.enterText}>Enter your</Text>
@@ -77,6 +91,7 @@ const MobileLoginScreen = ({navigation}) => {
               value={mobileNumber}
               onChangeText={setMobileNumber}
               placeholderTextColor="#999"
+              editable={!loading} // Disable input while loading
             />
           </View>
 
@@ -89,16 +104,20 @@ const MobileLoginScreen = ({navigation}) => {
             </Text>
           </View>
 
-          {/* Proceed Button */}
+          {/* Proceed Button with Loader */}
           <TouchableOpacity
             style={[
               styles.proceedButton,
-              isValid && styles.proceedButtonActive,
+              (isValid && !loading) && styles.proceedButtonActive,
             ]}
             onPress={handleProceed}
-            disabled={!isValid}
+            disabled={!isValid || loading} // Disable if invalid or loading
             activeOpacity={0.8}>
-            <Text style={styles.proceedButtonText}>proceed</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" /> // Show loader during API call
+            ) : (
+              <Text style={styles.proceedButtonText}>proceed</Text>
+            )}
           </TouchableOpacity>
 
           {/* Description Text */}
@@ -188,6 +207,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 30,
+    height: 58, // Added fixed height to prevent flickering during loading
+    justifyContent: 'center',
   },
   proceedButtonActive: {
     backgroundColor: '#1A1A1A',

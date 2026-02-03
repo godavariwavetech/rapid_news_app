@@ -104,9 +104,13 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.isAuthenticated = true;
     },
-    logout: state => {
+   logout: (state) => {
       state.user = null;
+      state.token = null;
       state.isAuthenticated = false;
+      state.isActive = null;
+      state.reporter = null;
+      state.reporterToken=null
     },
   },
     extraReducers: builder => {

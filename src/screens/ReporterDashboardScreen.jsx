@@ -5,8 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform,
-  SafeAreaView,
   ScrollView,
   Image,
   Alert,
@@ -22,6 +20,7 @@ import { getReporterNews } from '../redux/reducers/news';
 import NewsDetailModal from '../components/NewsDetailModal'; 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import { getProfile } from '../redux/reducers/auth';
+import { fonts } from '../config/theme';
 
 const ReporterDashboardScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
@@ -37,6 +36,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNews, setSelectedNews] = useState(null);
 
+  // Static Data
   const mainTabs = [
     {id: 'dashboard', name: 'డాష్‌బోర్డ్'},
     {id: 'stories', name: 'నా స్టోరీస్'},
@@ -50,11 +50,8 @@ const ReporterDashboardScreen = ({navigation}) => {
     {id: 3, name: 'Rajamundry', count: 1},
   ];
 
-  const myStories = [
-    { id: 1, thumbnail: 'https://picsum.photos/300/200?random=1', isVideo: true },
-    { id: 2, thumbnail: 'https://picsum.photos/300/200?random=2', isVideo: true },
-    { id: 3, thumbnail: 'https://picsum.photos/300/200?random=3', isVideo: true },
-  ];
+
+  console.log(reporterNews,">>>>>>>>>>>>>>>>>>>>>reporterNews");
 
   const fetchDashboardData = useCallback(async () => {
     setRefreshing(true);
@@ -115,10 +112,10 @@ const ReporterDashboardScreen = ({navigation}) => {
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
-      case 'PENDING': return '#FF9D00';
+      case 'PENDING': return '#000000';
       case 'APPROVED': return '#28A745';
       case 'REJECTED': return '#DC3545';
-      default: return '#C2C2C2';
+      default: return '#999';
     }
   };
 
@@ -141,12 +138,11 @@ const ReporterDashboardScreen = ({navigation}) => {
     });
 
     await notifee.displayNotification({
-      title: '<p style="color: #FF6B00;"><b>IPLలో ఆ స్టార్‌ను</b></p>',
+      title: '<p style="color: #000000;"><b>IPLలో ఆ స్టార్‌ను</b></p>',
       body: '<b>ఆడనిచ్చని డిమాండ్</b>',
       android: {
         channelId,
         smallIcon: 'ic_launcher', 
-        color: '#FF6B00',
         style: {
           type: AndroidStyle.BIGTEXT,
           text: 'ఆడనిచ్చని డిమాండ్ - Read full news and updates about IPL cricket.',
@@ -156,11 +152,8 @@ const ReporterDashboardScreen = ({navigation}) => {
   };
 
   const renderBlockedBanner = () => (
-    <View style={[
-      styles.blockedBanner, 
-      { paddingTop: Math.max(insets.top, 10) }
-    ]}>
-      <Icon name="account-lock" size={20} color="#FFFFFF" />
+    <View style={[styles.blockedBanner, { paddingTop: Math.max(insets.top, 10) }]}>
+      <Icon name="account-lock" size={18} color="#FFFFFF" />
       <Text style={styles.blockedBannerText}>
         మీ ఖాతా నిలిపివేయబడింది. మీరు కొత్త వార్తలను పోస్ట్ చేయలేరు.
       </Text>
@@ -193,12 +186,14 @@ const ReporterDashboardScreen = ({navigation}) => {
                   {item.content?.te?.title || item.content?.title || 'No Title'}
                 </Text>
                 <TouchableOpacity onPress={() => handleEditNews(item)} style={{padding: 4}}>
-                  <Icon name="pencil" size={20} color="#2196F3" />
+                  <Icon name="pencil-outline" size={20} color="#000" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+              <View style={styles.newsItemFooter}>
+                <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                  <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -235,42 +230,49 @@ const ReporterDashboardScreen = ({navigation}) => {
         style={[styles.ctaCard, isActive === false && styles.ctaDisabled]}
         activeOpacity={0.8}
         onPress={handleStartSubmission}>
-        <View style={styles.ctaContent}>
-          <Text style={styles.ctaTitle}>స్టోర్స్ సూన్స్ పోస్ట్ చేయండి</Text>
-          <Text style={styles.ctaSubtitle}>సున్నాన్ పోస్ట్ చేసి ఆదాయం పొందండి</Text>
+        <View style={styles.ctaTextSection}>
+          <Text style={styles.ctaTitle}>స్టోరీస్ పోస్ట్ చేయండి</Text>
+          <Text style={styles.ctaSubtitle}>వార్తలను పంచుకోండి మరియు ఆదాయం పొందండి</Text>
         </View>
-        <View style={styles.ctaArrow}>
-          <Icon name={isActive === false ? "lock" : "arrow-right"} size={20} color="#FFFFFF" />
-        </View>
+        <Icon name={isActive === false ? "lock" : "plus-circle"} size={30} color="#000" />
       </TouchableOpacity>
 
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>నా వార్తలు ఈ నెలలో</Text>
+        <View style={styles.sectionHeaderSymmetry}>
+          <Text style={styles.sectionHeaderTitle}>నా గణాంకాలు</Text>
           <Text style={styles.monthText}>Nov 2025</Text>
         </View>
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}><Text style={styles.statNumber}>0</Text><Text style={styles.statLabel}>సబ్మిట్</Text></View>
-          <View style={styles.statBox}><Text style={styles.statNumber}>0</Text><Text style={styles.statLabel}>తిరస్కరించబడినవి</Text></View>
-          <View style={styles.statBox}><Text style={styles.statNumber}>0</Text><Text style={styles.statLabel}>ప్రభిన్ చేసినవి</Text></View>
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{reporterNews?.length || 0}</Text>
+            <Text style={styles.statLabel}>సబ్మిట్</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>రిజెక్ట్</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>లైవ్</Text>
+          </View>
         </View>
       </View>
 
       <View style={styles.earningsSection}>
-        <View style={styles.earningsHeader}>
-          <Text style={styles.sectionTitle}>నా ఆదాయం</Text>
+        <View style={styles.earningsHeaderSymmetry}>
+          <Text style={styles.sectionHeaderTitle}>నా ఆదాయం</Text>
           <TouchableOpacity>
-            <Text style={styles.statementLink}>Statement <Icon name="chevron-right" size={14} color="#2196F3" /></Text>
+             <Text style={styles.statementLink}>Statement <Icon name="chevron-right" size={14} color="#000" /></Text>
           </TouchableOpacity>
         </View>
         <View style={styles.earningsCard}>
           <View style={styles.earningsRow}>
             <View style={styles.earningItem}><Text style={styles.earningLabel}>మొత్తం ఆదాయం</Text><Text style={styles.earningAmount}>₹100</Text></View>
-            <View style={styles.divider} />
+            <View style={styles.dividerVertical} />
             <View style={styles.earningItem}><Text style={styles.earningLabel}>ప్రస్తుత ఆదాయం</Text><Text style={styles.earningAmount}>₹100</Text></View>
           </View>
           <TouchableOpacity style={styles.payButton} onPress={testNotification}>
-            <Text style={styles.payButtonText}>Pay me <Icon name="arrow-right" size={14} color="#1A1A1A" /></Text>
+            <Text style={styles.payButtonText}>పేమెంట్ అభ్యర్థించండి</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -278,46 +280,42 @@ const ReporterDashboardScreen = ({navigation}) => {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={isActive === false ? "#DC3545" : "#FFFFFF"} />
+    <View style={[styles.container, { paddingTop: isActive === false ? 0 : insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {isActive === false && renderBlockedBanner()}
 
       <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Icon name="menu" size={24} color="#333" />
-        </TouchableOpacity>
-        <View style={styles.profileSection}>
-          <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
-          <Text style={styles.profileRole}>Reporter @{reporter?.reporter_profile?.district_id?.name?.en}</Text>
-        </View>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={handleHomeNavigation} style={styles.iconButton}>
-            <Icon name="home-outline" size={20} color="#333" />
+        <View style={styles.headerLeftGroup}>
+          <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+            <Icon name="menu" size={26} color="#000" />
           </TouchableOpacity>
+          <View style={styles.profileTextContainer}>
+            <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
+            <Text style={styles.profileRole}>Reporter @{reporter?.reporter_profile?.district_id?.name?.en || "Location"}</Text>
+          </View>
         </View>
+
+        <TouchableOpacity style={styles.headerHomeBtn} onPress={handleHomeNavigation}>
+          <Icon name="home-outline" size={26} color="#000" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={fetchDashboardData} 
-            colors={["#DC3545", "#1A1A1A"]} // Primary app colors for the spinner
-            tintColor="#DC3545" // iOS spinner color
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={fetchDashboardData} tintColor="#000" />
         }
       >
         {selectedTab === 'డాష్‌బోర్డ్' && renderDashboardContent()}
         {selectedTab === 'నా స్టోరీస్' && renderNaaJillaContent()}
         {selectedTab === 'నా జిల్లా' && <MyStoriesScreen />}
         {selectedTab === 'టాప్ వీడియోలు' && <TopReportersScreen />}
-        <View style={{height: 16}} />
+        <View style={{height: 40}} />
       </ScrollView>
 
-      <View style={[styles.bottomTabsContainer, {paddingBottom: Math.max(insets.bottom, 6)}]}>
+      <View style={[styles.bottomTabsContainer, {paddingBottom: Math.max(insets.bottom, 12)}]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bottomTabsContent}>
           {mainTabs.map(tab => (
             <TouchableOpacity
@@ -342,122 +340,100 @@ const ReporterDashboardScreen = ({navigation}) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6F8' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   blockedBanner: {
-    backgroundColor: '#DC3545',
+    backgroundColor: '#000000',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 10,
+    paddingBottom: 15,
+    gap: 12,
   },
-  blockedBannerText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', flex: 1, lineHeight: 18 },
+  blockedBannerText: { color: '#FFFFFF', fontSize: 12, fontFamily: fonts.medium, flex: 1, lineHeight: 18 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  menuButton: { padding: 4, marginRight: 10 },
-  profileSection: { flex: 1 },
-  profileName: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
-  profileRole: { fontSize: 12, color: '#666', marginTop: 2 },
-  headerIcons: { flexDirection: 'row', gap: 6 },
-  iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F5F6F8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: { flex: 1 },
-  locationTabsContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
-  },
-  locationTabsScrollContent: { paddingHorizontal: 16, gap: 8 },
-  locationTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#F5F6F8',
-    gap: 6,
-  },
-  locationTabActive: { backgroundColor: '#1A1A1A' },
-  locationTabText: { fontSize: 13, fontWeight: '600', color: '#666' },
-  locationTabTextActive: { color: '#FFFFFF' },
-  badge: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#4CAF50', alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  ctaCard: {
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1A1A1A',
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
-  },
-  ctaDisabled: { backgroundColor: '#555', opacity: 0.7 },
-  ctaContent: { flex: 1 },
-  ctaTitle: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 3 },
-  ctaSubtitle: { fontSize: 12, color: '#FFFFFFAA' },
-  ctaArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  section: { paddingHorizontal: 16, marginTop: 16 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
-  monthText: { fontSize: 13, color: '#666' },
-  statsContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16 },
-  statBox: { flex: 1, alignItems: 'center' },
-  statNumber: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', marginBottom: 6 },
-  statLabel: { fontSize: 11, color: '#666', textAlign: 'center' },
-  earningsSection: { paddingHorizontal: 16, marginTop: 16 },
-  earningsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  statementLink: { fontSize: 13, color: '#2196F3', fontWeight: '600' },
-  earningsCard: { backgroundColor: '#1A1A1A', borderRadius: 12, padding: 16 },
-  earningsRow: { flexDirection: 'row', marginBottom: 12 },
-  earningItem: { flex: 1 },
-  earningLabel: { fontSize: 12, color: '#FFFFFFAA', marginBottom: 6 },
-  earningAmount: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  divider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 12 },
-  payButton: { backgroundColor: '#FFFFFF', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  payButtonText: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
-  naaJillaContainer: { paddingHorizontal: 16, marginTop: 16 },
-  newsItemContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingBottom: 12,
-    marginBottom: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#C2C2C2',
-    borderStyle: 'dashed',
-    gap: 16,
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
   },
-  imageWrapper: { width: 100, height: 100, borderRadius: 10, overflow: 'hidden' },
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuButton: {
+    marginRight: 12,
+  },
+  profileTextContainer: {
+    justifyContent: 'center',
+  },
+  profileName: { fontSize: 16, fontFamily: fonts.bold, color: '#000', lineHeight: 20 },
+  profileRole: { fontSize: 11, fontFamily: fonts.medium, color: '#999', textTransform: 'uppercase', marginTop: -2 },
+  headerHomeBtn: { padding: 4 },
+  content: { flex: 1 },
+  locationTabsContainer: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  locationTabsScrollContent: { paddingHorizontal: 16, gap: 10 },
+  locationTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 4, backgroundColor: '#F5F5F5' },
+  locationTabActive: { backgroundColor: '#000' },
+  locationTabText: { fontSize: 12, fontFamily: fonts.bold, color: '#666' },
+  locationTabTextActive: { color: '#FFF' },
+  badge: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#000', marginLeft: 6, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 9, color: '#FFF', fontWeight: 'bold' },
+  ctaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    margin: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#000',
+  },
+  ctaDisabled: { opacity: 0.3 },
+  ctaTextSection: { flex: 1 },
+  ctaTitle: { fontSize: 18, fontFamily: fonts.bold, color: '#000' },
+  ctaSubtitle: { fontSize: 13, fontFamily: fonts.regular, color: '#666', marginTop: 3 },
+  section: { paddingHorizontal: 16, marginTop: 15 },
+  sectionHeaderSymmetry: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionHeaderTitle: { fontSize: 12, fontFamily: fonts.bold, color: '#000', textTransform: 'uppercase', letterSpacing: 1 },
+  monthText: { fontSize: 12, color: '#999', fontFamily: fonts.medium },
+  statsGrid: { flexDirection: 'row', gap: 12 },
+  statBox: { flex: 1, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  statNumber: { fontSize: 24, fontFamily: fonts.bold, color: '#000' },
+  statLabel: { fontSize: 11, fontFamily: fonts.medium, color: '#999', marginTop: 4 },
+  earningsSection: { padding: 16, marginTop: 10 },
+  earningsHeaderSymmetry: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  statementLink: { fontSize: 12, color: '#000', fontFamily: fonts.bold },
+  earningsCard: { backgroundColor: '#000', borderRadius: 8, padding: 20 },
+  earningsRow: { flexDirection: 'row', marginBottom: 20 },
+  earningItem: { flex: 1 },
+  earningLabel: { fontSize: 11, fontFamily: fonts.medium, color: '#999', marginBottom: 6 },
+  earningAmount: { fontSize: 22, fontFamily: fonts.bold, color: '#FFF' },
+  dividerVertical: { width: 1, backgroundColor: '#333', marginHorizontal: 15 },
+  payButton: { backgroundColor: '#FFF', paddingVertical: 14, borderRadius: 4, alignItems: 'center' },
+  payButtonText: { fontSize: 14, fontFamily: fonts.bold, color: '#000' },
+  naaJillaContainer: { paddingHorizontal: 16, marginTop: 10 },
+  newsItemContainer: { flexDirection: 'row', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', gap: 16 },
+  imageWrapper: { width: 90, height: 90, borderRadius: 4, overflow: 'hidden', backgroundColor: '#F5F5F5' },
   newsImage: { width: '100%', height: '100%' },
-  placeholderImage: { backgroundColor: '#EEEEEE', alignItems: 'center', justifyContent: 'center' },
-  newsContent: { flex: 1, paddingTop: 4, gap: 12 },
-  headingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  newsTitle: { flex: 1, fontSize: 16, fontWeight: '500', color: '#1F1F1F', lineHeight: 22 },
-  timeText: { fontSize: 12, fontWeight: '500', color: '#7B7B7B' },
-  statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 4 },
-  statusText: { fontSize: 12, fontWeight: '500', color: '#FFFFFF' },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyStateText: { color: '#999', fontSize: 14 },
-  bottomTabsContainer: { backgroundColor: '#F5F6F8', paddingVertical: 10 },
-  bottomTabsContent: { paddingHorizontal: 16, gap: 8 },
-  bottomTab: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  bottomTabActive: { backgroundColor: '#1A1A1A' },
-  bottomTabText: { fontSize: 13, fontWeight: '600', color: '#666' },
-  bottomTabTextActive: { color: '#FFFFFF' },
+  placeholderImage: { alignItems: 'center', justifyContent: 'center' },
+  newsContent: { flex: 1, justifyContent: 'space-between' },
+  headingRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  newsTitle: { flex: 1, fontSize: 16, fontFamily: fonts.bold, color: '#000', lineHeight: 22 },
+  newsItemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timeText: { fontSize: 12, fontFamily: fonts.medium, color: '#999' },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2 },
+  statusText: { fontSize: 11, fontFamily: fonts.bold, color: '#FFFFFF' },
+  emptyState: { alignItems: 'center', paddingVertical: 60 },
+  emptyStateText: { color: '#CCC', fontSize: 14, fontFamily: fonts.medium },
+  bottomTabsContainer: { borderTopWidth: 1, borderTopColor: '#F0F0F0', backgroundColor: '#FFF' },
+  bottomTabsContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  bottomTab: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 4, backgroundColor: '#F5F5F5' },
+  bottomTabActive: { backgroundColor: '#000' },
+  bottomTabText: { fontSize: 13, fontFamily: fonts.bold, color: '#666' },
+  bottomTabTextActive: { color: '#FFF' },
 });
 
 export default ReporterDashboardScreen;

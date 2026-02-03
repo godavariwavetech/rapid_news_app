@@ -8,10 +8,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { applogo } from '../assets';
+import LocationService from '../utils/LocationService';
+import { resolveLocation } from '../redux/reducers/location';
 
 const SplashScreen = ({ navigation }) => {
+  const dispatch = useDispatch()
   const isOnboardingComplete = useSelector(state => state.auth.isOnboardingComplete);
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const scale = useSharedValue(0);
@@ -30,6 +33,20 @@ const SplashScreen = ({ navigation }) => {
     // }
   };
 
+  
+      const fetchLocationAreas = async () => {
+        try {
+          const position = await LocationService.getLocation();
+          console.log(position,">>>>>>>>>>>POSITION");
+          dispatch(
+            resolveLocation({
+              latitude: position.coords?.latitude,
+              longitude: position.coords?.longitude,
+            }),
+          );
+        } catch (error) {}
+      };
+
   useEffect(() => {
     // Logo Animation: Bounce in
     scale.value = withSequence(
@@ -42,6 +59,8 @@ const SplashScreen = ({ navigation }) => {
     const timer = setTimeout(() => {
       handleNavigation();
     }, 2500);
+
+    fetchLocationAreas()
 
     return () => clearTimeout(timer);
   }, []);
