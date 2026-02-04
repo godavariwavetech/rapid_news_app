@@ -81,13 +81,13 @@ export const fetchNews = createAsyncThunk(
 
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: {
-          village_id: location.village_id, // Consider fetching dynamically
+          village_id: location.village_id,
           district_id: location.district_id,
           state_id: location.state_id,
           lang: 'te',
           page: page,
           limit: 5,
-          category: category !== 'all' ? category : undefined,
+          category_id: category !== 'all' ? category : undefined,
         },
         headers: {
           'x-device-id': deviceId

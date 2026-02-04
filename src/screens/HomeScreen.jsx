@@ -9,15 +9,15 @@ import {
   Platform,
   ToastAndroid, 
   Alert,
+  BackHandler,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, getCategories, setMockNews, setSelectedCategory} from '../redux/reducers/news';
+import {fetchNews, getCategories, setSelectedCategory, clearNews} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
 import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
-import {MOCK_NEWS} from '../utils/constants';
 import FlipNewsScreen from './FlipNewsScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,9 +27,8 @@ function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   
-  // Get pagination state from Redux
   const { articles, selectedCategory, error, loading, hasMore, currentPage, isLoadingMore } = useSelector(state => state.news);
-  const {currentLocation} = useSelector(state => state.location)
+  const {currentLocation} = useSelector(state => state.location);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -45,44 +44,38 @@ function HomeScreen({navigation}) {
 
   const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
 
-  let fallbackConfig = {
-    title: "No News Available",
-    message: "There are no stories to display right now. Please check back later.",
-    icon: "newspaper-variant-outline",
-    buttonText: "Refresh Feed"
+  // --- 1. Category Change & Initial Fetch ---
+  useEffect(() => {
+    dispatch(clearNews());
+    dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+    dispatch(getCategories());
+  }, [dispatch, currentLocation, selectedCategory]);
+
+  // --- 2. Hardware Back Button Logic ---
+useEffect(() => {
+  const handleBackButtonClick = () => {
+    // If a category other than 'all' is selected, reset it to 'all'
+    if (selectedCategory !== 'all') {
+      dispatch(setSelectedCategory('all'));
+      if (flipScreenRef.current) {
+        flipScreenRef.current.scrollToTop();
+      }
+      return true; // Prevent default back behavior
+    }
+    return false; // Allow default behavior (exit app)
   };
 
-  if (error === 'No internet connection. Showing cached news.') {
-    fallbackConfig = {
-      title: "No Internet Connection",
-      message: "You seem to be offline. Check your Wi-Fi or mobile data and try again.",
-      icon: "wifi-off",
-      buttonText: "Retry Connection"
-    };
-  } else if (error) {
-    fallbackConfig = {
-      title: "Server Unavailable",
-      message: "We're having trouble connecting to Way2News servers. Please try again in a moment.",
-      icon: "server-network-off", 
-      buttonText: "Try Again"
-    };
-  }
+  // addEventListener now returns a subscription object
+  const subscription = BackHandler.addEventListener(
+    'hardwareBackPress',
+    handleBackButtonClick,
+  );
 
-  useEffect(() => {
-    dispatch(fetchNews({currentLocation,category:"all"}))
-    dispatch(getCategories())
-  }, [dispatch,currentLocation]);
-
-  useEffect(() => {
-    if (error === 'No internet connection. Showing cached news.' && articles.length > 0) {
-      const friendlyMessage = "You seem to be offline. Showing previously fetched news.";
-      if (Platform.OS === 'android') {
-        ToastAndroid.showWithGravity(friendlyMessage, ToastAndroid.LONG, ToastAndroid.BOTTOM);
-      } else {
-        Alert.alert('Offline', friendlyMessage);
-      }
-    }
-  }, [error, articles.length]);
+  // Clean up using the .remove() method on the subscription
+  return () => {
+    subscription.remove();
+  };
+}, [selectedCategory, dispatch]);
 
   useEffect(() => {
     Animated.parallel([
@@ -101,46 +94,23 @@ function HomeScreen({navigation}) {
     ]).start();
   }, [uiVisible]);
 
-  const toggleUI = () => {
-    setUiVisible(prev => !prev);
-  };
+  const toggleUI = () => setUiVisible(prev => !prev);
+  const hideUI = () => uiVisible && setUiVisible(false);
 
-  const hideUI = () => {
-    if (uiVisible) {
-      setUiVisible(false);
-    }
-  };
-
-  const handleCategorySelect = category => {
-    dispatch(setSelectedCategory(category));
-    setCurrentIndex(0);
+  const handleCategorySelect = categoryId => {
+    dispatch(setSelectedCategory(categoryId));
     setCategoriesModalVisible(false);
   };
 
   const handleRefresh = () => {
-    if (Platform.OS === 'android') {
-      ToastAndroid.show("Refreshing news...", ToastAndroid.SHORT);
-    }
-    dispatch(fetchNews({currentLocation,category:"all"}));
+    dispatch(clearNews());
+    dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}));
   };
 
-  // --- NEW: Handle Load More (Pagination) ---
   const handleLoadMore = () => {
     if (!loading && !isLoadingMore && hasMore) {
-      if (Platform.OS === 'android') {
-        ToastAndroid.show("Loading more news...", ToastAndroid.SHORT);
-      }
-      // Pass the NEXT page index
-      dispatch(fetchNews({currentLocation,category: selectedCategory, page: currentPage + 1 }));
-    } else if (!hasMore) {
-      if (Platform.OS === 'android') {
-        ToastAndroid.show("No more news to load", ToastAndroid.SHORT);
-      }
+      dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1 }));
     }
-  };
-
-  const handleIndexChange = (index) => {
-    setCurrentIndex(index);
   };
 
   const handleTabPress = tabId => {
@@ -161,11 +131,8 @@ function HomeScreen({navigation}) {
         setHeaderTitle('ట్రెండ్ల్');
         break;
       case 'ReloadTab':
-        setActiveTab('ReloadTab');
-        setHeaderTitle('రిలోడ్');
-        if (flipScreenRef.current) {
-          flipScreenRef.current.scrollToTop();
-        }
+        handleRefresh();
+        if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
         break;
     }
   };
@@ -175,29 +142,18 @@ function HomeScreen({navigation}) {
     setCommentsVisible(true);
   };
 
-  const onProfilePress = () => {
-    navigation.navigate("Profile");
-  }
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {!shouldShowFallback && (
-        <Animated.View
-          style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
-          <Header title={headerTitle} onProfilePress={onProfilePress}/>
+        <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
+          <Header title={headerTitle} onProfilePress={() => navigation.navigate("Profile")}/>
         </Animated.View>
       )}
 
       {shouldShowFallback ? (
-        <OfflineFallback 
-          onRetry={handleRefresh} 
-          title={fallbackConfig.title}
-          message={fallbackConfig.message}
-          icon={fallbackConfig.icon}
-          buttonText={fallbackConfig.buttonText} 
-        />
+        <OfflineFallback onRetry={handleRefresh} />
       ) : (
         <FlipNewsScreen
           ref={flipScreenRef}
@@ -205,16 +161,12 @@ function HomeScreen({navigation}) {
           hideUI={hideUI}
           onCommentsPress={handleCommentsPress}
           onRefresh={handleRefresh}
-          onEndReached={handleLoadMore} // Pass the handler
-          onIndexChange={handleIndexChange} // Capture index updates
+          onEndReached={handleLoadMore}
         />
       )}
 
-      {/* Counter Removed as per previous request, but logic kept in case you want it back */}
-
       {!shouldShowFallback && (
-        <Animated.View
-          style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
+        <Animated.View style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
           <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
         </Animated.View>
       )}
@@ -227,7 +179,7 @@ function HomeScreen({navigation}) {
       />
 
       {commentsVisible && (
-        <View style={{flex:1, position:"absolute", top:0, left:0, bottom:0, right:0, zIndex: 200}}>
+        <View style={styles.commentContainer}>
           <CommentsBottomSheet
             visible={commentsVisible}
             onClose={() => setCommentsVisible(false)}
@@ -241,26 +193,10 @@ function HomeScreen({navigation}) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    elevation: 10,
-  },
-  bottomTabOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    elevation: 10,
-  },
+  container: { flex: 1, backgroundColor: '#000000' },
+  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
+  bottomTabOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
+  commentContainer: { flex:1, position:"absolute", top:0, left:0, bottom:0, right:0, zIndex: 200 }
 });
 
 export default HomeScreen;
