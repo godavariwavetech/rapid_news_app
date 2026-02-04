@@ -101,11 +101,6 @@ function HomeScreen({navigation}) {
     ]).start();
   }, [uiVisible]);
 
-  const filteredNews =
-    selectedCategory === 'all'
-      ? articles
-      : articles.filter(item => item.category === selectedCategory);
-
   const toggleUI = () => {
     setUiVisible(prev => !prev);
   };
