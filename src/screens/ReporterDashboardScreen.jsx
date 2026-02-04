@@ -29,6 +29,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   
   const {reporter, isActive} = useSelector(state => state.auth);
   const {reporterNews} = useSelector(state => state.news);
+  const {reporterStats} = useSelector((state)=> state.profile)
 
   const [selectedTab, setSelectedTab] = useState('డాష్‌బోర్డ్');
   const [selectedLocation, setSelectedLocation] = useState('తూర్పు గోదావరి');
@@ -52,7 +53,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   ];
 
 
-  console.log(reporterNews,">>>>>>>>>>>>>>>>>>>>>reporterNews");
+  console.log(reporterStats,">>>>>>>>>>>>>>>>>>>>>reporterStats");
 
   const fetchDashboardData = useCallback(async () => {
     setRefreshing(true);
@@ -248,15 +249,15 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterNews?.length || 0}</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_submitted}</Text>
             <Text style={styles.statLabel}>సబ్మిట్</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_rejected}</Text>
             <Text style={styles.statLabel}>రిజెక్ట్</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_approved}</Text>
             <Text style={styles.statLabel}>లైవ్</Text>
           </View>
         </View>

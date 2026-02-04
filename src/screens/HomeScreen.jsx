@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, setMockNews, setSelectedCategory} from '../redux/reducers/news';
+import {fetchNews, getCategories, setMockNews, setSelectedCategory} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
@@ -70,6 +70,7 @@ function HomeScreen({navigation}) {
 
   useEffect(() => {
     dispatch(fetchNews({currentLocation,category:"all"}))
+    dispatch(getCategories())
   }, [dispatch,currentLocation]);
 
   useEffect(() => {

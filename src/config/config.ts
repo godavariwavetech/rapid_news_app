@@ -33,4 +33,7 @@ export const endpoints = {
   GET_STATS:'news/myStats',
 
   TRACK_AD_CLICK: 'ads/:id/click',
+
+  BOOKMARK_NEWS: 'bookmark/news/:id',
+  GET_BOOKMARKS:'bookmark/getMyBookmarks'
 };

@@ -212,6 +212,12 @@ function AppNavigator() {
           component={ReporterStatusScreen}
           options={{headerShown: false}}
         />
+
+        <Stack.Screen
+          name="Bookmarks"
+          component={BookmarksScreen}
+          options={{headerShown: false}}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

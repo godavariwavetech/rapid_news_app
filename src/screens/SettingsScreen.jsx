@@ -116,7 +116,7 @@ const SettingsScreen = ({navigation}) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity onPress={()=>navigation.navigate("Bookmarks")} style={styles.actionButton}>
             <Icon name="bookmark-outline" size={20} color="#E74C3C" />
             <Text style={styles.actionButtonText}>బుక్మార్క్స్</Text>
           </TouchableOpacity>

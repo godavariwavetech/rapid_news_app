@@ -35,7 +35,7 @@ import {
 import { applogo } from '../assets'; 
 
 // Redux Actions
-import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
+import {addBookmark, removeBookmark, toggleBookmarkApi} from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 import { fonts } from '../config/theme';
 
@@ -148,17 +148,13 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     setMenuVisible(false);
     switch(action) {
       case 'bookmark':
-        if (isBookmarked) {
-          dispatch(removeBookmark(news.id));
-        } else {
-          dispatch(addBookmark(news));
-        }
+          dispatch(toggleBookmarkApi({ newsId: news.id, isCurrentlyBookmarked:isBookmarked }));
         break;
       case 'report':
         Alert.alert("Report", "Thank you for reporting. This content will be reviewed.");
         break;
       case 'download':
-        Alert.alert("Download", "Starting image download...");
+        // Alert.alert("Download", "Starting image download...");
         break;
     }
   };

@@ -8,7 +8,7 @@ import Animated, {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
-import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
+// import {addBookmark, removeBookmark} from '../redux/reducers/bookmarks';
 import {CARD_HEIGHT, SCREEN_WIDTH, CARD_PADDING} from '../utils/constants';
 import {lightTheme, darkTheme} from '../utils/colors';
 
@@ -66,11 +66,12 @@ const NewsCard = ({news, index, scrollY, onPress}) => {
   });
 
   const handleBookmark = () => {
-    if (isBookmarked) {
-      dispatch(removeBookmark(news.id));
-    } else {
-      dispatch(addBookmark(news));
-    }
+    console.log(">>>>>>>>>>>>>>>>>>>>>>>>CALLING THE BOOKMARK");
+    // if (isBookmarked) {
+    //   dispatch(removeBookmark(news.id));
+    // } else {
+    //   dispatch(addBookmark(news));
+    // }
   };
 
   return (

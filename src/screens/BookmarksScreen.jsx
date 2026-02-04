@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,24 +11,36 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector, useDispatch} from 'react-redux';
 import {lightTheme, darkTheme} from '../utils/colors';
-import {removeBookmark} from '../redux/reducers/bookmarks';
+import {getBookmarks, toggleBookmarkApi} from '../redux/reducers/bookmarks';
 import {getTranslation} from '../utils/translations';
 
 const BookmarksScreen = ({navigation}) => {
   const dispatch = useDispatch();
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const language = useSelector(state => state.settings.language);
-  const bookmarks = useSelector(state => state.bookmarks.items);
+  const {bookmarks} = useSelector(state => state.bookmarks);
   const theme = isDarkMode ? darkTheme : lightTheme;
   const t = key => getTranslation(language, key);
 
   const handleRemoveBookmark = newsId => {
-    dispatch(removeBookmark(newsId));
+    dispatch(toggleBookmarkApi({ newsId:newsId, isCurrentlyBookmarked:false }));
   };
 
   const handleNewsPress = news => {
     navigation.navigate('NewsDetail', {news});
   };
+
+  const fetchBookmarks = async () =>{
+    
+    const response = await dispatch(getBookmarks())
+    console.log(response,"response >>>>>>>>>>>>>>>>>>>>>>");
+  }
+
+  useEffect(()=>{
+    fetchBookmarks()
+  },[])
+
+  console.log(bookmarks,">>>>>>>>>>>>>>>>>>bookmarks");
 
   const renderBookmarkItem = ({item}) => (
     <TouchableOpacity
@@ -71,7 +83,7 @@ const BookmarksScreen = ({navigation}) => {
     </TouchableOpacity>
   );
 
-  if (bookmarks.length === 0) {
+  if (bookmarks?.length === 0) {
     return (
       <View style={[styles.container, {backgroundColor: theme.background}]}>
         <StatusBar
@@ -105,7 +117,7 @@ const BookmarksScreen = ({navigation}) => {
           {t('bookmarks')}
         </Text>
         <Text style={[styles.count, {color: theme.textSecondary}]}>
-          {bookmarks.length} {t('saved')}
+          {bookmarks?.length} {t('saved')}
         </Text>
       </View>
 

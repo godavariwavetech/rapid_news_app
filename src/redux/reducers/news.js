@@ -115,6 +115,7 @@ export const getCategories = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.CATEGORY);
+      console.log(response,">>>>>>>>>>>>>>responseeeee>>>>>>>>>>>>");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
