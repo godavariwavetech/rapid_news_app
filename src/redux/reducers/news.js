@@ -209,7 +209,6 @@ export const trackAdClick = createAsyncThunk(
   }
 );
 
-// 9. View News
 export const viewNews = createAsyncThunk(
   'news/viewNews',
   async (newsId, { rejectWithValue }) => {
@@ -226,7 +225,6 @@ export const viewNews = createAsyncThunk(
   }
 );
 
-// 10. Get Reporter News
 export const getReporterNews = createAsyncThunk(
   'news/getReporterNews',
   async (_, { rejectWithValue }) => {
@@ -235,6 +233,25 @@ export const getReporterNews = createAsyncThunk(
       console.log(response,">>>>>>>>>>>>>>>>responseeee>>>>>>>>>>>>>>Neews");
       return response.data; 
     } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+
+export const reportNews = createAsyncThunk(
+  'news/reportNews',
+  async ({ newsId, reason, message }, { rejectWithValue }) => {
+    try {
+      console.log(newsId,reason,message,">>>>>>>>>>>>>>>>>>>MESSAGEEEEEE",`${endpoints.REPORT_NEWS}/${newsId}`);
+      const response = await api.post(`${endpoints.REPORT_NEWS}/${newsId}`, {
+        reason,
+        message
+      });
+      console.log(response,">>>>>>>>>>>>>>>>>>>>>>>REsponseee.....");
+      return response.data;
+    } catch (error) {
+      console.log(error,">>>>>>ERRRRR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }

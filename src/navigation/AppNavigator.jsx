@@ -31,6 +31,7 @@ import ReporterDrawerNavigator from './ReporterDrawerNavigator';
 import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
+import NewsDetailScreen from '../screens/NewsDetailScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -216,6 +217,11 @@ function AppNavigator() {
         <Stack.Screen
           name="Bookmarks"
           component={BookmarksScreen}
+          options={{headerShown: false}}
+        />
+             <Stack.Screen
+          name="NewsDetail"
+          component={NewsDetailScreen}
           options={{headerShown: false}}
         />
       </Stack.Navigator>

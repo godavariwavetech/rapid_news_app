@@ -13,7 +13,7 @@ import {CARD_HEIGHT, SCREEN_WIDTH, CARD_PADDING} from '../utils/constants';
 
 const NewsCard = ({news, index, scrollY, onPress, theme}) => {
   const dispatch = useDispatch();
-  const bookmarks = useSelector(state => state.bookmarks.items);
+  const {bookmarks} = useSelector(state => state.bookmarks);
   const isBookmarked = bookmarks.some(item => item.id === news.id);
 
   const inputRange = [

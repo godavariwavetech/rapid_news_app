@@ -21,12 +21,13 @@ export const toggleBookmarkApi = createAsyncThunk(
 
 export const getBookmarks = createAsyncThunk(
   'bookmarks/getBookmarks',
-  async (_, { rejectWithValue }) => {
-    console.log(">>>>>>>>>>>>>>CALLING THE API");
+  async (_, { rejectWithValue,dispatch, }) => {
     try {
-      const response = await api.post(endpoints.GET_BOOKMARKS); 
+      const response = await api.get(endpoints.GET_BOOKMARKS); 
+      dispatch(bookmarksSlice.actions.listBootmarkIds(response.data?.items))
       return response.data;
     } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>error");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -40,9 +41,9 @@ const bookmarksSlice = createSlice({
   initialState: {
     bookmarks: [],
     loading: false,
+    bookmarkIds:[]
   },
   reducers: {
-    // Keep local state management for optimistic updates if desired
     addBookmarkLocal: (state, action) => {
       const exists = state.items.find(item => item.id === action.payload.id);
       if (!exists) state.items.push(action.payload);
@@ -50,6 +51,14 @@ const bookmarksSlice = createSlice({
     removeBookmarkLocal: (state, action) => {
       state.items = state.items.filter(item => item.id !== action.payload);
     },
+    listBootmarkIds:(state,action)=>{
+      console.log(action.payload,">>>>>>>>>>PAYLOOOOOO");
+      if(action.payload){
+
+        state.bookmarkIds = action.payload.map(item=>item.news._id)
+        console.log(state.bookmarkIds,">>>>>>>>>>>>>>>>>>>>>>>>>state.bookmarkIds");
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -63,10 +72,10 @@ const bookmarksSlice = createSlice({
       })
        .addCase(getBookmarks.fulfilled, (state, action) => {
         console.log(action.payload,">>>>>>>>>>>>>ACTION apyloadd");
-        state.bookmarks = action.payload;
+        state.bookmarks = action.payload.items;
       })
   },
 });
 
-export const { addBookmarkLocal, removeBookmarkLocal } = bookmarksSlice.actions;
+export const { addBookmarkLocal, removeBookmarkLocal,listBootmarkIds } = bookmarksSlice.actions;
 export default bookmarksSlice.reducer;

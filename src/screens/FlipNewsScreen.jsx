@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -97,7 +97,15 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
 // WRAP WITH FORWARD REF
 const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange }, ref) => {
   const dispatch = useDispatch();
-  const { articles, loading } = useSelector(state => state.news);
+  const { articles, loading, hasMore } = useSelector(state => state.news);
+    const {bookmarks} = useSelector(state => state.bookmarks);
+  
+  
+    const bookmarkedIds = useMemo(() => {
+    return bookmarks.map(item => item.news?._id);
+  }, [bookmarks]);
+  
+  // const isItemBookmarked = (newsId) => bookmarkedIds.includes(newsId);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -124,7 +132,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: item.data.label || 'Advertisement',
           likes: 0,
           comments: 0,
-          commentsEnabled: false, // Ads don't have comments
+          commentsEnabled: false,
           images: [], 
         };
       } 
@@ -137,19 +145,19 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           title: data.content?.title || '',
           body: data.content?.body || '',
           short: data.content?.short || '',
-          // Use primary image as fallback, but also pass the full array
           image: data.images?.length > 0 ? data.images[0] : null,
           images: data.images || [], 
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
           comments: data?.comments?.count || 0,
-          commentsEnabled: data?.comments?.enabled !== false, // Default to true if undefined
+          commentsEnabled: data?.comments?.enabled !== false,
           reporter: data.reporter || {
             name: 'Reporter',
             imageUrl: 'https://via.placeholder.com/100',
             location: 'Andhra Pradesh'
-          }
+          },
+          isBookmarked: bookmarkedIds.includes(data._id),
         };
       }
     });
@@ -210,13 +218,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       dispatch(viewNews(currentNews.id));
     }
   }, [currentNews?.id, dispatch]);
-  // -------------------------------------
 
   useEffect(() => {
     if (isSwitching) {
       scrollY.value = 0;
       swipeDirection.value = 0;
-      // Reduced timeout to 0ms to instantly unlock gestures after state update
       setTimeout(() => {
         setIsSwitching(false);
         setOverrideNews(null);
@@ -262,7 +268,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       let position = -e.translationY / containerHeight;
 
-      // --- RESISTANCE LOGIC ---
       if (!hasNext.value && position > 0) {
         position = position / 3; 
       }
@@ -280,22 +285,23 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       if (containerHeight === 0 || isAnimating.value) return;
       const position = -e.translationY / containerHeight;
       
-      // Swipe Up (Next)
-      // Optimized threshold: position > 0.15 OR velocity > 400 (easier swipe)
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
-           runOnJS(triggerLoadMore)();
+            // Toast logic for End of News
+            if (!hasMore && Platform.OS === 'android') {
+              runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
+            }
+            runOnJS(triggerLoadMore)();
         } else {
            isAnimating.value = true;
            swipeDirection.value = 1;
            scrollY.value = withTiming(
              1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, // Faster duration (200ms)
+             { duration: 200, easing: Easing.out(Easing.cubic) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('next'); }
            );
         }
       } 
-      // Swipe Down (Prev)
       else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
            runOnJS(triggerRefresh)();
@@ -304,7 +310,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = -1;
            scrollY.value = withTiming(
              -1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, // Faster duration (200ms)
+             { duration: 200, easing: Easing.out(Easing.cubic) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
            );
         }
@@ -386,8 +392,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  console.log(loading, formattedNews.length === 0,">>>>>>>>>>LOADINGGGGG");
-
+  // --- SKELETON RENDER LOGIC ---
   if (loading && formattedNews.length === 0) {
      return (
         <View style={styles.container} onLayout={onLayout}>

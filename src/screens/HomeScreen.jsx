@@ -1,13 +1,12 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, {useEffect, useState, useRef, useCallback, useMemo} from 'react';
 import {
   View,
   StyleSheet,
   StatusBar,
   Animated,
   Dimensions,
-  Text,
   Platform,
-  ToastAndroid, 
+  ToastAndroid,
   Alert,
   BackHandler,
 } from 'react-native';
@@ -19,20 +18,19 @@ import CategoriesModal from '../components/CategoriesModal';
 import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getBookmarks } from '../redux/reducers/bookmarks';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
-  const insets = useSafeAreaInsets();
   
-  const { articles, selectedCategory, error, loading, hasMore, currentPage, isLoadingMore } = useSelector(state => state.news);
+  const { articles, categories, selectedCategory, loading, hasMore, currentPage, isLoadingMore, error } = useSelector(state => state.news);
   const {currentLocation} = useSelector(state => state.location);
+
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [categoriesModalVisible, setCategoriesModalVisible] = useState(false);
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [selectedNews, setSelectedNews] = useState(null);
@@ -44,39 +42,58 @@ function HomeScreen({navigation}) {
 
   const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
 
-  // --- 1. Category Change & Initial Fetch ---
+  // --- 1. Dynamic Header and Category Fetching ---
   useEffect(() => {
+    // Update Header Title based on category list\
+    dispatch(getCategories())
+    if (selectedCategory === 'all') {
+      setHeaderTitle('న్యూస్');
+    } else {
+      const activeCat = categories.find(c => c._id === selectedCategory);
+      if (activeCat) {
+        setHeaderTitle(activeCat.name?.te || activeCat.name?.en || 'న్యూస్');
+      }
+    }
+
     dispatch(clearNews());
     dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
-    dispatch(getCategories());
-  }, [dispatch, currentLocation, selectedCategory]);
+    dispatch(getBookmarks())
+  }, [selectedCategory, currentLocation, dispatch]);
 
-  // --- 2. Hardware Back Button Logic ---
-useEffect(() => {
-  const handleBackButtonClick = () => {
-    // If a category other than 'all' is selected, reset it to 'all'
-    if (selectedCategory !== 'all') {
-      dispatch(setSelectedCategory('all'));
-      if (flipScreenRef.current) {
-        flipScreenRef.current.scrollToTop();
+
+
+  // --- 2. Empty Category Fallback ---
+  useEffect(() => {
+    // If a specific category is empty, alert the user and revert to 'all'
+    if (!loading && articles && articles?.items?.length === 0 && selectedCategory !== 'all' && !error) {
+      const msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(msg, ToastAndroid.LONG);
+      } else {
+        Alert.alert("సమాచారం", msg);
       }
-      return true; // Prevent default back behavior
+      dispatch(setSelectedCategory('all'));
     }
-    return false; // Allow default behavior (exit app)
-  };
+  }, [articles, loading, selectedCategory, error]);
 
-  // addEventListener now returns a subscription object
-  const subscription = BackHandler.addEventListener(
-    'hardwareBackPress',
-    handleBackButtonClick,
-  );
+  console.log(articles,">>>>>>>>>>>>>>>>>>>>>>>>>>>>articles");
 
-  // Clean up using the .remove() method on the subscription
-  return () => {
-    subscription.remove();
-  };
-}, [selectedCategory, dispatch]);
+  // --- 3. Hardware Back Button Handling ---
+  useEffect(() => {
+    const handleBack = () => {
+      if (selectedCategory !== 'all') {
+        dispatch(setSelectedCategory('all'));
+        if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+        return true; 
+      }
+      return false;
+    };
 
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    return () => subscription.remove();
+  }, [selectedCategory]);
+
+  // --- 4. Animation Control ---
   useEffect(() => {
     Animated.parallel([
       Animated.spring(headerAnim, {
@@ -94,53 +111,22 @@ useEffect(() => {
     ]).start();
   }, [uiVisible]);
 
-  const toggleUI = () => setUiVisible(prev => !prev);
-  const hideUI = () => uiVisible && setUiVisible(false);
+  const toggleUI = () => setUiVisible(!uiVisible);
+  const hideUI = () => setUiVisible(false);
 
-  const handleCategorySelect = categoryId => {
-    dispatch(setSelectedCategory(categoryId));
-    setCategoriesModalVisible(false);
-  };
-
-  const handleRefresh = () => {
-    dispatch(clearNews());
-    dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}));
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && !isLoadingMore && hasMore) {
-      dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1 }));
-    }
-  };
-
-  const handleTabPress = tabId => {
-    switch (tabId) {
-      case 'HomeTab':
-        setActiveTab('HomeTab');
-        setHeaderTitle('న్యూస్');
-        break;
-      case 'CategoriesTab':
-        setCategoriesModalVisible(true);
-        break;
-      case 'LocationTab':
-        setActiveTab('LocationTab');
-        setHeaderTitle('రాజమండ్రి');
-        break;
-      case 'TrendingTab':
-        setActiveTab('TrendingTab');
-        setHeaderTitle('ట్రెండ్ల్');
-        break;
-      case 'ReloadTab':
-        handleRefresh();
+  // Faster tab press handler
+  const handleTabPress = useCallback((tabId) => {
+    if (tabId === 'CategoriesTab') {
+      setCategoriesModalVisible(true);
+    } else {
+      setActiveTab(tabId);
+      if (tabId === 'ReloadTab') {
+        dispatch(clearNews());
+        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}));
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
-        break;
+      }
     }
-  };
-
-  const handleCommentsPress = newsItem => {
-    setSelectedNews(newsItem);
-    setCommentsVisible(true);
-  };
+  }, [selectedCategory, currentLocation]);
 
   return (
     <View style={styles.container}>
@@ -153,15 +139,16 @@ useEffect(() => {
       )}
 
       {shouldShowFallback ? (
-        <OfflineFallback onRetry={handleRefresh} />
+        <OfflineFallback onRetry={() => dispatch(fetchNews({currentLocation, category: 'all', page: 1}))} />
       ) : (
         <FlipNewsScreen
           ref={flipScreenRef}
           toggleUI={toggleUI}
           hideUI={hideUI}
-          onCommentsPress={handleCommentsPress}
-          onRefresh={handleRefresh}
-          onEndReached={handleLoadMore}
+          onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
+          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}))}
+          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1}))}
+          
         />
       )}
 
@@ -174,7 +161,10 @@ useEffect(() => {
       <CategoriesModal
         visible={categoriesModalVisible}
         onClose={() => setCategoriesModalVisible(false)}
-        onSelectCategory={handleCategorySelect}
+        onSelectCategory={(id) => {
+          dispatch(setSelectedCategory(id));
+          setCategoriesModalVisible(false);
+        }}
         selectedCategory={selectedCategory}
       />
 
@@ -183,7 +173,7 @@ useEffect(() => {
           <CommentsBottomSheet
             visible={commentsVisible}
             onClose={() => setCommentsVisible(false)}
-            newsId={selectedNews?.id}
+            newsId={selectedNews?._id}
             newsTitle={selectedNews?.title}
           />
         </View>
@@ -193,10 +183,10 @@ useEffect(() => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: '#000' },
   headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
   bottomTabOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
-  commentContainer: { flex:1, position:"absolute", top:0, left:0, bottom:0, right:0, zIndex: 200 }
+  commentContainer: { ...StyleSheet.absoluteFillObject, zIndex: 200 }
 });
 
 export default HomeScreen;

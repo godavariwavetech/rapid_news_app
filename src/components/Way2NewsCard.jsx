@@ -35,9 +35,10 @@ import {
 import { applogo } from '../assets'; 
 
 // Redux Actions
-import {addBookmark, removeBookmark, toggleBookmarkApi} from '../redux/reducers/bookmarks';
+import {getBookmarks, toggleBookmarkApi} from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 import { fonts } from '../config/theme';
+import ReportModal from './ReportModal';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
@@ -46,22 +47,18 @@ const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 function Way2NewsCard({news, onPress, onCommentsPress}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  
-  // Selectors
-  const bookmarks = useSelector(state => state.bookmarks.items);
-  const isBookmarked = news?.id ? bookmarks.some(item => item.id === news.id) : false;
-
+  const {bookmarkIds} = useSelector(state => state.bookmarks);
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [lastTap, setLastTap] = useState(0);
 
-  // --- CAROUSEL STATE ---
   const [activeSlide, setActiveSlide] = useState(0);
   const flatListRef = useRef(null);
 
-  // Reset State when News ID changes
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+
   useEffect(() => {
     setActiveSlide(0);
     if (flatListRef.current) {
@@ -76,14 +73,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     }
   });
 
-  // --- DETERMINE IMAGE SOURCE(S) ---
   const images = news.images && news.images.length > 0 ? news.images : (news.image ? [news.image] : []);
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
   
   const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
 
-  // --- Handlers ---
   const handleDoubleTap = () => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
@@ -148,10 +143,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     setMenuVisible(false);
     switch(action) {
       case 'bookmark':
-          dispatch(toggleBookmarkApi({ newsId: news.id, isCurrentlyBookmarked:isBookmarked }));
+          dispatch(toggleBookmarkApi({ newsId: news.id, isCurrentlyBookmarked: isBookmarked }));
         break;
       case 'report':
-        Alert.alert("Report", "Thank you for reporting. This content will be reviewed.");
+        setReportModalVisible(true);
         break;
       case 'download':
         // Alert.alert("Download", "Starting image download...");
@@ -204,6 +199,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       </View>
     </TouchableWithoutFeedback>
   );
+  const isBookmarked = bookmarkIds?.includes(news.id)
 
   return (
     <View style={styles.card}>
@@ -310,6 +306,14 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       </View>
 
       {/* --- MENU MODAL (Only 3 Options) --- */}
+
+
+<ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        newsId={news.id} // Passing the news ID for the API call
+      />
+
       <Modal
         visible={menuVisible}
         transparent
