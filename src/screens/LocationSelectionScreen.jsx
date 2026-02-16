@@ -1,282 +1,278 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform,
-  SafeAreaView,
   ScrollView,
-  TextInput,
+  Modal,
+  FlatList,
+  SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
-const STATUS_BAR_HEIGHT =
-  Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+import {useDispatch, useSelector} from 'react-redux';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {
+  getStates,
+  getDistrict,
+  getVillages,
+  setManualLocation,
+} from '../redux/reducers/location'; //
+import { CommonActions } from '@react-navigation/native';
 
 const LocationSelectionScreen = ({navigation}) => {
-  const insets = useSafeAreaInsets()
-  const [searchText, setSearchText] = useState('');
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
-  const districts = [
-    {id: 1, name: 'రాయం', english: '(రా)'},
-    {id: 2, name: 'నిజామాబాద్', english: '(ని)'},
-    {id: 3, name: 'మంచలం', english: '(మం)'},
-    {id: 4, name: 'జిల్లా', english: '(జి)'},
-  ];
+  // Get data from Redux
+  const {states, districts, villages, currentLocation, loading} = useSelector(
+    state => state.location,
+  );
 
-  const favorites = [
-    {
-      id: 1,
-      name: 'Baba Nagar',
-      location: 'Rajamahendravaram Urban(M), East Godavari(D) – 533106',
-    },
-  ];
+  const [selectedState, setSelectedState] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedVillage, setSelectedVillage] = useState(null);
+
+  const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+  const [showVillagePicker, setShowVillagePicker] = useState(false);
+
+  // 1. Initial Load & Auto-fill from Current Location
+  useEffect(() => {
+    dispatch(getStates());
+
+    // If SplashScreen already detected a location, pre-populate the UI
+    if (currentLocation) {
+      if (currentLocation.state) {
+        setSelectedState(currentLocation.state);
+        dispatch(getDistrict(currentLocation.state._id));
+      }
+      if (currentLocation.district) {
+        setSelectedDistrict(currentLocation.district);
+        dispatch(getVillages(currentLocation.district._id));
+      }
+      if (currentLocation.village) {
+        setSelectedVillage(currentLocation.village);
+      }
+    }
+  }, [dispatch, currentLocation]);
+
+  // 2. Selection Handlers
+  const handleStateSelect = item => {
+    setSelectedState(item);
+    setSelectedDistrict(null);
+    setSelectedVillage(null);
+    setShowStatePicker(false);
+    dispatch(getDistrict(item._id));
+  };
+
+  const handleDistrictSelect = item => {
+    setSelectedDistrict(item);
+    setSelectedVillage(null);
+    setShowDistrictPicker(false);
+    dispatch(getVillages(item._id));
+  };
+
+  const handleVillageSelect = item => {
+    setSelectedVillage(item);
+    setShowVillagePicker(false);
+  };
+
+  // 3. Finalize and Update Global Location
+  const handleConfirmLocation = () => {
+    if (selectedState && selectedDistrict && selectedVillage) {
+      const locationData = {
+        state: selectedState,
+        district: selectedDistrict,
+        village: selectedVillage,
+        displayName: selectedVillage.name?.te || selectedVillage.name?.en || selectedVillage.name,
+      };
+
+      // Store in Redux (this updates Header and news feed)
+      dispatch(setManualLocation(locationData));
+      // navigation.goBack();
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Main' }], 
+          })
+        );
+    }
+  };
+
+  const LocationField = ({label, value, onPress, disabled, active}) => (
+    <View style={[styles.fieldWrapper, disabled && {opacity: 0.5}]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.fieldInput, active && styles.fieldInputActive]}
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.7}>
+        <Text style={[styles.fieldValue, !active && {color: '#999'}]}>
+          {value}
+        </Text>
+        <Icon name="chevron-down" size={24} color="#666" />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header Wrapper */}
-      <View style={styles.headerWrapper}>
-        <View style={[styles.header,{paddingTop:insets.top}]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>మీ ప్రదేశాన్ని ఎంచుకోడి</Text>
-          <View style={styles.placeholder} />
-        </View>
+      {/* Header */}
+      <View style={[styles.header, {paddingTop: insets.top}]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-left" size={26} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>మీ ప్రదేశాన్ని ఎంచుకోండి</Text>
+        <View style={{width: 32}} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Description */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
         <Text style={styles.description}>
-          మీ లొకేషనను మీరే సెయింగా ఇచ్చేందుకు ఈ ఆప్షన్ ఎంచుకోడి
+          వార్తలను మీ ప్రాంతం ఆధారంగా పొందేందుకు మీ లొకేషన్‌ను ఎంచుకోండి.
         </Text>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Icon
-            name="map-marker"
-            size={22}
-            color="#666"
-            style={styles.searchIcon}
+        <View style={styles.formContainer}>
+          <LocationField
+            label="రాష్ట్రం (STATE)"
+            value={selectedState ? (selectedState.name?.te || selectedState.name?.en) : 'రాష్ట్రాన్ని ఎంచుకోండి'}
+            onPress={() => setShowStatePicker(true)}
+            active={!!selectedState}
           />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="మీ ఊరు పేరు లేదా విరుణామాతో వెతకండి"
-            placeholderTextColor="#999"
-            value={searchText}
-            onChangeText={setSearchText}
+
+          <LocationField
+            label="జిల్లా (DISTRICT)"
+            value={selectedDistrict ? (selectedDistrict.name?.te || selectedDistrict.name?.en) : 'జిల్లాను ఎంచుకోండి'}
+            onPress={() => setShowDistrictPicker(true)}
+            disabled={!selectedState}
+            active={!!selectedDistrict}
           />
-          <Icon name="magnify" size={22} color="#666" />
+
+          <LocationField
+            label="గ్రామం / మండలం (VILLAGE / MANDAL)"
+            value={selectedVillage ? (selectedVillage.name?.te || selectedVillage.name?.en) : 'గ్రామాన్ని ఎంచుకోండి'}
+            onPress={() => setShowVillagePicker(true)}
+            disabled={!selectedDistrict}
+            active={!!selectedVillage}
+          />
         </View>
 
-        {/* District Chips */}
-        <View style={styles.chipsSection}>
-          <Text style={styles.chipsLabel}>
-            వాల్లు విధానం : {districts.map(d => d.english).join(', ')}
-          </Text>
-          <Text style={styles.orText}>or</Text>
-        </View>
+        {loading && <ActivityIndicator color="#E74C3C" style={{marginTop: 20}} />}
 
-        {/* Location Permission Section */}
-        <View style={styles.locationSection}>
-          <Text style={styles.locationTitle}>
-            మీ చుట్టూ ఉన్న పౌంతాల వార్తలు పొందేందుకు లొకేషన్ అనుమతివ్వండి
-          </Text>
-
-          <TouchableOpacity style={styles.locationButton} activeOpacity={0.8}>
-            <Icon name="crosshairs-gps" size={22} color="#FFFFFF" />
-            <Text style={styles.locationButtonText}>
-              లొకేషన్ అనుమతివ్వండి
-            </Text>
+        {selectedVillage && (
+          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmLocation}>
+            <Text style={styles.confirmButtonText}>సమర్పించండి (Confirm)</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Favourites Section */}
-        <View style={styles.favouritesSection}>
-          <View style={styles.favouritesHeader}>
-            <Icon name="star" size={22} color="#E74C3C" />
-            <Text style={styles.favouritesTitle}>Favourites</Text>
-          </View>
-
-          {favorites.map(fav => (
-            <TouchableOpacity
-              key={fav.id}
-              style={styles.favouriteCard}
-              activeOpacity={0.7}>
-              <Icon
-                name="clock-outline"
-                size={22}
-                color="#999"
-                style={styles.clockIcon}
-              />
-              <View style={styles.favouriteInfo}>
-                <Text style={styles.favouriteName}>{fav.name}</Text>
-                <Text style={styles.favouriteLocation}>{fav.location}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={{height: 40}} />
+        )}
       </ScrollView>
+
+      {/* Selection Modals */}
+      <SelectionModal 
+        visible={showStatePicker} 
+        onClose={() => setShowStatePicker(false)} 
+        title="రాష్ట్రం ఎంచుకోండి" 
+        data={states} 
+        onSelect={handleStateSelect} 
+      />
+      <SelectionModal 
+        visible={showDistrictPicker} 
+        onClose={() => setShowDistrictPicker(false)} 
+        title="జిల్లా ఎంచుకోండి" 
+        data={districts} 
+        onSelect={handleDistrictSelect} 
+      />
+      <SelectionModal 
+        visible={showVillagePicker} 
+        onClose={() => setShowVillagePicker(false)} 
+        title="గ్రామం ఎంచుకోండి" 
+        data={villages} 
+        onSelect={handleVillageSelect} 
+      />
     </SafeAreaView>
   );
 };
 
+const SelectionModal = ({visible, onClose, title, data, onSelect}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Icon name="close" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={data}
+          keyExtractor={item => item._id}
+          renderItem={({item}) => (
+            <TouchableOpacity style={styles.modalItem} onPress={() => onSelect(item)}>
+              <Text style={styles.modalItemText}>
+                {item.name?.te || item.name?.en || item.name}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </View>
+  </Modal>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F6F8',
-  },
-  headerWrapper: {
-    // paddingTop: STATUS_BAR_HEIGHT,
-    backgroundColor: '#FFFFFF',
-  },
+  container: {flex: 1, backgroundColor: '#FFFFFF'},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    flex: 1,
-    marginLeft: 10,
-  },
-  placeholder: {
-    width: 28,
-  },
-  content: {
-    flex: 1,
-  },
-  description: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
-    lineHeight: 22,
-  },
-  searchContainer: {
+  headerTitle: {fontSize: 18, fontWeight: '700', color: '#1A1A1A'},
+  backButton: {padding: 4},
+  scrollBody: {paddingHorizontal: 20, paddingTop: 20},
+  description: {fontSize: 15, color: '#666', marginBottom: 30, lineHeight: 22},
+  formContainer: {gap: 20},
+  fieldWrapper: {marginBottom: 10},
+  fieldLabel: {fontSize: 12, fontWeight: '700', color: '#333', marginBottom: 8},
+  fieldInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    backgroundColor: '#F8F9FA',
     borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: '#E8EAED',
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-  },
-  chipsSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  chipsLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  orText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  locationSection: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  locationTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-    lineHeight: 22,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  fieldInputActive: {borderColor: '#E74C3C', backgroundColor: '#FFF'},
+  fieldValue: {fontSize: 16, color: '#1A1A1A', fontWeight: '500'},
+  confirmButton: {
     backgroundColor: '#E74C3C',
-    paddingVertical: 14,
+    marginTop: 40,
+    paddingVertical: 16,
     borderRadius: 12,
-    gap: 8,
-  },
-  locationButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  favouritesSection: {
-    paddingHorizontal: 16,
-  },
-  favouritesHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
   },
-  favouritesTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1A1A1A',
+  confirmButtonText: {color: '#FFF', fontSize: 16, fontWeight: '700'},
+  modalOverlay: {flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'},
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
   },
-  favouriteCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  clockIcon: {
-    marginRight: 12,
-  },
-  favouriteInfo: {
-    flex: 1,
-  },
-  favouriteName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  favouriteLocation: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
+  modalHeader: {flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20},
+  modalTitle: {fontSize: 18, fontWeight: '700', color: '#000'},
+  modalItem: {paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F5F5F5'},
+  modalItemText: {fontSize: 16, color: '#333'},
 });
 
 export default LocationSelectionScreen;

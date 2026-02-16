@@ -30,6 +30,8 @@ import {
   responsiveWidth, 
   responsiveHeight 
 } from 'react-native-responsive-dimensions';
+import RNFetchBlob from 'rn-fetch-blob'; // Standard package for file downloads
+import { CameraRoll } from "@react-native-camera-roll/camera-roll"; // To save to gallery
 
 // Assets
 import { applogo } from '../assets'; 
@@ -423,7 +425,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     zIndex: 10, 
     opacity: 0.9,
-    backgroundColor:"#fff",
     borderRadius:12
   },
   adBadgeContainer: {

@@ -15,6 +15,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { viewNews } from '../redux/reducers/news'; 
 import Way2NewsCard from '../components/Way2NewsCard';
 import ShimmerLoader from '../components/ShimmerLoader';
+import SurveyCard from '../components/SurveyCard';
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -74,8 +75,12 @@ const SPRING_CONFIG = {
 const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress }) => {
   if (!newsItem) return null;
   return (
-    <View style={{ height }}>
-      <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} />
+   <View style={{ height }}>
+      {newsItem.type === 'SURVEY' ? (
+        <SurveyCard survey={newsItem} />
+      ) : (
+        <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} />
+      )}
     </View>
   );
 }, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height);
@@ -86,9 +91,13 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress 
   const halfHeight = height / 2;
   const isTop = side === 'top';
   return (
-    <View style={styles.halfCardContainer}>
+  <View style={styles.halfCardContainer}>
       <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight }]}>
-        <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} />
+        {newsItem.type === 'SURVEY' ? (
+          <SurveyCard survey={newsItem} />
+        ) : (
+          <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} />
+        )}
       </View>
     </View>
   );
@@ -136,6 +145,16 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           images: [], 
         };
       } 
+      else if (item.type === 'SURVEY') {
+      return {
+        id: item.data._id,
+        type: 'SURVEY',
+        question: item.data.question,
+        options: item.data.options,
+        totalVotes: item.data.total_votes,
+        isAd: false,
+      };
+    }
       else {
         const data = item.data;
         return {
