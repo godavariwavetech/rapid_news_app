@@ -155,9 +155,12 @@ export const reactToNews = createAsyncThunk(
   'news/reactToNews',
   async ({ newsId, type }, { rejectWithValue }) => {
     try {
+      console.log({ newsId, type },">>>>>>>>>>>>>>>REACTION PAYLOADDDDD");
       const deviceId = await getUniqueId();
-      const payload = { news_id: newsId, type: type, device_id: deviceId };
-      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload); 
+      const payload = { news_id: newsId, type: type };
+      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload,{
+        headers: { 'x-device-id': deviceId }
+      }); 
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -185,6 +188,7 @@ export const postComment = createAsyncThunk(
   async ({ newsId, text }, { dispatch, rejectWithValue }) => {
     try {
       const payload = { news_id: newsId, text: text };
+      console.log(payload,">>>>>>>>>>>>>>payloadCmment");
       const response = await api.post(endpoints.ADD_COMMENT, payload);
       dispatch(getComments(newsId)); 
       return response.data;

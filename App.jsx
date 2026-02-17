@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Linking, LogBox} from 'react-native';
+import {Linking, LogBox, Text, TouchableOpacity} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -13,6 +13,7 @@ import {
 import VersionCheck from 'react-native-version-check'; 
 import CustomModal from './src/components/CustomModal';
 import { getFCMToken } from './src/services/NotificationsService';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 LogBox.ignoreAllLogs();
 
@@ -63,11 +64,42 @@ function App() {
     await getFCMToken();
   }
 
+  const handleGoogleLogin = async () => {
+  try {
+    const resp=await GoogleSignin.hasPlayServices();
+    console.log(resp,">>>>>>>>>>>>>>>RESPSPSPSPSSP");
+    const response = await GoogleSignin.signIn();
+    
+    // In newer versions, the data is in response.data
+    const userInfo = response.data;
+    console.log("Success!", userInfo);
+    
+  } catch (error) {
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      console.log("User cancelled the login flow");
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      console.log("Sign in is already in progress");
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      console.log("Play services not available or outdated");
+    } else {
+      console.error("Something went wrong:", error.message);
+    }
+  }
+};
+
 
   useEffect(() => {
     checkAndRequestPermissions();
     getToken();
     checkForUpdate();
+  }, []);
+
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com', // Get this from Google Console
+      offlineAccess: true, 
+    });
   }, []);
 
   return (
@@ -84,6 +116,9 @@ function App() {
               onConfirm={handleUpdate}
               cancelText=''
             />
+            <TouchableOpacity onPress={handleGoogleLogin} style={{width:100,height:100, backgroundColor:"green"}} >
+              <Text>HELLO </Text>
+            </TouchableOpacity>
           </TabBarProvider>
         </PersistGate>
       </Provider>

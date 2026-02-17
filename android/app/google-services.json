@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "917420427744",
-    "project_id": "diy-drive-1b7ca",
-    "storage_bucket": "diy-drive-1b7ca.firebasestorage.app"
+    "project_number": "41246324898",
+    "project_id": "rapidnews-project",
+    "storage_bucket": "rapidnews-project.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:917420427744:android:333f35272f0e224e55c385",
+        "mobilesdk_app_id": "1:41246324898:android:ac98c6d6e784e88dcf3ffb",
         "android_client_info": {
           "package_name": "com.rapidnews"
         }
@@ -15,26 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAFzvFy4wk3Vm3VoGGcVdTQFqFSf36NSKA"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:917420427744:android:b2e797efcab2cc2b55c385",
-        "android_client_info": {
-          "package_name": "com.rare_you_wear"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAFzvFy4wk3Vm3VoGGcVdTQFqFSf36NSKA"
+          "current_key": "AIzaSyDF8yc8yk3PySIFfcsPg793nclUEowCJb8"
         }
       ],
       "services": {

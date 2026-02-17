@@ -128,6 +128,8 @@ function HomeScreen({navigation}) {
     }
   }, [selectedCategory, currentLocation]);
 
+  console.log(selectedNews,">>>>>>>>>>>>>>>>>selectedNews");
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -173,7 +175,7 @@ function HomeScreen({navigation}) {
           <CommentsBottomSheet
             visible={commentsVisible}
             onClose={() => setCommentsVisible(false)}
-            newsId={selectedNews?._id}
+            newsId={selectedNews?.id}
             newsTitle={selectedNews?.title}
           />
         </View>

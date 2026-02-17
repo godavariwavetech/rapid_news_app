@@ -111,7 +111,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   
     const bookmarkedIds = useMemo(() => {
-    return bookmarks.map(item => item.news?._id);
+    return bookmarks?.map(item => item.news?._id);
   }, [bookmarks]);
   
   // const isItemBookmarked = (newsId) => bookmarkedIds.includes(newsId);

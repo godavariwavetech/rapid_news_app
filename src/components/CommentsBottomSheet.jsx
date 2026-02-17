@@ -113,6 +113,8 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
   if (!modalVisible) return null;
 
+  console.log(currentComments,">>>>>>>>>>COMMENTS");
+
   return (
     <Modal
       visible={modalVisible}
