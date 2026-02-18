@@ -13,6 +13,8 @@ import {
   TouchableWithoutFeedback as RNTouchableWithoutFeedback,
   TouchableOpacity as RNTouchableOpacity,
   Alert,
+  Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {
@@ -41,6 +43,8 @@ import {getBookmarks, toggleBookmarkApi} from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 import { fonts } from '../config/theme';
 import ReportModal from './ReportModal';
+import { downloadImageToGallery, handleShare } from '../utils/FileHelpers';
+import Video from 'react-native-video';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
@@ -55,17 +59,21 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [lastTap, setLastTap] = useState(0);
-
   const [activeSlide, setActiveSlide] = useState(0);
-  const flatListRef = useRef(null);
-
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [isVideoPaused, setIsVideoPaused] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const flatListRef = useRef(null);
+  const [renderVideo, setRenderVideo] = useState(false)
+  const [showLoader, setShowLoader] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
 
   useEffect(() => {
     setActiveSlide(0);
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
+    setRenderVideo(false)
   }, [news.id]);
 
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
@@ -80,6 +88,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const hasImage = images.length > 0;
   
   const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
+
+  const videoUrls = news.videos || []; // Assuming the API provides a 'videos' array
+  const hasVideos = videoUrls.length > 0;
 
   const handleDoubleTap = () => {
     const now = Date.now();
@@ -133,8 +144,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
     }
   };
 
-  const handleShare = () => {
+  const handleShareNews = () => {
      console.log("Share pressed for news:", news.id);
+     handleShare(news.title, news.short || news.body);
   };
 
   const handleMenuPress = () => {
@@ -151,6 +163,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         setReportModalVisible(true);
         break;
       case 'download':
+        downloadImageToGallery(news.image || (news.images && news.images[0]));
         // Alert.alert("Download", "Starting image download...");
         break;
     }
@@ -203,11 +216,69 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   );
   const isBookmarked = bookmarkIds?.includes(news.id)
 
+  console.log(isBuffering,">>>>>>>>>>>LOADER STATE");
+
   return (
     <View style={styles.card}>
       <View style={styles.imageSection}>
-        {hasMultipleImages ? (
-          <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+        {hasVideos ? (
+          <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
+            <Video
+              key={renderVideo}
+              source={{uri: videoUrls[0]}}
+              style={styles.image}
+              resizeMode="contain"
+              repeat={true}
+              paused={isVideoPaused}
+              muted={false}
+              volume={1.0}
+              playInBackground={false}
+              playWhenInactive={false}
+              // useTextureView={Platform.OS === 'android'}
+              useTextureView={true}
+              bufferConfig={{
+                minBufferMs: 15000,
+                maxBufferMs: 50000,
+                bufferForPlaybackMs: 2500,
+                bufferForPlaybackAfterRebufferMs: 5000,
+              }}
+              onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
+              onError={() => setIsBuffering(false)}
+              onReadyForDisplay={() => {
+                console.log('READY>>>>');
+
+                setIsBuffering(false);
+              }}
+              onLoad={load => {
+                !renderVideo &&
+                  setTimeout(() => {
+                    setRenderVideo(!renderVideo);
+                  }, 200);
+              }}
+            />
+            {/* {isVideoPaused && !isBuffering && (
+              <View style={styles.videoOverlay}>
+                <Icon name="play" size={60} color="rgba(255,255,255,0.8)" />
+              </View>
+            )} */}
+
+            {isBuffering && (
+              <View style={[styles.videoOverlay, styles.centerOverlay]}>
+                <View style={{height:10,width:10, backgroundColor:"greenr"}}  />
+                <ActivityIndicator size="large" color="#FFFFFF" />
+              </View>
+            )}
+            <RNTouchableOpacity
+              activeOpacity={1}
+              style={StyleSheet.absoluteFill}
+              onPress={() => {
+                console.log('Video Clicked - Toggling Pause:', !isVideoPaused);
+                setIsVideoPaused(!isVideoPaused);
+              }}
+            />
+          </View>
+        ) : hasMultipleImages ? (
+          <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
             <FlatList
               ref={flatListRef}
               data={images}
@@ -218,7 +289,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               showsHorizontalScrollIndicator={false}
               onViewableItemsChanged={onViewRef.current}
               viewabilityConfig={viewConfigRef.current}
-              style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}
+              style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}
             />
             <View style={styles.paginationContainer}>
               {images.map((_, i) => (
@@ -226,7 +297,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                   key={i}
                   style={[
                     styles.paginationDot,
-                    { backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }
+                    {
+                      backgroundColor:
+                        i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
+                    },
                   ]}
                 />
               ))}
@@ -234,9 +308,9 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           </View>
         ) : (
           <TouchableWithoutFeedback onPress={handleDoubleTap}>
-            <FastImage 
-              source={hasImage ? { uri: images[0] } : applogo} 
-              style={styles.image} 
+            <FastImage
+              source={hasImage ? {uri: images[0]} : applogo}
+              style={styles.image}
               resizeMode={imageResizeMode}
             />
           </TouchableWithoutFeedback>
@@ -247,11 +321,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       </View>
 
       <View style={styles.bottomContainer}>
-        <TouchableWithoutFeedback 
-          onPress={handleDoubleTap} 
-          containerStyle={{ flex: 1 }} 
-          style={{ flex: 1 }}
-        >
+        <TouchableWithoutFeedback
+          onPress={handleDoubleTap}
+          containerStyle={{flex: 1}}
+          style={{flex: 1}}>
           <View style={styles.contentSection}>
             <Text style={styles.title}>{news.title}</Text>
 
@@ -272,33 +345,53 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
               <Text style={styles.timestamp}>{news.timeAgo}</Text>
             </View>
 
-            <View style={[styles.statsBar,{marginBottom:insets.bottom}]}>
+            <View style={[styles.statsBar, {marginBottom: insets.bottom}]}>
               <View style={styles.statsLeft}>
                 {news.commentsEnabled !== false && (
-                  <TouchableOpacity style={styles.statButton} onPress={handleCommentsPress}>
+                  <TouchableOpacity
+                    style={styles.statButton}
+                    onPress={handleCommentsPress}>
                     <Icon name="comment-outline" size={20} color="#565B67" />
                     <Text style={styles.statText}>{news.comments}</Text>
                   </TouchableOpacity>
                 )}
 
-                <TouchableOpacity style={styles.statButton} onPress={handleLike}>
-                  <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={20} color={liked ? '#2196F3' : '#565B67'} />
+                <TouchableOpacity
+                  style={styles.statButton}
+                  onPress={handleLike}>
+                  <Icon
+                    name={liked ? 'thumb-up' : 'thumb-up-outline'}
+                    size={20}
+                    color={liked ? '#2196F3' : '#565B67'}
+                  />
                   <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
-                    {liked ? parseInt(news?.likes || 0) + 1 : (news.likes || 0)}
+                    {liked ? parseInt(news?.likes || 0) + 1 : news.likes || 0}
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
-                  <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={20} color={disliked ? '#F44336' : '#565B67'} />
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={handleDislike}>
+                  <Icon
+                    name={disliked ? 'thumb-down' : 'thumb-down-outline'}
+                    size={20}
+                    color={disliked ? '#F44336' : '#565B67'}
+                  />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.actionsRight}>
-                <TouchableOpacity style={styles.iconButton} onPress={handleMenuPress}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={handleMenuPress}>
                   <Icon name="dots-vertical" size={22} color="#565B67" />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() =>
+                    handleShareNews(news.title, news.short, news.id)
+                  }>
                   <Icon name="share-variant" size={20} color="#565B67" />
                 </TouchableOpacity>
               </View>
@@ -309,8 +402,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
 
       {/* --- MENU MODAL (Only 3 Options) --- */}
 
-
-<ReportModal
+      <ReportModal
         visible={reportModalVisible}
         onClose={() => setReportModalVisible(false)}
         newsId={news.id} // Passing the news ID for the API call
@@ -325,21 +417,33 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <View style={styles.menuOverlay}>
             <RNTouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.menuContainer}>
-                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('bookmark')}>
-                  <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-outline'} size={24} color="#333" />
-                  <Text style={styles.menuText}>{isBookmarked ? 'Remove Bookmark' : 'Bookmark'}</Text>
+                <RNTouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuAction('bookmark')}>
+                  <Icon
+                    name={isBookmarked ? 'bookmark-minus' : 'bookmark-outline'}
+                    size={24}
+                    color="#333"
+                  />
+                  <Text style={styles.menuText}>
+                    {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
+                  </Text>
                 </RNTouchableOpacity>
-                
+
                 <View style={styles.menuDivider} />
-                
-                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
+
+                <RNTouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuAction('report')}>
                   <Icon name="alert-circle-outline" size={24} color="#333" />
                   <Text style={styles.menuText}>Report</Text>
                 </RNTouchableOpacity>
-                
+
                 <View style={styles.menuDivider} />
-                
-                <RNTouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('download')}>
+
+                <RNTouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuAction('download')}>
                   <Icon name="download-outline" size={24} color="#333" />
                   <Text style={styles.menuText}>Download Image</Text>
                 </RNTouchableOpacity>
@@ -354,19 +458,20 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         visible={fullScreenImage}
         transparent
         animationType="fade"
-        statusBarTranslucent={true} 
+        statusBarTranslucent={true}
         onRequestClose={() => setFullScreenImage(false)}>
         <View style={styles.fullScreenContainer}>
           <RNTouchableOpacity
-            style={[styles.closeButton, { top: Math.max(insets.top, 20) + 15 }]} 
+            style={[styles.closeButton, {top: Math.max(insets.top, 20) + 15}]}
             onPress={() => setFullScreenImage(false)}>
             <Icon name="close" size={28} color="#FFF" />
           </RNTouchableOpacity>
 
-          <RNTouchableWithoutFeedback
-            onPress={() => setFullScreenImage(false)}>
+          <RNTouchableWithoutFeedback onPress={() => setFullScreenImage(false)}>
             <FastImage
-              source={hasImage ? { uri: images[activeSlide] || images[0] } : applogo} 
+              source={
+                hasImage ? {uri: images[activeSlide] || images[0]} : applogo
+              }
               style={styles.fullScreenImage}
               resizeMode={FastImage.resizeMode.contain}
             />
@@ -594,6 +699,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     lineHeight: 22,
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)', // Dim the background slightly
+    zIndex: 5,
+  },
+    loaderOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+  },
+  loaderContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    minWidth: 120,
+  },
+  loaderText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  centerOverlay: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 10,
   },
 });
 

@@ -52,11 +52,8 @@ const bookmarksSlice = createSlice({
       state.items = state.items.filter(item => item.id !== action.payload);
     },
     listBootmarkIds:(state,action)=>{
-      console.log(action.payload,">>>>>>>>>>PAYLOOOOOO");
       if(action.payload){
-
         state.bookmarkIds = action.payload.map(item=>item.news._id)
-        console.log(state.bookmarkIds,">>>>>>>>>>>>>>>>>>>>>>>>>state.bookmarkIds");
       }
     }
   },
@@ -71,7 +68,6 @@ const bookmarksSlice = createSlice({
         // Revert local state here if an optimistic update failed
       })
        .addCase(getBookmarks.fulfilled, (state, action) => {
-        console.log(action.payload,">>>>>>>>>>>>>ACTION apyloadd");
         state.bookmarks = action.payload.items;
       })
   },

@@ -20,7 +20,6 @@ const SplashScreen = ({ navigation }) => {
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
-  console.log(isAuthenticated,">>>>>>>>>>>>isAuthenticated",isOnboardingComplete);
 
   const handleNavigation = () => {
     navigation.replace('Main');
@@ -37,7 +36,6 @@ const SplashScreen = ({ navigation }) => {
       const fetchLocationAreas = async () => {
         try {
           const position = await LocationService.getLocation();
-          console.log(position,">>>>>>>>>>>POSITION");
           dispatch(
             resolveLocation({
               latitude: position.coords?.latitude,

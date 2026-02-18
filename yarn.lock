@@ -7040,6 +7040,11 @@ react-native-version-check@^3.5.0:
     lodash "^4.17.21"
     semver "^6.1.1"
 
+react-native-video@^6.19.0:
+  version "6.19.0"
+  resolved "https://registry.yarnpkg.com/react-native-video/-/react-native-video-6.19.0.tgz#828887010291259fef1367fb53a2de01886876fc"
+  integrity sha512-JVojWIxwuH5C3RjVrF4UyuweuOH/Guq/W2xeN9zugePXZI8Xn/j6/oU94gCWHaFzkR/HGeJpqMq+l9aEHSnpIQ==
+
 react-native-wheel-pick@^1.2.5:
   version "1.2.6"
   resolved "https://registry.yarnpkg.com/react-native-wheel-pick/-/react-native-wheel-pick-1.2.6.tgz#9b3706f00c63a73e85909c7076d87a134d4a252e"

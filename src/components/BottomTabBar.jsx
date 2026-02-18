@@ -1,9 +1,10 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const BottomTabBar = ({activeTab, onTabPress}) => {
+const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   const insets = useSafeAreaInsets()
   const tabs = [
     {
@@ -19,7 +20,7 @@ const BottomTabBar = ({activeTab, onTabPress}) => {
     {
       id: 'LocationTab',
       icon: 'map-marker',
-      label: 'రాజమండ్రి',
+      label: locationName || 'రాజమండ్రి',
     },
     {
       id: 'TrendingTab',
@@ -51,6 +52,7 @@ const BottomTabBar = ({activeTab, onTabPress}) => {
               />
             </View>
             <Text
+            numberOfLines={1}
               style={[
                 styles.tabLabel,
                 {color: isActive ? '#FFFFFF' : '#BBBBBB'},
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: 9,
+    fontSize: responsiveFontSize(1.1),
     fontWeight: '600',
     textAlign: 'center',
     letterSpacing: 0.2,

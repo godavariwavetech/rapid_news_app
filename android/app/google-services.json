@@ -12,7 +12,20 @@
           "package_name": "com.rapidnews"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "41246324898-26ph4sb5ovf0headlgobr73p4u3rh9p3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rapidnews",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDF8yc8yk3PySIFfcsPg793nclUEowCJb8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

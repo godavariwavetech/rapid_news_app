@@ -48,60 +48,49 @@ const initialState = {
 // 1. Fetch News List
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
-  async (arg = 'all', { getState,rejectWithValue }) => {
+  async (arg = 'all', { getState, rejectWithValue }) => {
     let category = 'all';
     let page = 1;
-    let location = {
-      village_id: '693d34588b5e54c56d55c925', // Consider fetching dynamically
-      district_id: '693d34588b5e54c56d55c923',
-      state_id: '693d34588b5e54c56d55c922',
-    };
-
-    console.log(arg,">>>>>>>>>>>>ARG >>>>");
+    let location = {};
+    let isLocationMode = false;
 
     if (typeof arg === 'object') {
       category = arg.category || 'all';
       page = arg.page || 1;
+      isLocationMode = arg.isLocationMode || false; 
       location = {
-        village_id: arg.currentLocation.village?._id, // Consider fetching dynamically
-        district_id: arg.currentLocation.district?._id,
-        state_id:arg.currentLocation.state?._id,
+        village_id: arg.currentLocation?.village?._id,
+        district_id: arg.currentLocation?.district?._id,
+        state_id: arg.currentLocation?.state?._id,
       };
-    } else {
-      category = arg;
-    }
-
-    const networkState = await NetInfo.fetch();
-    if (!networkState.isConnected) {
-      return rejectWithValue('No internet connection. Showing cached news.');
     }
 
     try {
       const deviceId = await getUniqueId();
 
+      // Prepare base parameters
+      const queryParams = {
+        village_id: location.village_id,
+        district_id: location.district_id,
+        state_id: location.state_id,
+        lang: 'te',
+        page: page,
+        limit: 5,
+        category_id: category !== 'all' ? category : undefined,
+      };
+
+      if (isLocationMode && location.village_id) {
+        queryParams['feed_mode'] = "village";
+      }
+
+
       const response = await api.get(endpoints.GET_NEWS_FEED, {
-        params: {
-          village_id: location.village_id,
-          district_id: location.district_id,
-          state_id: location.state_id,
-          lang: 'te',
-          page: page,
-          limit: 5,
-          category_id: category !== 'all' ? category : undefined,
-        },
+        params: queryParams,
         headers: {
           'x-device-id': deviceId
         }
       });
-      console.log(response.data,">>>>>>>>>>>>>>response.data",{
-          village_id: location.village_id, // Consider fetching dynamically
-          district_id: location.district_id,
-          state_id: location.state_id,
-          lang: 'te',
-          page: page,
-          limit: 20,
-          category: category !== 'all' ? category : undefined,
-        });
+
       return { data: response.data, page }; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -115,7 +104,6 @@ export const getCategories = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.CATEGORY);
-      console.log(response,">>>>>>>>>>>>>>responseeeee>>>>>>>>>>>>");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -294,7 +282,6 @@ const newsSlice = createSlice({
       // --- Fetch News ---
       .addCase(fetchNews.pending, (state, action) => {
         const page = typeof action.meta.arg === 'object' ? action.meta.arg.page : 1;
-        console.log(page,">>>>>>>>>>>PAGEEEEE");
         if (page === 1 || !page) state.loading = true;
         else state.isLoadingMore = true;
         state.error = null;
@@ -307,7 +294,7 @@ const newsSlice = createSlice({
 
         // Ensure incomingItems is always an array
         const incomingItems = Array.isArray(data) ? data : (data.items || []);
-
+        console.log(data,">>>>>>>>>>>>>>>>>>>>NEWS LIST");
         if (page === 1) {
           state.articles = data;
         } else {

@@ -14,6 +14,7 @@ import VersionCheck from 'react-native-version-check';
 import CustomModal from './src/components/CustomModal';
 import { getFCMToken } from './src/services/NotificationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import Video from 'react-native-video';
 
 LogBox.ignoreAllLogs();
 
@@ -70,7 +71,6 @@ function App() {
     console.log(resp,">>>>>>>>>>>>>>>RESPSPSPSPSSP");
     const response = await GoogleSignin.signIn();
     
-    // In newer versions, the data is in response.data
     const userInfo = response.data;
     console.log("Success!", userInfo);
     
@@ -97,7 +97,7 @@ function App() {
 
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com', // Get this from Google Console
+      webClientId: '41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com',
       offlineAccess: true, 
     });
   }, []);
@@ -116,9 +116,6 @@ function App() {
               onConfirm={handleUpdate}
               cancelText=''
             />
-            <TouchableOpacity onPress={handleGoogleLogin} style={{width:100,height:100, backgroundColor:"green"}} >
-              <Text>HELLO </Text>
-            </TouchableOpacity>
           </TabBarProvider>
         </PersistGate>
       </Provider>

@@ -19,7 +19,6 @@ export const resolveLocation = createAsyncThunk(
   async ({ latitude, longitude }, { rejectWithValue }) => {
     try {
       const payload = { lat: latitude, lng: longitude };
-      console.log(payload,">>>>>>>>>>>PAYLOADDDDD<MMM<M<M<");
       const response = await api.post(endpoints.RESOLVE_LOCATION, payload);
       return response.data;
     } catch (error) {

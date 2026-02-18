@@ -42,9 +42,17 @@ function HomeScreen({navigation}) {
 
   const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
 
-  // --- 1. Dynamic Header and Category Fetching ---
+  const displayLocationName = useMemo(() => {
+    return (
+      currentLocation?.village?.name?.te || 
+      currentLocation?.village?.name?.en  ||
+      currentLocation?.district?.name?.te || 
+       currentLocation?.district?.name?.en ||
+      'రాజమండ్రి'
+    );
+  }, [currentLocation]);
+
   useEffect(() => {
-    // Update Header Title based on category list\
     dispatch(getCategories())
     if (selectedCategory === 'all') {
       setHeaderTitle('న్యూస్');
@@ -62,9 +70,7 @@ function HomeScreen({navigation}) {
 
 
 
-  // --- 2. Empty Category Fallback ---
   useEffect(() => {
-    // If a specific category is empty, alert the user and revert to 'all'
     if (!loading && articles && articles?.items?.length === 0 && selectedCategory !== 'all' && !error) {
       const msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
       if (Platform.OS === 'android') {
@@ -76,9 +82,7 @@ function HomeScreen({navigation}) {
     }
   }, [articles, loading, selectedCategory, error]);
 
-  console.log(articles,">>>>>>>>>>>>>>>>>>>>>>>>>>>>articles");
 
-  // --- 3. Hardware Back Button Handling ---
   useEffect(() => {
     const handleBack = () => {
       if (selectedCategory !== 'all') {
@@ -93,7 +97,6 @@ function HomeScreen({navigation}) {
     return () => subscription.remove();
   }, [selectedCategory]);
 
-  // --- 4. Animation Control ---
   useEffect(() => {
     Animated.parallel([
       Animated.spring(headerAnim, {
@@ -114,11 +117,19 @@ function HomeScreen({navigation}) {
   const toggleUI = () => setUiVisible(!uiVisible);
   const hideUI = () => setUiVisible(false);
 
-  // Faster tab press handler
   const handleTabPress = useCallback((tabId) => {
     if (tabId === 'CategoriesTab') {
       setCategoriesModalVisible(true);
-    } else {
+    }else if (tabId === 'LocationTab') {
+    setActiveTab(tabId);
+    dispatch(clearNews());
+    dispatch(fetchNews({
+      currentLocation, 
+      category: selectedCategory, 
+      page: 1, 
+      isLocationMode: true 
+    }));
+  } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
         dispatch(clearNews());
@@ -128,7 +139,6 @@ function HomeScreen({navigation}) {
     }
   }, [selectedCategory, currentLocation]);
 
-  console.log(selectedNews,">>>>>>>>>>>>>>>>>selectedNews");
 
   return (
     <View style={styles.container}>
@@ -150,13 +160,12 @@ function HomeScreen({navigation}) {
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
           onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}))}
           onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1}))}
-          
         />
       )}
 
       {!shouldShowFallback && (
         <Animated.View style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
-          <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+          <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} locationName={displayLocationName} />
         </Animated.View>
       )}
 

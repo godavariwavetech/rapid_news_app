@@ -166,6 +166,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           short: data.content?.short || '',
           image: data.images?.length > 0 ? data.images[0] : null,
           images: data.images || [], 
+          videos: data.videos || [],
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,

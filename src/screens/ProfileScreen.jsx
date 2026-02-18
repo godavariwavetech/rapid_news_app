@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -20,11 +19,21 @@ const ProfileScreen = ({navigation}) => {
   
   // Select data from Redux
   const {reporter} = useSelector(state => state.auth);
+  // Get location data from Redux store
+  const {currentLocation} = useSelector(state => state.location);
   const {
     categories: dynamicCategories, 
     selectedCategory, 
     loadingCategories 
   } = useSelector(state => state.news);
+
+  // Determine actual location name based on resolved location data
+  const displayLocationName = 
+      currentLocation?.village?.name?.te || 
+      currentLocation?.village?.name?.en  ||
+      currentLocation?.district?.name?.te || 
+       currentLocation?.district?.name?.en ||
+    'Location Not Set';
 
   // Helper to map API category names to relevant Icons
   const getCategoryIcon = (nameEn) => {
@@ -112,11 +121,12 @@ const ProfileScreen = ({navigation}) => {
 
           <View style={styles.divider} />
 
+          {/* Actual Location displayed here */}
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('LocationSelection')}>
             <View style={styles.settingIconContainer}><Icon name="map-marker" size={22} color="#E74C3C" /></View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>మీరు ఎందుకున్న స్థానం</Text>
-              <Text style={styles.settingValue}>Rajamundry (Change)</Text>
+              <Text style={styles.settingValue}>{displayLocationName} (Change)</Text>
             </View>
             <View style={styles.settingArrow}><Icon name="arrow-right" size={16} color="#FFFFFF" /></View>
           </TouchableOpacity>
@@ -171,9 +181,10 @@ const ProfileScreen = ({navigation}) => {
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ContentList', {type: 'magazines'})}>
-            <View style={styles.menuIconContainer}><Icon name="newspaper" size={18} color="#E74C3C" /></View>
-            <Text style={styles.menuText}>డిజిటల్ మ్యాగజిన్స్</Text>
+          {/* Changed Digital Magazines to Bookmarks and added navigation */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Bookmarks')}>
+            <View style={styles.menuIconContainer}><Icon name="bookmark-outline" size={18} color="#E74C3C" /></View>
+            <Text style={styles.menuText}>బుక్‌మార్క్ చేసినవి</Text>
             <Icon name="chevron-right" size={18} color="#999" />
           </TouchableOpacity>
 
@@ -215,6 +226,7 @@ const ProfileScreen = ({navigation}) => {
   );
 };
 
+// Styles remain unchanged to maintain UI consistency
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F6F8' },
   header: {
