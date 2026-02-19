@@ -69,13 +69,15 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
     setRenderVideo(false)
+    setLiked(news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE');
+    setDisliked(news.isDisliked || news.myreaction === 'DISLIKE' || news.reactions?.my_reaction === 'DISLIKE');
     // Clear timeout on unmount or news change
     return () => {
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
       }
     };
-  }, [news.id]);
+  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction]);
 
   const handleToggleControls = () => { // Renamed from handleVideoPress
     if (controlsTimeout.current) {
@@ -269,11 +271,28 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                       setRenderVideo(true);
                     }, 200);
                 }}
+                controls
+                controlsStyles={{
+                  hideSeekBar: true,
+                  hideDuration: true,
+                  hidePosition: true,
+                  hidePlayPause: true,
+                  hideForward: true,
+                  hideRewind: true,
+                  hideNext: true,
+                  hidePrevious: true,
+                  hideFullscreen: true,
+                  hideNavigationBarOnFullScreenMode: true,
+                  hideNotificationBarOnFullScreenMode: true,
+                  hideSettingButton: true,
+                }}
               />
 
               {isBuffering && (
                 <View style={[styles.videoOverlay, styles.centerOverlay]}>
-                  <View style={{height:10,width:10, backgroundColor:"greenr"}}  />
+                  <View
+                    style={{height: 10, width: 10, backgroundColor: 'green'}}
+                  />
                   <ActivityIndicator size="large" color="#FFFFFF" />
                 </View>
               )}
@@ -282,7 +301,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 <RNTouchableOpacity
                   activeOpacity={1}
                   style={styles.playPauseButton}
-                  onPress={handlePlayPauseToggle}> {/* Use the new handler */}
+                  onPress={handlePlayPauseToggle}>
                   <Icon
                     name={isVideoPaused ? 'play-circle' : 'pause-circle'}
                     size={70}

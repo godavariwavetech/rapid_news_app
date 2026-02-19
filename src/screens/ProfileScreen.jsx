@@ -7,18 +7,22 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { userLogin } from '../redux/reducers/auth';
+import { responsiveHeight } from 'react-native-responsive-dimensions';
 
 const ProfileScreen = ({navigation}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   
   // Select data from Redux
-  const {reporter} = useSelector(state => state.auth);
+  const {reporter,user} = useSelector(state => state.auth);
   // Get location data from Redux store
   const {currentLocation} = useSelector(state => state.location);
   const {
@@ -69,6 +73,36 @@ const ProfileScreen = ({navigation}) => {
     navigation.goBack();
   };
 
+
+  const handleGoogleLogin =  async () =>{
+ try {
+     const resp=await GoogleSignin.hasPlayServices();
+     console.log(resp,">>>>>>>>>>>>>>>RESPSPSPSPSSP");
+     await GoogleSignin.signOut();
+     const response = await GoogleSignin.signIn();
+     
+     const userInfo = response.data;
+     console.log("Success!", userInfo);
+
+     const payload = {
+      idToken:userInfo?.idToken
+     }
+
+     await dispatch(userLogin(payload))
+     
+   } catch (error) {
+     if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+       console.log("User cancelled the login flow");
+     } else if (error.code === statusCodes.IN_PROGRESS) {
+       console.log("Sign in is already in progress");
+     } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+       console.log("Play services not available or outdated");
+     } else {
+       console.error("Something went wrong:", error.message);
+     }
+   }
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
@@ -94,17 +128,17 @@ const ProfileScreen = ({navigation}) => {
         <Text style={styles.pageTitle}>Profile</Text>
 
         {/* Profile Section */}
-        <View style={styles.profileCard}>
+        <TouchableOpacity onPress={handleGoogleLogin} style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <Icon name="account-circle" size={48} color="#CCC" />
+          { ( user?.profile_image)? <Image source={{uri:user?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color="#CCC" />}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
-            <TouchableOpacity>
-              <Text style={styles.profileLink}>Click here to select email id</Text>
-            </TouchableOpacity>
+            <Text style={styles.profileName}>{user?.name || reporter?.reporter_profile?.username || "Guest"}</Text>
+            {/* <TouchableOpacity> */}
+             <Text style={styles.profileLink}>{user?.email||"Click here to select email id"}</Text>
+            {/* </TouchableOpacity> */}
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Language & Location Section */}
         <View style={styles.settingsCard}>

@@ -14,7 +14,6 @@ import VersionCheck from 'react-native-version-check';
 import CustomModal from './src/components/CustomModal';
 import { getFCMToken } from './src/services/NotificationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import Video from 'react-native-video';
 
 LogBox.ignoreAllLogs();
 
@@ -66,25 +65,7 @@ function App() {
   }
 
   const handleGoogleLogin = async () => {
-  try {
-    const resp=await GoogleSignin.hasPlayServices();
-    console.log(resp,">>>>>>>>>>>>>>>RESPSPSPSPSSP");
-    const response = await GoogleSignin.signIn();
-    
-    const userInfo = response.data;
-    console.log("Success!", userInfo);
-    
-  } catch (error) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      console.log("User cancelled the login flow");
-    } else if (error.code === statusCodes.IN_PROGRESS) {
-      console.log("Sign in is already in progress");
-    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      console.log("Play services not available or outdated");
-    } else {
-      console.error("Something went wrong:", error.message);
-    }
-  }
+  
 };
 
 

@@ -37,5 +37,7 @@ export const endpoints = {
   BOOKMARK_NEWS: 'bookmarks/news/:id',
   GET_BOOKMARKS:'bookmarks',
 
-  REPORT_NEWS:'news-reports/news'
+  REPORT_NEWS:'news-reports/news',
+
+  GOOGLE_LOGIN:'users/google-login'
 };

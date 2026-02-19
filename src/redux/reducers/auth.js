@@ -93,6 +93,21 @@ export const updateProfile = createAsyncThunk(
   },
 );
 
+export const userLogin = createAsyncThunk(
+  'auth/userLogin',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.GOOGLE_LOGIN, payload);
+      console.log(response,">>>>>>>>>>>>>Responseeee>>>>>>>>>>>>");
+      return response.data;
+    } catch (error) {
+      console.log(error,"ERROR Updating");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -132,9 +147,14 @@ const authSlice = createSlice({
         })
         .addCase(getProfile.fulfilled, (state, action) => {
           state.loading = false;
-          console.log(action.payload,">>>>>>>>>>>>>>>>>ACTION>>>>>");
           state.isActive = action.payload?.is_active;
           state.reporter=action.payload
+        })
+        .addCase(userLogin.fulfilled, (state, action) => {
+          console.log(action.payload,">>>>>>>>>>>>>PREEPPEPEPEPEP");
+          state.loading = false;
+          state.user=action.payload.user
+          state.userToken=action.payload.token
         })
     },
 });

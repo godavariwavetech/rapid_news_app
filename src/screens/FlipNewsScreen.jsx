@@ -177,6 +177,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             imageUrl: 'https://via.placeholder.com/100',
             location: 'Andhra Pradesh'
           },
+          isLiked:data?.reactions?.my_reaction=="LIKE",
+          isDisliked:data?.reactions?.my_reaction=="DISLIKE",
           isBookmarked: bookmarkedIds.includes(data._id),
         };
       }
