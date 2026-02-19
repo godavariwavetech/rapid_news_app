@@ -12,8 +12,6 @@ import {
   Linking,
   TouchableWithoutFeedback as RNTouchableWithoutFeedback,
   TouchableOpacity as RNTouchableOpacity,
-  Alert,
-  Pressable,
   ActivityIndicator,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
@@ -28,12 +26,9 @@ import {useSelector, useDispatch} from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   responsiveFontSize, 
-  responsiveScreenWidth, 
   responsiveWidth, 
   responsiveHeight 
 } from 'react-native-responsive-dimensions';
-import RNFetchBlob from 'rn-fetch-blob'; // Standard package for file downloads
-import { CameraRoll } from "@react-native-camera-roll/camera-roll"; // To save to gallery
 
 // Assets
 import { applogo } from '../assets'; 
@@ -61,12 +56,12 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const [lastTap, setLastTap] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [isVideoPaused, setIsVideoPaused] = useState(false);
+  const [isVideoPaused, setIsVideoPaused] = useState(false); // Start paused
   const [isBuffering, setIsBuffering] = useState(true);
+  const [showControls, setShowControls] = useState(false); // Controls hidden initially
+  const controlsTimeout = useRef(null); // New ref for managing timeout
   const flatListRef = useRef(null);
   const [renderVideo, setRenderVideo] = useState(false)
-  const [showLoader, setShowLoader] = useState(false);
-  const [isVideoLoading, setIsVideoLoading] = useState(true);
 
   useEffect(() => {
     setActiveSlide(0);
@@ -74,7 +69,32 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
     setRenderVideo(false)
+    // Clear timeout on unmount or news change
+    return () => {
+      if (controlsTimeout.current) {
+        clearTimeout(controlsTimeout.current);
+      }
+    };
   }, [news.id]);
+
+  const handleToggleControls = () => { // Renamed from handleVideoPress
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+
+    if (!showControls) {
+      setShowControls(true);
+    }
+    
+    controlsTimeout.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000); // Hide after 3 seconds
+  };
+
+  const handlePlayPauseToggle = () => { // New function for play/pause button
+    setIsVideoPaused(prev => !prev);
+    handleToggleControls(); // Keep controls visible for a bit after play/pause
+  };
 
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
   const onViewRef = useRef(({ viewableItems }) => {
@@ -89,7 +109,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   
   const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
 
-  const videoUrls = news.videos || []; // Assuming the API provides a 'videos' array
+  const videoUrls = news.videos || [];
   const hasVideos = videoUrls.length > 0;
 
   const handleDoubleTap = () => {
@@ -164,12 +184,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
         break;
       case 'download':
         downloadImageToGallery(news.image || (news.images && news.images[0]));
-        // Alert.alert("Download", "Starting image download...");
         break;
     }
   };
 
-  // --- RENDER AD CARD ---
   if (news.isAd) {
     const imageSource = news.image ? { 
       uri: news.image, 
@@ -185,8 +203,6 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
             style={[styles.image, { height: '100%', width: '100%' }]} 
             resizeMode={imageResizeMode} 
           />
-          {/* FIX: Removed watermarkLogo from Ad Image */}
-          
           <LinearGradient
             colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
             style={[styles.reporterGradient, { height: 120 }]}
@@ -216,67 +232,66 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   );
   const isBookmarked = bookmarkIds?.includes(news.id)
 
-  console.log(isBuffering,">>>>>>>>>>>LOADER STATE");
+  console.log(isBuffering,">>>>>>>>>>>LOADER STATE",isVideoPaused);
 
   return (
     <View style={styles.card}>
       <View style={styles.imageSection}>
         {hasVideos ? (
-          <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
-            <Video
-              key={renderVideo}
-              source={{uri: videoUrls[0]}}
-              style={styles.image}
-              resizeMode="contain"
-              repeat={true}
-              paused={isVideoPaused}
-              muted={false}
-              volume={1.0}
-              playInBackground={false}
-              playWhenInactive={false}
-              // useTextureView={Platform.OS === 'android'}
-              useTextureView={true}
-              bufferConfig={{
-                minBufferMs: 15000,
-                maxBufferMs: 50000,
-                bufferForPlaybackMs: 2500,
-                bufferForPlaybackAfterRebufferMs: 5000,
-              }}
-              onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
-              onError={() => setIsBuffering(false)}
-              onReadyForDisplay={() => {
-                console.log('READY>>>>');
+          <TouchableWithoutFeedback onPress={handleToggleControls}>
+            <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
+              <Video
+                key={renderVideo}
+                source={{uri: videoUrls[0]}}
+                style={styles.image}
+                resizeMode="contain"
+                repeat={true}
+                paused={isVideoPaused}
+                muted={false}
+                volume={1.0}
+                playInBackground={false}
+                playWhenInactive={false}
+                useTextureView={true}
+                bufferConfig={{
+                  minBufferMs: 15000,
+                  maxBufferMs: 50000,
+                  bufferForPlaybackMs: 2500,
+                  bufferForPlaybackAfterRebufferMs: 5000,
+                }}
+                onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
+                onError={() => setIsBuffering(false)}
+                onReadyForDisplay={() => {
+                  setIsBuffering(false);
+                }}
+                onLoad={load => {
+                  !renderVideo &&
+                    setTimeout(() => {
+                      setRenderVideo(true);
+                    }, 200);
+                }}
+              />
 
-                setIsBuffering(false);
-              }}
-              onLoad={load => {
-                !renderVideo &&
-                  setTimeout(() => {
-                    setRenderVideo(!renderVideo);
-                  }, 200);
-              }}
-            />
-            {/* {isVideoPaused && !isBuffering && (
-              <View style={styles.videoOverlay}>
-                <Icon name="play" size={60} color="rgba(255,255,255,0.8)" />
-              </View>
-            )} */}
-
-            {isBuffering && (
-              <View style={[styles.videoOverlay, styles.centerOverlay]}>
-                <View style={{height:10,width:10, backgroundColor:"greenr"}}  />
-                <ActivityIndicator size="large" color="#FFFFFF" />
-              </View>
-            )}
-            <RNTouchableOpacity
-              activeOpacity={1}
-              style={StyleSheet.absoluteFill}
-              onPress={() => {
-                console.log('Video Clicked - Toggling Pause:', !isVideoPaused);
-                setIsVideoPaused(!isVideoPaused);
-              }}
-            />
-          </View>
+              {isBuffering && (
+                <View style={[styles.videoOverlay, styles.centerOverlay]}>
+                  <View style={{height:10,width:10, backgroundColor:"greenr"}}  />
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                </View>
+              )}
+              {/* Conditional rendering for play/pause button */}
+              {!isBuffering && showControls && (
+                <RNTouchableOpacity
+                  activeOpacity={1}
+                  style={styles.playPauseButton}
+                  onPress={handlePlayPauseToggle}> {/* Use the new handler */}
+                  <Icon
+                    name={isVideoPaused ? 'play-circle' : 'pause-circle'}
+                    size={70}
+                    color="#FFFFFF"
+                  />
+                </RNTouchableOpacity>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
         ) : hasMultipleImages ? (
           <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
             <FlatList
@@ -734,7 +749,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 10,
+    zIndex: 5, // Lower zIndex so play/pause button is on top
+  },
+  playPauseButton: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10, // Ensure it's above the video and overlay
   },
 });
 
