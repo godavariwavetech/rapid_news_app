@@ -69,14 +69,14 @@ const handleNotificationNavigation = (data, navigation) => {
   // Add more navigation handlers as needed
 };
 
-// export const getFCMToken = async () => {
-//   try {
-//     return await messaging().getToken();
-//   } catch (error) {
-//     console.error('Error getting FCM token:', error);
-//     return null;
-//   }
-// }; 
+export const fetchFCMToken = async () => {
+  try {
+    return await messaging().getToken();
+  } catch (error) {
+    console.error('Error getting FCM token:', error);
+    return null;
+  }
+}; 
 
 export const getFCMToken = async () => {
   const token = await messaging().getToken();

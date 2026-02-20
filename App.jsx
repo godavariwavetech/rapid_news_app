@@ -64,10 +64,6 @@ function App() {
     await getFCMToken();
   }
 
-  const handleGoogleLogin = async () => {
-  
-};
-
 
   useEffect(() => {
     checkAndRequestPermissions();

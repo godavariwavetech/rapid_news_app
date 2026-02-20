@@ -45,7 +45,7 @@ const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
-function Way2NewsCard({news, onPress, onCommentsPress}) {
+function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const {bookmarkIds} = useSelector(state => state.bookmarks);
@@ -56,28 +56,40 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   const [lastTap, setLastTap] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [isVideoPaused, setIsVideoPaused] = useState(false); // Start paused
+  const [isVideoPaused, setIsVideoPaused] = useState(true); 
   const [isBuffering, setIsBuffering] = useState(true);
-  const [showControls, setShowControls] = useState(false); // Controls hidden initially
-  const controlsTimeout = useRef(null); // New ref for managing timeout
+  const [showControls, setShowControls] = useState(false);
+  const controlsTimeout = useRef(null);
+  const nudgeTimeout = useRef(null);
   const flatListRef = useRef(null);
-  const [renderVideo, setRenderVideo] = useState(false)
+  const videoRef = useRef(null);
 
   useEffect(() => {
     setActiveSlide(0);
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
-    setRenderVideo(false)
+
+    if (!isActive) {
+      setIsVideoPaused(true);
+      if (nudgeTimeout.current) {
+        clearTimeout(nudgeTimeout.current);
+        nudgeTimeout.current = null;
+      }
+    }
+    
     setLiked(news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE');
     setDisliked(news.isDisliked || news.myreaction === 'DISLIKE' || news.reactions?.my_reaction === 'DISLIKE');
-    // Clear timeout on unmount or news change
+    
     return () => {
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
       }
+      if (nudgeTimeout.current) {
+        clearTimeout(nudgeTimeout.current);
+      }
     };
-  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction]);
+  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction, isActive]);
 
   const handleToggleControls = () => { // Renamed from handleVideoPress
     if (controlsTimeout.current) {
@@ -94,6 +106,10 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
   };
 
   const handlePlayPauseToggle = () => { // New function for play/pause button
+    if (nudgeTimeout.current) {
+      clearTimeout(nudgeTimeout.current);
+      nudgeTimeout.current = null;
+    }
     setIsVideoPaused(prev => !prev);
     handleToggleControls(); // Keep controls visible for a bit after play/pause
   };
@@ -243,7 +259,7 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
           <TouchableWithoutFeedback onPress={handleToggleControls}>
             <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
               <Video
-                key={renderVideo}
+                ref={videoRef}
                 source={{uri: videoUrls[0]}}
                 style={styles.image}
                 resizeMode="contain"
@@ -265,27 +281,18 @@ function Way2NewsCard({news, onPress, onCommentsPress}) {
                 onReadyForDisplay={() => {
                   setIsBuffering(false);
                 }}
-                onLoad={load => {
-                  !renderVideo &&
-                    setTimeout(() => {
-                      setRenderVideo(true);
+                onLoad={() => {
+                  if (isActive) {
+                    // Nudge video to ensure visuals attach on Android
+                    setIsVideoPaused(true);
+                    if (nudgeTimeout.current) clearTimeout(nudgeTimeout.current);
+                    nudgeTimeout.current = setTimeout(() => {
+                      setIsVideoPaused(false);
+                      nudgeTimeout.current = null;
                     }, 200);
+                  }
                 }}
-                controls
-                controlsStyles={{
-                  hideSeekBar: true,
-                  hideDuration: true,
-                  hidePosition: true,
-                  hidePlayPause: true,
-                  hideForward: true,
-                  hideRewind: true,
-                  hideNext: true,
-                  hidePrevious: true,
-                  hideFullscreen: true,
-                  hideNavigationBarOnFullScreenMode: true,
-                  hideNotificationBarOnFullScreenMode: true,
-                  hideSettingButton: true,
-                }}
+                controls={false}
               />
 
               {isBuffering && (

@@ -19,6 +19,7 @@ import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
 import { getBookmarks } from '../redux/reducers/bookmarks';
+import { fetchFCMToken } from '../services/NotificationsService';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
@@ -112,6 +113,7 @@ function HomeScreen({navigation}) {
         friction: 8,
       }),
     ]).start();
+    getToken()
   }, [uiVisible]);
 
   const toggleUI = () => setUiVisible(!uiVisible);
@@ -138,6 +140,13 @@ function HomeScreen({navigation}) {
       }
     }
   }, [selectedCategory, currentLocation]);
+
+
+
+  const getToken =async () =>{
+    const token = await fetchFCMToken()
+    console.log(token,"<>>>>>>>>>>>TOKEN");
+  }
 
 
   return (
