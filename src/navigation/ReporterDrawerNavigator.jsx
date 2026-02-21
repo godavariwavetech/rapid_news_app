@@ -91,21 +91,30 @@ function CustomDrawerContent({ navigation }) {
   };
 
   return (
-    <View style={[styles.drawerContainer, { paddingTop: insets.top }]}>
+    <View style={[styles.drawerContainer, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{flexGrow: 1}}>
         {/* Professional Profile Section */}
         <View style={styles.profileSection}>
           <Image
-            source={{ uri: reporter?.profile_image || 'https://i.pravatar.cc/150?img=33' }}
+            source={{
+              uri:
+                reporter?.profile_image || 'https://i.pravatar.cc/150?img=33',
+            }}
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
+            <Text style={styles.profileName}>
+              {reporter?.reporter_profile?.username || 'Guest'}
+            </Text>
             <Text style={styles.profileRole}>Reporter Desk</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} style={styles.editButton}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditProfile')}
+            style={styles.editButton}>
             <Icon name="pencil-outline" size={22} color="#000" />
           </TouchableOpacity>
         </View>
@@ -117,10 +126,7 @@ function CustomDrawerContent({ navigation }) {
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[
-                  styles.menuItem,
-                  isActive && styles.menuItemActive,
-                ]}
+                style={[styles.menuItem, isActive && styles.menuItemActive]}
                 onPress={() => navigation.navigate(item.screen)}
                 activeOpacity={0.7}>
                 <Icon
@@ -129,10 +135,7 @@ function CustomDrawerContent({ navigation }) {
                   color={isActive ? '#000' : '#666'}
                 />
                 <Text
-                  style={[
-                    styles.menuText,
-                    isActive && styles.menuTextActive,
-                  ]}>
+                  style={[styles.menuText, isActive && styles.menuTextActive]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -156,10 +159,12 @@ function CustomDrawerContent({ navigation }) {
       </ScrollView>
 
       {/* Logout Button Fixed at Bottom */}
-      <TouchableOpacity 
-        style={[styles.logoutButton, { marginBottom: Math.max(insets.bottom, 20) }]} 
-        onPress={handleLogout}
-      >
+      <TouchableOpacity
+        style={[
+          styles.logoutButton,
+          {marginBottom: Math.max(insets.bottom, 20)},
+        ]}
+        onPress={handleLogout}>
         <Icon name="logout" size={22} color="#000" />
         <Text style={styles.logoutText}>Logout Account</Text>
       </TouchableOpacity>

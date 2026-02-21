@@ -127,6 +127,10 @@ const authSlice = createSlice({
       state.reporter = null;
       state.reporterToken=null
     },
+    clearReporter:(state)=>{
+      state.reporter=null,
+      state.reporterToken=null
+    }
   },
     extraReducers: builder => {
       builder
@@ -159,5 +163,5 @@ const authSlice = createSlice({
     },
 });
 
-export const {completeOnboarding, setUser, logout} = authSlice.actions;
+export const {completeOnboarding, setUser, logout, clearReporter} = authSlice.actions;
 export default authSlice.reducer;
