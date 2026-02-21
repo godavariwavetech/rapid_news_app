@@ -285,8 +285,10 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
     <View style={styles.card}>
       <View style={styles.imageSection}>
         {hasVideos ? (
-          <TouchableWithoutFeedback onPress={handleToggleControls}>
-            <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
+          <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT, backgroundColor: '#000'}}>
+            <TouchableWithoutFeedback 
+              onPress={handleToggleControls}
+              containerStyle={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
               <Video
                 ref={videoRef}
                 source={videoSource}
@@ -312,36 +314,37 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                 }}
                 onLoad={() => {
                   hasLoaded.current = true;
+                  showControlsTemporarily();
                   if (isActive && !isBottomHalf && !hasNudged.current) {
                     triggerNudge();
                   }
                 }}
                 controls={false}
               />
+            </TouchableWithoutFeedback>
 
-              {isBuffering && (
-                <View style={[styles.videoOverlay, styles.centerOverlay]}>
-                  <View
-                    style={{height: 10, width: 10}}
-                  />
-                  <ActivityIndicator size="large" color="#FFFFFF" />
-                </View>
-              )}
-              {/* Conditional rendering for play/pause button */}
-              {!isBuffering && showControls && (
-                <RNTouchableOpacity
-                  activeOpacity={1}
+            {isBuffering && (
+              <View style={[styles.videoOverlay, styles.centerOverlay]} pointerEvents="none">
+                <ActivityIndicator size="large" color="#FFFFFF" />
+              </View>
+            )}
+
+            {/* Conditional rendering for play/pause button */}
+            {showControls && (
+              <View style={[StyleSheet.absoluteFill, styles.centerOverlay]} pointerEvents="box-none">
+                <TouchableOpacity
+                  activeOpacity={0.8}
                   style={styles.playPauseButton}
                   onPress={handlePlayPauseToggle}>
                   <Icon
                     name={isVideoPaused ? 'play-circle' : 'pause-circle'}
-                    size={70}
+                    size={80}
                     color="#FFFFFF"
                   />
-                </RNTouchableOpacity>
-              )}
-            </View>
-          </TouchableWithoutFeedback>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         ) : hasMultipleImages ? (
           <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
             <FlatList
@@ -802,7 +805,8 @@ const styles = StyleSheet.create({
     zIndex: 5, // Lower zIndex so play/pause button is on top
   },
   playPauseButton: {
-    ...StyleSheet.absoluteFillObject,
+    width: 150,
+    height: 150,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10, // Ensure it's above the video and overlay

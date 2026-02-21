@@ -112,10 +112,10 @@ const ReporterScreen = ({navigation}) => {
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <View style={styles.profileSection}>
-            <Image
-              source={{uri: 'https://i.pravatar.cc/150?img=33'}}
+           {reporter?.username ? <Image
+              source={{uri:reporter?.profile_image }}
               style={styles.profileImage}
-            />
+            />:<Icon name="account-circle" size={48} color="#CCC" />}
             <View style={styles.welcomeSection}>
               <Text style={styles.welcomeText}>Welcome</Text>
               <Text style={styles.guestText}>{reporter?.username || "Guest"}</Text>

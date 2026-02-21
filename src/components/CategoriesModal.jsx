@@ -12,6 +12,8 @@ import {
   BackHandler,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -43,38 +45,46 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
   const isScrollingToSection = useRef(false);
   const scrollTimeout = useRef(null);
 
-  // Simplified Sidebar: Only items actually used in the ScrollView sections
   const sidebarItems = [
-    {id: 'news', icon: 'volume-high', label: 'న్యూస్'},
-    {id: 'categories', icon: 'apps', label: 'వర్గాలు'},
-    {id: 'reporter', icon: 'microphone', label: 'రిపోర్టర్'},
+    {id: 'news', icon: 'compass', label: 'Explore'},
+    {id: 'categories', icon: 'view-dashboard', label: 'Topics'},
+    {id: 'reporter', icon: 'microphone-variant', label: 'Create'},
   ];
 
-  const cardColors = ['#FF6B35', '#6C5CE7', '#00B894', '#D63031', '#0984E3', '#E84393', '#F0932B', '#2C3E50'];
+  const gradientPairs = [
+    ['#4158D0', '#C850C0', '#FFCC70'], // Dynamic Trio
+    ['#0093E9', '#80D0C7'], // Clean Blue
+    ['#8EC5FC', '#E0C3FC'], // Pastel Purple
+    ['#FBAB7E', '#F7CE68'], // Sunset
+    ['#85FFBD', '#FFFB7D'], // Fresh Lime
+    ['#21D4FD', '#B721FF'], // Electric
+    ['#3EECAC', '#EE74E1'], // Neon
+    ['#FF9A8B', '#FF6A88', '#FF99AC'], // Soft Red
+  ];
 
   const getCategoryIcon = (nameEn) => {
     const name = nameEn?.toLowerCase() || '';
     if (name.includes('politics')) return 'gavel';
-    if (name.includes('sports')) return 'cricket';
-    if (name.includes('cinema') || name.includes('movie')) return 'movie';
-    if (name.includes('business')) return 'briefcase';
-    if (name.includes('job')) return 'briefcase-variant';
-    if (name.includes('panta') || name.includes('agriculture')) return 'sprout';
-    return 'newspaper-variant-outline';
+    if (name.includes('sports')) return 'basketball';
+    if (name.includes('cinema') || name.includes('movie')) return 'movie-open-play';
+    if (name.includes('business')) return 'chart-areaspline';
+    if (name.includes('job')) return 'briefcase-search';
+    if (name.includes('panta') || name.includes('agriculture')) return 'leaf';
+    return 'star-four-points';
   };
 
   const closeModal = useCallback(() => {
     'worklet';
     Keyboard.dismiss();
     translateY.value = withTiming(SHEET_HEIGHT, { 
-      duration: 250, 
-      easing: Easing.out(Easing.quad) 
+      duration: 350, 
+      easing: Easing.bezier(0.33, 1, 0.68, 1) 
     }, (finished) => {
       if (finished && onClose) {
         runOnJS(onClose)();
       }
     });
-    opacity.value = withTiming(0, { duration: 250 });
+    opacity.value = withTiming(0, { duration: 300 });
   }, [onClose, translateY, opacity]);
 
   useEffect(() => {
@@ -91,8 +101,8 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 15, stiffness: 90 });
-      opacity.value = withTiming(1, { duration: 200 });
+      translateY.value = withSpring(0, { damping: 18, stiffness: 100, mass: 0.8 });
+      opacity.value = withTiming(1, { duration: 250 });
     } else {
       if (translateY.value < SHEET_HEIGHT) {
         closeModal();
@@ -107,20 +117,20 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
       if (offset > 0) {
         translateY.value = offset;
       } else {
-        translateY.value = offset * 0.1;
+        translateY.value = offset * 0.15;
       }
     })
     .onEnd((event) => {
       'worklet';
       if (event.translationY > 150 || event.velocityY > 500) {
-        translateY.value = withTiming(SHEET_HEIGHT, { duration: 200 }, (finished) => {
+        translateY.value = withTiming(SHEET_HEIGHT, { duration: 250 }, (finished) => {
           if (finished && onClose) {
             runOnJS(onClose)();
           }
         });
-        opacity.value = withTiming(0, { duration: 200 });
+        opacity.value = withTiming(0, { duration: 250 });
       } else {
-        translateY.value = withSpring(0, { damping: 15, stiffness: 90 });
+        translateY.value = withSpring(0, { damping: 18, stiffness: 100 });
       }
     });
 
@@ -137,12 +147,12 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     isScrollingToSection.current = true;
     const yOffset = sectionRefs.current[sectionId];
     if (scrollViewRef.current && yOffset !== undefined) {
-      scrollViewRef.current.scrollTo({y: yOffset, animated: true});
+      scrollViewRef.current.scrollTo({y: yOffset - 10, animated: true});
     }
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(() => {
       isScrollingToSection.current = false;
-    }, 500);
+    }, 600);
   };
 
   const handleScroll = (event) => {
@@ -151,7 +161,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const scrollY = contentOffset.y;
 
-    const isCloseToBottom = layoutMeasurement.height + scrollY >= contentSize.height - 50;
+    const isCloseToBottom = layoutMeasurement.height + scrollY >= contentSize.height - 80;
     if (isCloseToBottom) {
       const lastItemId = sidebarItems[sidebarItems.length - 1].id;
       if (activeSection !== lastItemId) {
@@ -164,7 +174,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     for (let i = 0; i < sections.length; i++) {
       const [id, offset] = sections[i];
       const nextOffset = sections[i + 1] ? sections[i + 1][1] : Infinity;
-      if (scrollY >= offset - 150 && scrollY < nextOffset - 150) {
+      if (scrollY >= offset - 100 && scrollY < nextOffset - 100) {
         if (activeSection !== id) setActiveSection(id);
         break;
       }
@@ -186,10 +196,6 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     if(onSelectCategory) setTimeout(() => onSelectCategory(cat), 50);
   };
 
-  // Split categories for clean dynamic grid
-  const quickAccessItems = categories.slice(0, 3);
-  const remainingItems = categories.slice(3);
-
   return (
     <GestureHandlerRootView 
       style={[styles.overlayWrapper, { zIndex: visible ? 999 : -1 }]}
@@ -208,13 +214,18 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
         <View style={styles.contentWrapper}>
           <View style={styles.sidebar}>
+            <View style={styles.sidebarLogo}>
+               <Icon name="lightning-bolt" size={28} color="#FF6B35" />
+            </View>
             {sidebarItems.map(item => (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.sidebarItem, activeSection === item.id && styles.sidebarItemActive]}
+                style={[styles.sidebarItem]}
                 onPress={() => scrollToSection(item.id)}
                 activeOpacity={0.7}>
-                <Icon name={item.icon} size={24} color={activeSection === item.id ? '#FF6B35' : '#888'} />
+                <View style={[styles.sidebarIconBox, activeSection === item.id && styles.sidebarIconBoxActive]}>
+                   <Icon name={item.icon} size={22} color={activeSection === item.id ? '#FFF' : '#A0A0A0'} />
+                </View>
                 <Text style={[styles.sidebarLabel, activeSection === item.id && styles.sidebarLabelActive]}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -225,46 +236,86 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             style={styles.scrollView}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollPadding}>
             
             {/* SECTION: news */}
             <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={styles.section}>
-              <TouchableOpacity style={styles.searchContainer} onPress={handleSearchNavigation} activeOpacity={0.8}>
-                <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
-                <Text style={[styles.searchInput, { color: 'grey' }]}>సెర్చ్ చేయండి</Text>
-              </TouchableOpacity>
+              <View style={styles.searchRow}>
+                <TouchableOpacity style={styles.premiumSearch} onPress={handleSearchNavigation} activeOpacity={0.9}>
+                  <Icon name="magnify" size={22} color="#666" />
+                  <Text style={styles.searchPlaceholder}>Discover anything...</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity style={styles.mainEditionCard} onPress={() => handleSelection('all')}>
-                <Text style={styles.mainEditionLabel}>Main Edition</Text>
-                <Text style={styles.mainEditionText}>మెయిన్ ఎడిషన్</Text>
-                <View style={styles.arrowButton}><Icon name="chevron-right" size={24} color="#FFF" /></View>
+              <TouchableOpacity style={styles.bentoMainCard} onPress={() => handleSelection('all')} activeOpacity={0.9}>
+                <LinearGradient
+                   colors={['#00BFFF', '#007AFF']}
+                   style={styles.bentoMainGradient}
+                   start={{x: 0, y: 0}}
+                   end={{x: 1, y: 1}}
+                >
+                   <View style={styles.mainCardContent}>
+                      <Text style={styles.mainEditionTitle}>Main Edition</Text>
+                      <Text style={styles.mainEditionSub}>మెయిన్ ఎడిషన్</Text>
+                      <View style={styles.glassBadge}>
+                         <Text style={styles.badgeText}>Live Now</Text>
+                      </View>
+                   </View>
+                   <View style={styles.mainCardIcon}>
+                      <Icon name="newspaper-variant-multiple" size={60} color="rgba(255,255,255,0.3)" />
+                   </View>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
             {/* SECTION: categories */}
-            <View style={styles.masonryGrid} onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y}>
+            <View style={styles.bentoGrid} onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y}>
                 {categories.map((cat, idx) => {
-                    const color = cardColors[idx % cardColors.length];
-                    const mod = idx % 6;
-                    let cardWidth = '100%';
-                    let cardHeight = 80;
-                    let isSmall = false;
-
-                    if (mod === 1 || mod === 2) { cardWidth = '49%'; cardHeight = 110; }
-                    else if (mod === 3 || mod === 4 || mod === 5) { cardWidth = '32.5%'; cardHeight = 90; isSmall = true; }
+                    const colors = gradientPairs[idx % gradientPairs.length];
+                    const mod = idx % 6; 
+                    let cardWidth = '49%';
+                    let cardHeight = 120;
+                    let isFullWidth = false;
+                    
+                    if (mod === 0 || mod === 3) { 
+                        cardWidth = '100%'; 
+                        cardHeight = 90; 
+                        isFullWidth = true;
+                    } else { 
+                        cardWidth = '49%'; 
+                        cardHeight = 130; 
+                    } 
 
                     return (
                         <TouchableOpacity 
                             key={cat._id}
                             activeOpacity={0.9}
-                            style={[styles.masonryCard, { backgroundColor: color, width: cardWidth, height: cardHeight }]}
+                            style={[styles.bentoCardWrapper, { width: cardWidth }]}
                             onPress={() => handleSelection(cat._id)}
                         >
-                            <Icon name={getCategoryIcon(cat.name?.en)} size={isSmall ? 22 : 28} color="#FFF" />
-                            <View style={styles.catTextContainer}>
-                                {!isSmall && <Text style={styles.catEnLabel}>{cat.name?.en}</Text>}
-                                <Text style={[styles.catTeLabel, { fontSize: isSmall ? 12 : 16 }]}>{cat.name?.te || cat.name?.en}</Text>
-                            </View>
+                            <LinearGradient
+                                colors={colors}
+                                start={{x: 0, y: 0}}
+                                end={{x: 1, y: 1}}
+                                style={[styles.bentoCard, isFullWidth && styles.bentoCardHorizontal, { height: cardHeight }]}
+                            >
+                                <View style={styles.bentoIconFloating}>
+                                    {cat.icon ? (
+                                        <FastImage 
+                                            source={{ uri: cat.icon }} 
+                                            style={styles.floatingImg}
+                                            resizeMode={FastImage.resizeMode.contain}
+                                        />
+                                    ) : (
+                                        <Icon name={getCategoryIcon(cat.name?.en)} size={isFullWidth ? 26 : 30} color="rgba(255,255,255,0.9)" />
+                                    )}
+                                </View>
+                                <View style={[styles.bentoTextContainer, isFullWidth && styles.bentoTextContainerHorizontal]}>
+                                    <Text style={styles.bentoEnLabel}>{cat.name?.en}</Text>
+                                    <Text style={styles.bentoTeLabel}>{cat.name?.te || cat.name?.en}</Text>
+                                </View>
+                            </LinearGradient>
                         </TouchableOpacity>
                     );
                 })}
@@ -294,38 +345,51 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
 const styles = StyleSheet.create({
   overlayWrapper: { ...StyleSheet.absoluteFillObject, elevation: 100 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   absoluteFill: { width: '100%', height: '100%' },
-  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24, zIndex: 2, overflow: 'hidden', elevation: 20 },
-  handleBarContainer: { width: '100%', alignItems: 'center', paddingTop: 12, paddingBottom: 8, backgroundColor: '#F5F6F8' },
-  handleBar: { width: 40, height: 4, backgroundColor: '#CCC', borderRadius: 2 },
+  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, zIndex: 2, overflow: 'hidden', elevation: 25 },
+  handleBarContainer: { width: '100%', alignItems: 'center', paddingTop: 14, paddingBottom: 10, backgroundColor: '#FFFFFF' },
+  handleBar: { width: 44, height: 5, backgroundColor: '#E0E0E0', borderRadius: 2.5 },
   contentWrapper: { flex: 1, flexDirection: 'row' },
-  sidebar: { width: 80, backgroundColor: '#1C1C1E', paddingVertical: 16, gap: 4 },
-  sidebarItem: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-  sidebarItemActive: { backgroundColor: 'rgba(255, 107, 53, 0.15)', borderLeftColor: '#FF6B35' },
-  sidebarLabel: { fontSize: 10, fontWeight: '600', color: '#888', marginTop: 4, textAlign: 'center' },
+  sidebar: { width: 75, backgroundColor: '#F8F9FA', paddingVertical: 20, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#F0F0F0' },
+  sidebarLogo: { marginBottom: 30 },
+  sidebarItem: { alignItems: 'center', marginBottom: 25, width: '100%' },
+  sidebarIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, marginBottom: 6 },
+  sidebarIconBoxActive: { backgroundColor: '#FF6B35', elevation: 6, shadowColor: '#FF6B35', shadowOpacity: 0.3, shadowRadius: 8 },
+  sidebarLabel: { fontSize: 10, fontWeight: '700', color: '#A0A0A0', textAlign: 'center' },
   sidebarLabelActive: { color: '#FF6B35' },
-  scrollView: { flex: 1 },
-  section: { padding: 16 },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, height: 48, marginBottom: 16 },
-  searchInput: { flex: 1, fontSize: 14, color: '#333' },
-  mainEditionCard: { backgroundColor: '#00BFFF', padding: 20, borderRadius: 16 },
-  mainEditionLabel: { fontSize: 11, color: '#FFFFFF', opacity: 0.8 },
-  mainEditionText: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
-  arrowButton: { position: 'absolute', right: 16, top: '50%', transform: [{translateY: -20}], width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0, 0, 0, 0.1)', alignItems: 'center', justifyContent: 'center' },
-  masonryGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, justifyContent: 'space-between', rowGap: 6 },
-  masonryCard: { borderRadius: 12, padding: 12, justifyContent: 'space-between' },
-  catTextContainer: { marginTop: 'auto' },
-  catEnLabel: { fontSize: 10, color: '#FFF', opacity: 0.7, fontWeight: '700', textTransform: 'uppercase' },
-  catTeLabel: { color: '#FFF', fontWeight: '800' },
-  menuSection: { paddingHorizontal: 16, marginTop: 24 },
-  menuTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 10 },
-  menuCard: { backgroundColor: '#FFFFFF', borderRadius: 14, overflow: 'hidden', elevation: 2 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  iconContainer: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  menuText: { fontSize: 16, fontWeight: '700', color: '#333' },
-  menuSubText: { fontSize: 12, color: '#666', marginTop: 2 },
+  scrollView: { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollPadding: { paddingBottom: 100 },
+  section: { padding: 18 },
+  searchRow: { marginBottom: 20 },
+  premiumSearch: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F5', borderRadius: 16, paddingHorizontal: 16, height: 54, gap: 12 },
+  searchPlaceholder: { fontSize: 15, color: '#868E96', fontWeight: '500' },
+  bentoMainCard: { borderRadius: 24, overflow: 'hidden', elevation: 8, shadowColor: '#007AFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  bentoMainGradient: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mainCardContent: { flex: 1 },
+  mainEditionTitle: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  mainEditionSub: { fontSize: 26, fontWeight: '900', color: '#FFFFFF' },
+  glassBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 12 },
+  badgeText: { color: '#FFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  mainCardIcon: { opacity: 0.6 },
+  bentoGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, justifyContent: 'space-between' },
+  bentoCardWrapper: { marginBottom: 10 },
+  bentoCard: { borderRadius: 20, padding: 14, justifyContent: 'space-between', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden' },
+  bentoCardHorizontal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 16 },
+  bentoIconFloating: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  floatingImg: { width: 28, height: 28 },
+  bentoTextContainer: { marginTop: 'auto' },
+  bentoTextContainerHorizontal: { marginTop: 0, flex: 1 },
+  bentoEnLabel: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  bentoTeLabel: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+  menuSection: { paddingHorizontal: 18, marginTop: 30 },
+  menuTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A1A', marginBottom: 16, letterSpacing: -0.5 },
+  menuCard: { backgroundColor: '#F8F9FA', borderRadius: 24, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
+  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  iconContainer: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  menuText: { fontSize: 17, fontWeight: '800', color: '#2D3436' },
+  menuSubText: { fontSize: 13, color: '#636E72', marginTop: 3, fontWeight: '500' },
 });
 
 export default CategoriesModal;

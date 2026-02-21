@@ -12,6 +12,7 @@ import {
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { userLogin } from '../redux/reducers/auth';
@@ -194,6 +195,9 @@ const ProfileScreen = ({navigation}) => {
               {dynamicCategories.map((cat, index) => {
                 const isSelected = selectedCategory === cat._id;
                 const iconColor = getCategoryColor(index);
+                const categoryName = cat.name?.te || cat.name?.en || cat.name;
+                const categoryIcon = cat.icon;
+
                 return (
                   <TouchableOpacity
                     key={cat._id}
@@ -201,10 +205,18 @@ const ProfileScreen = ({navigation}) => {
                     onPress={() => handleCategoryPress(cat._id)}
                     activeOpacity={0.7}>
                     <View style={[styles.categoryIconBg, isSelected && {backgroundColor: `${iconColor}30`}]}>
-                      <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
+                      {categoryIcon && categoryIcon.startsWith('http') ? (
+                        <FastImage
+                          source={{ uri: categoryIcon }}
+                          style={{ width: 30, height: 30 }}
+                          resizeMode={FastImage.resizeMode.contain}
+                        />
+                      ) : (
+                        <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
+                      )}
                     </View>
                     <Text style={[styles.categoryLabel, isSelected && {color: iconColor, fontWeight: '700'}]}>
-                      {cat.name?.te || cat.name?.en}
+                      {categoryName}
                     </Text>
                   </TouchableOpacity>
                 );
