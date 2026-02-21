@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useRef, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -45,7 +45,7 @@ const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
-function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
+function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottomHalf = false}) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const {bookmarkIds} = useSelector(state => state.bookmarks);
@@ -63,19 +63,66 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
   const nudgeTimeout = useRef(null);
   const flatListRef = useRef(null);
   const videoRef = useRef(null);
+  const hasNudged = useRef(false);
+  const hasLoaded = useRef(false);
+
+  const showControlsTemporarily = () => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+    setShowControls(true);
+    controlsTimeout.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  const handleToggleControls = () => {
+    if (!showControls) {
+      showControlsTemporarily();
+    } else {
+      setShowControls(false);
+      if (controlsTimeout.current) {
+        clearTimeout(controlsTimeout.current);
+      }
+    }
+  };
+
+  const handlePlayPauseToggle = () => { // New function for play/pause button
+    if (nudgeTimeout.current) {
+      clearTimeout(nudgeTimeout.current);
+      nudgeTimeout.current = null;
+      hasNudged.current = true; // Consider it nudged if user intervened
+    }
+    setIsVideoPaused(prev => !prev);
+    showControlsTemporarily(); // Keep controls visible for a bit after play/pause
+  };
+
+  const triggerNudge = () => {
+    if (nudgeTimeout.current) clearTimeout(nudgeTimeout.current);
+    setIsVideoPaused(true);
+    nudgeTimeout.current = setTimeout(() => {
+      setIsVideoPaused(false);
+      nudgeTimeout.current = null;
+      hasNudged.current = true;
+    }, 200);
+  };
 
   useEffect(() => {
     setActiveSlide(0);
+    hasNudged.current = false;
+    hasLoaded.current = false;
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
 
-    if (!isActive) {
+    if (!isActive || isBottomHalf) {
       setIsVideoPaused(true);
       if (nudgeTimeout.current) {
         clearTimeout(nudgeTimeout.current);
         nudgeTimeout.current = null;
       }
+    } else if (isActive && !isBottomHalf && hasLoaded.current && !hasNudged.current) {
+      triggerNudge();
     }
     
     setLiked(news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE');
@@ -89,30 +136,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
         clearTimeout(nudgeTimeout.current);
       }
     };
-  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction, isActive]);
-
-  const handleToggleControls = () => { // Renamed from handleVideoPress
-    if (controlsTimeout.current) {
-      clearTimeout(controlsTimeout.current);
-    }
-
-    if (!showControls) {
-      setShowControls(true);
-    }
-    
-    controlsTimeout.current = setTimeout(() => {
-      setShowControls(false);
-    }, 3000); // Hide after 3 seconds
-  };
-
-  const handlePlayPauseToggle = () => { // New function for play/pause button
-    if (nudgeTimeout.current) {
-      clearTimeout(nudgeTimeout.current);
-      nudgeTimeout.current = null;
-    }
-    setIsVideoPaused(prev => !prev);
-    handleToggleControls(); // Keep controls visible for a bit after play/pause
-  };
+  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction, isActive, isBottomHalf]);
 
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
   const onViewRef = useRef(({ viewableItems }) => {
@@ -128,7 +152,14 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
   const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
 
   const videoUrls = news.videos || [];
-  const hasVideos = videoUrls.length > 0;
+  const hasVideos = videoUrls.length > 0 && !isBottomHalf;
+
+  const videoSource = useMemo(() => {
+    if (hasVideos) {
+      return {uri: videoUrls[0]};
+    }
+    return null;
+  }, [videoUrls[0], hasVideos]);
 
   const handleDoubleTap = () => {
     const now = Date.now();
@@ -258,7 +289,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
             <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
               <Video
                 ref={videoRef}
-                source={{uri: videoUrls[0]}}
+                source={videoSource}
                 style={styles.image}
                 resizeMode="contain"
                 repeat={true}
@@ -280,14 +311,9 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
                   setIsBuffering(false);
                 }}
                 onLoad={() => {
-                  if (isActive) {
-                    // Nudge video to ensure visuals attach on Android
-                    setIsVideoPaused(true);
-                    if (nudgeTimeout.current) clearTimeout(nudgeTimeout.current);
-                    nudgeTimeout.current = setTimeout(() => {
-                      setIsVideoPaused(false);
-                      nudgeTimeout.current = null;
-                    }, 200);
+                  hasLoaded.current = true;
+                  if (isActive && !isBottomHalf && !hasNudged.current) {
+                    triggerNudge();
                   }
                 }}
                 controls={false}

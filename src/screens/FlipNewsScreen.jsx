@@ -96,7 +96,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
         {newsItem.type === 'SURVEY' ? (
           <SurveyCard survey={newsItem} />
         ) : (
-          <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} />
+          <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} />
         )}
       </View>
     </View>
