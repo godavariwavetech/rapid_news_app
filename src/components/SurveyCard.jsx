@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { fonts } from '../config/theme';
-import networkCall from '../utils/networkCall';
+import api from '../utils/api';
 import { applogo } from '../assets'; 
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -19,12 +19,7 @@ const SurveyCard = ({ survey }) => {
     setVoted(true);
 
     try {
-      const { response, error } = await networkCall(
-        `surveys/${survey.id}/vote`, 
-        'POST', 
-        JSON.stringify({ option_index: index })
-      );
-      if (error) console.error("Vote API Error:", error);
+      await api.post(`surveys/${survey.id}/vote`, { option_index: index });
     } catch (err) {
       console.error("Vote failed", err);
     }

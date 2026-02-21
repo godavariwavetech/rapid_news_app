@@ -298,7 +298,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
               {isBuffering && (
                 <View style={[styles.videoOverlay, styles.centerOverlay]}>
                   <View
-                    style={{height: 10, width: 10, backgroundColor: 'green'}}
+                    style={{height: 10, width: 10}}
                   />
                   <ActivityIndicator size="large" color="#FFFFFF" />
                 </View>

@@ -169,7 +169,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                 
                 {currentComments && currentComments.length > 0 ? (
                   currentComments.map((comment, index) => {
-                    const userName = comment.user_id?.name || 'User';
+                    const userName = comment.user?.name || 'User';
                     const userInitial = userName.charAt(0).toUpperCase();
                     const timeString = comment.createdAt 
                       ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})

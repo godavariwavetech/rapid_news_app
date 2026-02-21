@@ -90,6 +90,8 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   }, [existingNews, categories]);
 
   const uploadToS3 = async (imageAsset) => {
+    // console.log(imageAsset);
+    // return
     if (!imageAsset || !imageAsset.base64) return imageAsset?.uri || null;
 
     try {
@@ -112,11 +114,14 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         body: binaryData,
       });
 
+      console.log(uploadResult,">>>>>>>>>>>>>>>UPLOAD RESPONSEEE");
+
       if (uploadResult.status === 200) {
         return signedUrl.split('?')[0];
       }
       return null;
     } catch (error) {
+      console.log(error,">>>>>>>>>>>>>>>>>>>>>>>>");
       console.error('S3 Upload Error:', error);
       return null;
     }
