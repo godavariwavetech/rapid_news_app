@@ -30,8 +30,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const insets = useSafeAreaInsets();
   const {reporter} = useSelector(state=>state.auth)
 
-  // console.log(reporter,">>>>>>>>>>>>>reporter");
-
   // Params
   const existingNews = route.params?.existingNews;
   const locationData = route.params?.locationData; 
@@ -78,8 +76,11 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       
       if (imgUrl) setImage({ uri: imgUrl });
 
-      if (existingNews.category_id && categories.length > 0) {
-        const found = categories.find(c => c._id === existingNews.category_id);
+      // FIX APPLIED HERE: Handle nested category object or flat category_id
+      const categoryId = existingNews.category?._id || existingNews.category_id;
+      
+      if (categoryId && categories.length > 0) {
+        const found = categories.find(c => c._id === categoryId);
         if (found) setSelectedCategoryObj(found);
       }
     }
@@ -346,7 +347,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   );
 };
 
-// ... Styles remain mostly the same ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: STATUS_BAR_HEIGHT + 10, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E8EAED' },

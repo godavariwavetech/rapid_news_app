@@ -22,11 +22,11 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
       icon: 'map-marker',
       label: locationName || 'రాజమండ్రి',
     },
-    {
-      id: 'TrendingTab',
-      icon: 'fire',
-      label: 'ట్రెండ్ల్',
-    },
+    // {
+    //   id: 'TrendingTab',
+    //   icon: 'fire',
+    //   label: 'ట్రెండ్ల్',
+    // },
     {
       id: 'ReloadTab',
       icon: 'reload',

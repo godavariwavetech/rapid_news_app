@@ -46,11 +46,12 @@ const Step4ReviewScreen = ({navigation, route}) => {
 
       const { signedUrl } = response.data.data;
       const binaryData = Uint8Array.from(Buffer.from(imageAsset.base64, 'base64'));
-
-      // 2. Upload to S3 using Axios (api instance)
-      // Note: S3 signed URLs usually require PUT, using api.put instead of fetch
       const uploadResult = await axios.put(signedUrl, binaryData, {
-          headers: { 'Content-Type': imageAsset.type || 'image/jpeg' },
+          headers: { 
+            'Content-Type': imageAsset.type || 'image/jpeg',
+            'Content-Disposition': 'attachment'
+          },
+          
           transformRequest: [(data) => data], 
           timeout: 120000,
         });
@@ -88,6 +89,8 @@ const Step4ReviewScreen = ({navigation, route}) => {
         id: newsId,
         payload: finalPayload
       }));
+
+      console.log(response,">>>>>>>>>>>>>>RESPONSEEEEEE");
     } else {
       // Dispatch Create Action
       response = await dispatch(createNews(finalPayload));

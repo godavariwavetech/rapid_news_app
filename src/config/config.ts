@@ -39,5 +39,6 @@ export const endpoints = {
 
   REPORT_NEWS:'news-reports/news',
 
-  GOOGLE_LOGIN:'users/google-login'
+  GOOGLE_LOGIN:'users/google-login',
+  POST_FCM_TOKEN:'users/register-fcm'
 };

@@ -1,6 +1,8 @@
 import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
+import { fetchFCMToken } from '../../services/NotificationsService';
+import { Platform } from 'react-native';
 
 const initialState = {
   isOnboardingComplete: false,
@@ -106,6 +108,27 @@ export const userLogin = createAsyncThunk(
     }
   },
 );
+
+
+export const postToken = createAsyncThunk(
+  'auth/postToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = await fetchFCMToken()
+      const payload = {
+        token: token,
+        device_type: Platform.OS?.toUpperCase(),
+      };
+      console.log(payload,">>>>>>>PAULOADDDDD>>>>>>");
+      const response = await api.post(endpoints.POST_FCM_TOKEN, payload);
+      console.log(response,"TOKEN RESPONSEE");
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
 
 
 const authSlice = createSlice({

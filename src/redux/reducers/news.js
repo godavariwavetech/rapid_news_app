@@ -127,10 +127,11 @@ export const createNews = createAsyncThunk(
 // 4. Update News
 export const updateNews = createAsyncThunk(
   'news/updateNews',
-  async ({ id, data }, { rejectWithValue }) => {
+  async ({ id, payload }, { rejectWithValue }) => {
     try {
       const url = endpoints.UPDATE_NEWS.replace(':id', id);
-      const response = await api.put(url, data); 
+      console.log(url,">>>>>>>>>>>>>>URLLL",payload);
+      const response = await api.patch(url, payload); 
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

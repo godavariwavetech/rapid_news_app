@@ -20,6 +20,7 @@ import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
 import { getBookmarks } from '../redux/reducers/bookmarks';
 import { fetchFCMToken } from '../services/NotificationsService';
+import { postToken } from '../redux/reducers/auth';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
@@ -67,7 +68,14 @@ function HomeScreen({navigation}) {
     dispatch(clearNews());
     dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
     dispatch(getBookmarks())
+    sendToken()
   }, [selectedCategory, currentLocation, dispatch]);
+
+  const sendToken = async () =>{
+    
+    const res = await dispatch(postToken())
+    console.log(res,">>>>>>>>>>>>FCM RES");
+  }
 
 
 
@@ -113,7 +121,6 @@ function HomeScreen({navigation}) {
         friction: 8,
       }),
     ]).start();
-    getToken()
   }, [uiVisible]);
 
   const toggleUI = () => setUiVisible(!uiVisible);
@@ -140,14 +147,6 @@ function HomeScreen({navigation}) {
       }
     }
   }, [selectedCategory, currentLocation]);
-
-
-
-  const getToken =async () =>{
-    const token = await fetchFCMToken()
-    console.log(token,"<>>>>>>>>>>>TOKEN");
-  }
-
 
   return (
     <View style={styles.container}>
