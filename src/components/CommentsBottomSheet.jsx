@@ -31,7 +31,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   );
 
   // Selectors for authentication status
-  const { isAuthenticated, userToken, reporterToken } = useSelector(
+  const { isAuthenticated, userToken, reporterToken, reporter,user } = useSelector(
     state => state.auth
   );
 
@@ -113,8 +113,6 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
   if (!modalVisible) return null;
 
-  console.log(currentComments,">>>>>>>>>>COMMENTS");
-
   return (
     <Modal
       visible={modalVisible}
@@ -169,6 +167,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                 
                 {currentComments && currentComments.length > 0 ? (
                   currentComments.map((comment, index) => {
+                    const isSame= comment?.user?._id ==reporter?._id
                     const userName = comment.user?.name || 'User';
                     const userInitial = userName.charAt(0).toUpperCase();
                     const timeString = comment.createdAt 
@@ -186,7 +185,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                         <View style={styles.commentRight}>
                           <View style={[styles.commentBubble, {backgroundColor: '#F5F6F8'}]}>
                             <View style={styles.commentHeader}>
-                              <Text style={styles.username}>{userName}</Text>
+                              <Text style={styles.username}>{userName} {isSame&& '(You)'}</Text>
                             </View>
                             <Text style={styles.commentText}>{comment.text}</Text>
                           </View>

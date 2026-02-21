@@ -59,8 +59,17 @@ const Step1LocationScreen = ({navigation}) => {
       Alert.alert('Required', 'Please complete all location fields.');
       return;
     }
-    navigation.navigate('NewsSubmissionStep2', {
-      locationData: { state: selectedState, district: selectedDistrict, village: selectedVillage }
+    // Navigate directly to Step 3, bypassing Step 2
+    navigation.navigate('NewsSubmissionStep3', {
+      locationData: { state: selectedState, district: selectedDistrict, village: selectedVillage },
+      reachData: {
+        id: 'medium',
+        label: 'మధ్యస్థ అవకాశాలు',
+        range: '50-80%',
+        description: 'మీరు ఎంచుకున్న పొంతం లో ఫిస్న్ చేయడానికి మధ్యస్థంగా అవకాశాలు ఉన్నాయి',
+        color: '#FF9800',
+        barWidth: '65%'
+      }
     });
   };
 
@@ -89,7 +98,7 @@ const Step1LocationScreen = ({navigation}) => {
           <Icon name="arrow-left" size={26} color="#000000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Submit News</Text>
-        <Text style={styles.stepIndicator}>Step 1/4</Text>
+        <Text style={styles.stepIndicator}>Step 1/3</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>

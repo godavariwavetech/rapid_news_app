@@ -14,15 +14,12 @@ import {
   Alert,
   Switch,
   FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
-import { Buffer } from 'buffer'; // Required for S3 binary conversion
-import api from '../../utils/api';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -33,7 +30,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const insets = useSafeAreaInsets();
   const {reporter} = useSelector(state=>state.auth)
 
-  console.log(reporter,">>>>>>>>>>>>>reporter");
+  // console.log(reporter,">>>>>>>>>>>>>reporter");
 
   // Params
   const existingNews = route.params?.existingNews;
@@ -45,7 +42,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const [description, setDescription] = useState('');
   const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
   const [image, setImage] = useState(null);
-  const [uploading, setUploading] = useState(false); // Track S3 upload status
 
   // Transliteration State
   const [headlineTranslitEnabled, setHeadlineTranslitEnabled] = useState(false);
@@ -88,44 +84,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       }
     }
   }, [existingNews, categories]);
-
-  const uploadToS3 = async (imageAsset) => {
-    // console.log(imageAsset);
-    // return
-    if (!imageAsset || !imageAsset.base64) return imageAsset?.uri || null;
-
-    try {
-      // 1. Get Pre-signed URL
-      const response = await api.post('media/upload-url', {
-        filename: imageAsset.fileName || `news_${Date.now()}.jpg`,
-        type: imageAsset.type || 'image/jpeg',
-        reporterId: reporter?._id,
-      });
-
-      console.log(response, '>>>>>>>>>RESPOSNSNSNSNSSNSN');
-
-      const { signedUrl } = response.data.data;
-
-      const binaryData = Uint8Array.from(Buffer.from(imageAsset.base64, 'base64'));
-
-      const uploadResult = await fetch(signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': imageAsset.type || 'image/jpeg' },
-        body: binaryData,
-      });
-
-      console.log(uploadResult,">>>>>>>>>>>>>>>UPLOAD RESPONSEEE");
-
-      if (uploadResult.status === 200) {
-        return signedUrl.split('?')[0];
-      }
-      return null;
-    } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>>>>>>>");
-      console.error('S3 Upload Error:', error);
-      return null;
-    }
-  };
 
   // --- Transliteration Logic ---
   const transliterate = async (text) => {
@@ -206,19 +164,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   const handleNext = async () => {
     if (headline && description && selectedCategoryObj) {
-      setUploading(true);
-      
-      // Execute S3 Upload procedure
-      const finalImageUrl = await uploadToS3(image);
-
-      console.log(finalImageUrl,">>>>>>>>>>>>>>>>>>>>FINALIMAE URL");
-
-      if (image && !finalImageUrl) {
-        setUploading(false);
-        Alert.alert('Upload Failed', 'Could not upload image to S3.');
-        return;
-      }
-
       const villageId = locationData?.village?._id || existingNews?.village_id || currentLocation?.village?._id;
       const districtId = locationData?.district?._id || existingNews?.district_id || currentLocation?.district?._id;
       const stateId = locationData?.state?._id || existingNews?.state_id || currentLocation?.state?._id;
@@ -235,16 +180,15 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             "body": description
           }
         },
-        "images": finalImageUrl ? [finalImageUrl] : [], // Sends S3 Link
+        "images": image?.uri && !image?.base64 ? [image.uri] : [], // If it's an existing image, keep it. If new, it will be uploaded in Step 4.
         "videos": []
       };
 
-      setUploading(false);
       navigation.navigate('NewsSubmissionStep4', {
         headline,
         description,
         category: selectedCategoryObj.name.en,
-        image: image?.uri, 
+        image: image, // Pass the full image object
         apiPayload: payload,
         location: locationData ? `${locationData.village?.name?.en}, ${locationData.district?.name?.en}` : "Current Location",
         isEditing: !!existingNews,
@@ -255,7 +199,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
     }
   };
 
-  const isValid = headline.trim() && description.trim() && selectedCategoryObj && !uploading;
+  const isValid = headline.trim() && description.trim() && selectedCategoryObj;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -266,7 +210,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>News Details</Text>
-        <Text style={styles.stepIndicator}>3 / 4</Text>
+        <Text style={styles.stepIndicator}>2 / 3</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -359,13 +303,9 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           style={[styles.submitButton, isValid && styles.submitButtonActive]}
           onPress={handleNext}
           disabled={!isValid}>
-          {uploading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.submitButtonText}>
-              {existingNews ? 'Update Preview' : 'Next Step →'}
-            </Text>
-          )}
+          <Text style={styles.submitButtonText}>
+            {existingNews ? 'Update Preview' : 'Next Step →'}
+          </Text>
         </TouchableOpacity>
       </View>
 

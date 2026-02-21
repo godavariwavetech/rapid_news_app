@@ -250,8 +250,6 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true}) {
   );
   const isBookmarked = bookmarkIds?.includes(news.id)
 
-  console.log(isBuffering,">>>>>>>>>>>LOADER STATE",isVideoPaused);
-
   return (
     <View style={styles.card}>
       <View style={styles.imageSection}>

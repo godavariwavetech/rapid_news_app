@@ -319,6 +319,7 @@ const newsSlice = createSlice({
       })
       .addCase(getCategories.fulfilled, (state, action) => {
         state.loadingCategories = false;
+        console.log(action.payload,">>>>>>>>>>>>>>>>>>>>>>>>VVaction.payload");
         state.categories = Array.isArray(action.payload) 
           ? action.payload 
           : (action.payload.items || []);
