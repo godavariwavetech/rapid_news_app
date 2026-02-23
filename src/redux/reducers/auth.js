@@ -119,7 +119,6 @@ export const postToken = createAsyncThunk(
         token: token,
         device_type: Platform.OS?.toUpperCase(),
       };
-      console.log(payload,">>>>>>>PAULOADDDDD>>>>>>");
       const response = await api.post(endpoints.POST_FCM_TOKEN, payload);
       console.log(response,"TOKEN RESPONSEE");
       return response.data;

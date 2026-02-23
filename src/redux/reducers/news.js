@@ -41,6 +41,10 @@ const initialState = {
   isUpdatingNews: false,
   updateNewsSuccess: false,
   updateNewsError: null,
+
+  isSubmittingFeedback: false,
+  feedbackSuccess: false,
+  feedbackError: null,
 };
 
 // --- ASYNC THUNKS ---
@@ -90,6 +94,8 @@ export const fetchNews = createAsyncThunk(
           'x-device-id': deviceId
         }
       });
+
+      console.log(response.data,">>>>>>>>>>>>>>>>>>>>>>response.data");
 
       return { data: response.data, page }; 
     } catch (error) {
@@ -177,7 +183,6 @@ export const postComment = createAsyncThunk(
   async ({ newsId, text }, { dispatch, rejectWithValue }) => {
     try {
       const payload = { news_id: newsId, text: text };
-      console.log(payload,">>>>>>>>>>>>>>payloadCmment");
       const response = await api.post(endpoints.ADD_COMMENT, payload);
       dispatch(getComments(newsId)); 
       return response.data;
@@ -223,7 +228,6 @@ export const getReporterNews = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.GET_REPORTER_NEWS);
-      console.log(response,">>>>>>>>>>>>>>>>responseeee>>>>>>>>>>>>>>Neews");
       return response.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -241,10 +245,26 @@ export const reportNews = createAsyncThunk(
         reason,
         message
       });
-      console.log(response,">>>>>>>>>>>>>>>>>>>>>>>REsponseee.....");
       return response.data;
     } catch (error) {
       console.log(error,">>>>>>ERRRRR");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+
+export const postFeedback = createAsyncThunk(
+  'news/postFeedback',
+  async ({ message }, { getState, rejectWithValue }) => {
+    try {
+      const deviceId = await getUniqueId();
+
+      const response = await api.post(endpoints.FEEDBACK, { message },  {headers: {
+          'x-device-id': deviceId
+        }});
+      return response.data;
+    } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -276,6 +296,10 @@ const newsSlice = createSlice({
       state.createNewsError = null;
       state.updateNewsSuccess = false;
       state.updateNewsError = null;
+    },
+    resetFeedbackStatus: (state) => {
+      state.feedbackSuccess = false;
+      state.feedbackError = null;
     }
   },
   extraReducers: (builder) => {
@@ -293,13 +317,10 @@ const newsSlice = createSlice({
         state.isLoadingMore = false;
         state.currentPage = page;
 
-        // Ensure incomingItems is always an array
         const incomingItems = Array.isArray(data) ? data : (data.items || []);
-        console.log(data,">>>>>>>>>>>>>>>>>>>>NEWS LIST");
         if (page === 1) {
           state.articles = data;
         } else {
-          // Robust append logic
           if (Array.isArray(state.articles)) {
              state.articles = [...state.articles, ...incomingItems];
           } else if (state.articles?.items) {
@@ -320,7 +341,6 @@ const newsSlice = createSlice({
       })
       .addCase(getCategories.fulfilled, (state, action) => {
         state.loadingCategories = false;
-        console.log(action.payload,">>>>>>>>>>>>>>>>>>>>>>>>VVaction.payload");
         state.categories = Array.isArray(action.payload) 
           ? action.payload 
           : (action.payload.items || []);
@@ -422,6 +442,21 @@ const newsSlice = createSlice({
       // --- Track Ad Click ---
       .addCase(trackAdClick.rejected, (state, action) => {
         console.log("Ad click tracking failed", action.payload);
+      })
+
+      // --- Post Feedback ---
+      .addCase(postFeedback.pending, (state) => {
+        state.isSubmittingFeedback = true;
+        state.feedbackSuccess = false;
+        state.feedbackError = null;
+      })
+      .addCase(postFeedback.fulfilled, (state) => {
+        state.isSubmittingFeedback = false;
+        state.feedbackSuccess = true;
+      })
+      .addCase(postFeedback.rejected, (state, action) => {
+        state.isSubmittingFeedback = false;
+        state.feedbackError = action.payload;
       });
   },
 });
@@ -431,7 +466,8 @@ export const {
   clearNews, 
   setRefreshing, 
   setMockNews, 
-  resetNewsStatus 
+  resetNewsStatus,
+  resetFeedbackStatus 
 } = newsSlice.actions;
 
 export default newsSlice.reducer;

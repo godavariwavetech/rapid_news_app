@@ -10,6 +10,9 @@ import {
   Keyboard,
   Platform,
   BackHandler,
+  TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
@@ -24,7 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSelector, useDispatch } from 'react-redux';
-import { getCategories } from '../redux/reducers/news';
+import { getCategories, postFeedback, resetFeedbackStatus } from '../redux/reducers/news';
 
 const {width, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -32,10 +35,28 @@ const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const {reporterToken} = useSelector((state)=>state.auth);
-  const {categories} = useSelector((state) => state.news);
+  const {reporterToken, userToken, isAuthenticated} = useSelector((state)=>state.auth);
+  const {categories, isSubmittingFeedback, feedbackSuccess, feedbackError} = useSelector((state) => state.news);
 
   const [activeSection, setActiveSection] = useState('news');
+  const [feedback, setFeedback] = useState('');
+
+  const handleSubmitFeedback = async () => {
+    if (!feedback.trim()) {
+      Alert.alert('Error', 'Please enter your feedback');
+      return;
+    }
+
+    const resultAction = await dispatch(postFeedback({ message: feedback }));
+    console.log(resultAction,">>>>>>>>>>>>>>RESUT ACTION");
+    // if (postFeedback.fulfilled.match(resultAction)) {
+    //   Alert.alert('Success', 'Thank you for your feedback!');
+    //   setFeedback('');
+    //   dispatch(resetFeedbackStatus());
+    // } else {
+    //   Alert.alert('Error', feedbackError || 'Failed to submit feedback. Please try again.');
+    // }
+  };
   
   const translateY = useSharedValue(SHEET_HEIGHT);
   const opacity = useSharedValue(0);
@@ -49,6 +70,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     {id: 'news', icon: 'compass', label: 'Explore'},
     {id: 'categories', icon: 'view-dashboard', label: 'Topics'},
     {id: 'reporter', icon: 'microphone-variant', label: 'Create'},
+    {id: 'feedback', icon: 'message-alert', label: 'Feedback'},
   ];
 
   const gradientPairs = [
@@ -334,6 +356,34 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* SECTION: feedback */}
+            <View style={styles.feedbackSection} onLayout={(e) => sectionRefs.current['feedback'] = e.nativeEvent.layout.y}>
+              <Text style={styles.menuTitle}>Feedback</Text>
+              <View style={styles.feedbackCard}>
+                <TextInput
+                  style={styles.feedbackInput}
+                  placeholder="Share your feedback..."
+                  placeholderTextColor="#A0A0A0"
+                  multiline
+                  numberOfLines={4}
+                  value={feedback}
+                  onChangeText={setFeedback}
+                />
+                <TouchableOpacity
+                  style={[styles.feedbackButton, isSubmittingFeedback && styles.feedbackButtonDisabled]}
+                  onPress={handleSubmitFeedback}
+                  disabled={isSubmittingFeedback}
+                  activeOpacity={0.8}
+                >
+                  {isSubmittingFeedback ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.feedbackButtonText}>Submit Feedback</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
             
             <View style={{height: 100}} />
           </ScrollView>
@@ -390,6 +440,12 @@ const styles = StyleSheet.create({
   iconContainer: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   menuText: { fontSize: 17, fontWeight: '800', color: '#2D3436' },
   menuSubText: { fontSize: 13, color: '#636E72', marginTop: 3, fontWeight: '500' },
+  feedbackSection: { paddingHorizontal: 18, marginTop: 30 },
+  feedbackCard: { backgroundColor: '#F8F9FA', borderRadius: 24, padding: 18, marginBottom: 20 },
+  feedbackInput: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, fontSize: 15, color: '#1A1A1A', height: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: '#F0F0F0', marginBottom: 16 },
+  feedbackButton: { backgroundColor: '#FF6B35', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  feedbackButtonDisabled: { backgroundColor: '#FFB899' },
+  feedbackButtonText: { fontSize: 16, fontWeight: '800', color: '#FFF' },
 });
 
 export default CategoriesModal;

@@ -1,6 +1,6 @@
 // export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms'; 
-export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
-// export const baseURL="https://godavariwave.in:7777"
+// export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
+export const baseURL="https://godavariwave.in:7777"
 
 
 export const endpoints = {
@@ -40,5 +40,6 @@ export const endpoints = {
   REPORT_NEWS:'news-reports/news',
 
   GOOGLE_LOGIN:'users/google-login',
-  POST_FCM_TOKEN:'users/register-fcm'
+  POST_FCM_TOKEN:'users/register-fcm',
+  FEEDBACK: 'feedback'
 };
