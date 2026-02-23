@@ -45,6 +45,8 @@ const initialState = {
   isSubmittingFeedback: false,
   feedbackSuccess: false,
   feedbackError: null,
+
+  notificationArticle: null,
 };
 
 // --- ASYNC THUNKS ---
@@ -98,6 +100,20 @@ export const fetchNews = createAsyncThunk(
       console.log(response.data,">>>>>>>>>>>>>>>>>>>>>>response.data");
 
       return { data: response.data, page }; 
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 1.1 Fetch Article By Id
+export const fetchArticleById = createAsyncThunk(
+  'news/fetchArticleById',
+  async (id, { rejectWithValue }) => {
+    try {
+      const url = endpoints.GET_ARTICLE.replace(':id', id);
+      const response = await api.get(url);
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -317,9 +333,26 @@ const newsSlice = createSlice({
         state.isLoadingMore = false;
         state.currentPage = page;
 
-        const incomingItems = Array.isArray(data) ? data : (data.items || []);
+        let incomingItems = Array.isArray(data) ? data : (data.items || []);
+        
         if (page === 1) {
-          state.articles = data;
+          // If we have a notification article, prepend it to the NEW list
+          if (state.notificationArticle) {
+            const article = state.notificationArticle;
+            const filtered = incomingItems.filter(item => 
+              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+            );
+            incomingItems = [article, ...filtered];
+            
+            // Re-wrap if necessary
+            if (Array.isArray(data)) {
+              state.articles = incomingItems;
+            } else {
+              state.articles = { ...data, items: incomingItems };
+            }
+          } else {
+            state.articles = data;
+          }
         } else {
           if (Array.isArray(state.articles)) {
              state.articles = [...state.articles, ...incomingItems];
@@ -333,6 +366,43 @@ const newsSlice = createSlice({
         state.loading = false;
         state.isLoadingMore = false;
         state.error = action.payload || 'Failed to fetch news';
+      })
+
+      // --- Fetch Article By Id ---
+      .addCase(fetchArticleById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchArticleById.fulfilled, (state, action) => {
+        state.loading = false;
+        let article = action.payload;
+        
+        // Ensure the article matches the feed structure { data, type: 'NEWS' }
+        if (!article.data) {
+          article = { data: article, type: 'NEWS' };
+        }
+
+        // Store this specifically so it can be preserved when clearing or refetching
+        state.notificationArticle = article;
+
+        // Ensure the article is added to the top
+        if (Array.isArray(state.articles)) {
+          const filtered = state.articles.filter(item => 
+            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+          );
+          state.articles = [article, ...filtered];
+        } else if (state.articles?.items) {
+          const filtered = state.articles.items.filter(item => 
+            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+          );
+          state.articles.items = [article, ...filtered];
+        } else {
+          state.articles = [article];
+        }
+      })
+      .addCase(fetchArticleById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch article';
       })
 
       // --- Get Categories ---

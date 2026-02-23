@@ -52,8 +52,7 @@ const SettingsScreen = ({navigation}) => {
         </View>
 
         {/* Toggle Switches Section - 4 columns */}
-        <View style={styles.toggleContainer}>
-          {/* Notifications */}
+        {/* <View style={styles.toggleContainer}>
           <View style={styles.toggleColumn}>
             <View style={[styles.toggleIconCircle, {backgroundColor: '#FFEEF3'}]}>
               <Icon name="bell" size={28} color="#E91E63" />
@@ -68,7 +67,6 @@ const SettingsScreen = ({navigation}) => {
             />
           </View>
 
-          {/* Video Alerts */}
           <View style={styles.toggleColumn}>
             <View style={[styles.toggleIconCircle, {backgroundColor: '#E3F2FD'}]}>
               <Icon name="video" size={28} color="#2196F3" />
@@ -83,7 +81,6 @@ const SettingsScreen = ({navigation}) => {
             />
           </View>
 
-          {/* Night Mode */}
           <View style={styles.toggleColumn}>
             <View style={[styles.toggleIconCircle, {backgroundColor: '#F3E5F5'}]}>
               <Icon name="weather-night" size={28} color="#9C27B0" />
@@ -98,7 +95,6 @@ const SettingsScreen = ({navigation}) => {
             />
           </View>
 
-          {/* Location Services */}
           <View style={styles.toggleColumn}>
             <View style={[styles.toggleIconCircle, {backgroundColor: '#E8F5E9'}]}>
               <Icon name="map-marker" size={28} color="#4CAF50" />
@@ -112,7 +108,7 @@ const SettingsScreen = ({navigation}) => {
               ios_backgroundColor="#CCCCCC"
             />
           </View>
-        </View>
+        </View> */}
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>

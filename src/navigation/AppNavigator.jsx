@@ -1,8 +1,9 @@
-import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import {NavigationContainer, useNavigationContainerRef} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {useSelector} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
+import { setupNotificationHandlers } from '../services/NotificationsService';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -32,6 +33,8 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import { endActivity, startActivity } from '../redux/reducers/auth';
+import { AppState } from 'react-native';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,12 +55,57 @@ function TabNavigator() {
 }
 
 function AppNavigator() {
+  const navigationRef = useNavigationContainerRef();
+  const dispatch = useDispatch();
   const isOnboardingComplete = useSelector(
     state => state.auth.isOnboardingComplete,
   );
+  const currentLocation = useSelector(state => state.location?.currentLocation);
+  const appState = useRef(AppState.currentState);
+  const districtIdRef = useRef(currentLocation?.district?._id);
+
+  const serviceHandler = async () =>{
+    const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
+    console.log(response,">>>>>>>>>>>>>>>.responseeee>>>>>>>>");
+  }
+
+  useEffect(() => {
+    districtIdRef.current = currentLocation?.district?._id;
+  }, [currentLocation]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (navigationRef.isReady()) {
+        setupNotificationHandlers(navigationRef);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [navigationRef]);
+
+  useEffect(() => {
+    serviceHandler()
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+       serviceHandler()
+      } else if (
+        appState.current === 'active' &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        dispatch(endActivity());
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [dispatch]);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

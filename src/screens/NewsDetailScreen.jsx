@@ -17,9 +17,38 @@ import { lightTheme, darkTheme } from '../utils/colors';
 const { width } = Dimensions.get('window');
 
 const NewsDetailScreen = ({ route, navigation }) => {
-  const { news } = route.params; // Receiving the news object
+  const { news: passedNews, newsId } = route.params || {};
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
+  
+  const reduxNews = useSelector(state => {
+    if (!newsId) return null;
+    const articles = state.news.articles;
+    const items = Array.isArray(articles) ? articles : (articles.items || []);
+    return items.find(item => (item.data ? item.data._id : item._id) === newsId);
+  });
+
+  const rawNews = passedNews || reduxNews;
+  const news = rawNews?.data || rawNews;
+  const loading = useSelector(state => state.news.loading);
+
+  if (loading && !news) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: theme.text }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!news) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 20 }}>
+          <Text style={{ color: theme.text }}>News not found. Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const onShare = async () => {
     try {

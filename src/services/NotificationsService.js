@@ -1,5 +1,7 @@
-import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
+import notifee, { AndroidColor, AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
+import { fetchArticleById } from '../redux/reducers/news';
+import { store } from '../redux/store';
 
 export const setupNotificationHandlers = (navigation) => {
   // Foreground notifications
@@ -62,9 +64,15 @@ const displayNotification = async (notification) => {
   }
 };
 
-const handleNotificationNavigation = (data, navigation) => {
+const handleNotificationNavigation = async (data, navigation) => {
   if (data.type === 'order_update') {
     navigation.navigate('OrderDetails', { orderId: data.orderId });
+  } else if (data.newsId || data.news_id || data.id) {
+    const newsId = data.newsId || data.news_id || data.id;
+    // Dispatch action to fetch and prepend article
+    store.dispatch(fetchArticleById(newsId));
+    // Navigate to NewsDetail with the newsId
+    navigation.navigate('NewsDetail', { newsId: newsId });
   }
   // Add more navigation handlers as needed
 };
@@ -86,7 +94,9 @@ export const getFCMToken = async () => {
       id: 'default1',
       name: 'Default Channel',
       importance: AndroidImportance.HIGH, // Ensures high priority notifications
-      sound: 'default', // You can add a custom sound here
+      sound: 'default',
+      lights: true,
+     lightColor: AndroidColor.YELLOW, 
       vibration: true,
     });
     console.log(">>>>>>>>>>>>>MESSAGECALLING",remoteMessage)

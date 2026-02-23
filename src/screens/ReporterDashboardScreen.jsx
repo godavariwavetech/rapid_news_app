@@ -22,6 +22,7 @@ import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native'
 import { getProfile } from '../redux/reducers/auth';
 import { fonts } from '../config/theme';
 import { getReporterStats } from '../redux/reducers/profile';
+import { NotificationAndroidPriority } from '@react-native-firebase/messaging';
 
 const ReporterDashboardScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
@@ -42,14 +43,14 @@ const ReporterDashboardScreen = ({navigation}) => {
   const mainTabs = [
     {id: 'dashboard', name: 'డాష్‌బోర్డ్'},
     {id: 'stories', name: 'నా స్టోరీస్'},
-    {id: 'wallet', name: 'నా జిల్లా'},
-    {id: 'videos', name: 'టాప్ వీడియోలు'},
+    // {id: 'wallet', name: 'నా జిల్లా'},
+    // {id: 'videos', name: 'టాప్ వీడియోలు'},
   ];
 
   const locationTabs = [
     {id: 1, name: 'తూర్పు గోదావరి', count: null},
-    {id: 2, name: 'Thallapudi', count: 1},
-    {id: 3, name: 'Rajamundry', count: 1},
+    // {id: 2, name: 'Thallapudi', count: 1},
+    // {id: 3, name: 'Rajamundry', count: 1},
   ];
 
 
@@ -142,18 +143,22 @@ const ReporterDashboardScreen = ({navigation}) => {
       badge: true
     });
 
-    await notifee.displayNotification({
-      title: '<p style="color: #000000;"><b>IPLలో ఆ స్టార్‌ను</b></p>',
-      body: '<b>ఆడనిచ్చని డిమాండ్</b>',
-      android: {
-        channelId,
-        smallIcon: 'ic_launcher', 
-        style: {
-          type: AndroidStyle.BIGTEXT,
-          text: 'ఆడనిచ్చని డిమాండ్ - Read full news and updates about IPL cricket.',
-        },
-      },
-    });
+await notifee.displayNotification({
+  id: `news_${Date.now()}`,
+  // 1. Move the styled text to the TOP-LEVEL title so it is visible when collapsed
+  title: `<h1><b>BREAKING: <font color="#FF3131">పాలు తాగి ఐదుగురు మృతి</font></b></h1>`,
+  // 2. Put a space in the body to ensure the notification renders properly
+  body: '\u00A0', 
+  android: {
+    channelId,
+    // 3. This places the square logo on the LEFT (default for non-styled notifications)
+    largeIcon: 'https://www.sitinetworks.com/siti-assets/images/logo.png', 
+    importance: AndroidImportance.HIGH,
+    priority: NotificationAndroidPriority.MAX,
+    groupId: `group_${Date.now()}`,
+    // 4. REMOVE the 'style' object entirely for now to fix the icon position
+  },
+});
   };
 
   const renderBlockedBanner = () => (
@@ -272,9 +277,9 @@ const ReporterDashboardScreen = ({navigation}) => {
         </View>
         <View style={styles.earningsCard}>
           <View style={styles.earningsRow}>
-            <View style={styles.earningItem}><Text style={styles.earningLabel}>మొత్తం ఆదాయం</Text><Text style={styles.earningAmount}>₹100</Text></View>
+            <View style={styles.earningItem}><Text style={styles.earningLabel}>మొత్తం ఆదాయం</Text><Text style={styles.earningAmount}>₹0</Text></View>
             <View style={styles.dividerVertical} />
-            <View style={styles.earningItem}><Text style={styles.earningLabel}>ప్రస్తుత ఆదాయం</Text><Text style={styles.earningAmount}>₹100</Text></View>
+            <View style={styles.earningItem}><Text style={styles.earningLabel}>ప్రస్తుత ఆదాయం</Text><Text style={styles.earningAmount}>₹0</Text></View>
           </View>
           <TouchableOpacity style={styles.payButton} onPress={testNotification}>
             <Text style={styles.payButtonText}>పేమెంట్ అభ్యర్థించండి</Text>

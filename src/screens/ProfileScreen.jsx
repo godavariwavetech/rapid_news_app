@@ -114,9 +114,9 @@ const ProfileScreen = ({navigation}) => {
           <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerIconButton}>
             <Icon name="cog-outline" size={24} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton} onPress={() => navigation.navigate('Search')}>
+          {/* <TouchableOpacity style={styles.headerIconButton} onPress={() => navigation.navigate('Search')}>
             <Icon name="magnify" size={24} color="#666" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerRight}>
@@ -143,7 +143,7 @@ const ProfileScreen = ({navigation}) => {
 
         {/* Language & Location Section */}
         <View style={styles.settingsCard}>
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             style={styles.settingItem} 
             onPress={() => navigation.navigate('LanguageSelection', {isOnboarding: false})}>
             <View style={styles.settingIconContainer}><Icon name="translate" size={22} color="#E74C3C" /></View>
@@ -154,7 +154,7 @@ const ProfileScreen = ({navigation}) => {
             <View style={styles.settingArrow}><Icon name="arrow-right" size={16} color="#FFFFFF" /></View>
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <View style={styles.divider} /> */}
 
           {/* Actual Location displayed here */}
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('LocationSelection')}>
@@ -234,7 +234,7 @@ const ProfileScreen = ({navigation}) => {
             <Icon name="chevron-right" size={18} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('ContentList', {type: 'videos'})} style={styles.menuItem}>
+          {/* <TouchableOpacity onPress={() => navigation.navigate('ContentList', {type: 'videos'})} style={styles.menuItem}>
             <View style={styles.menuIconContainer}><Icon name="video" size={18} color="#E74C3C" /></View>
             <Text style={styles.menuText}>వీడియోస్</Text>
             <Icon name="chevron-right" size={18} color="#999" />
@@ -246,7 +246,7 @@ const ProfileScreen = ({navigation}) => {
             </View>
             <Text style={styles.menuText}>వైరల్</Text>
             <Icon name="chevron-right" size={18} color="#999" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>

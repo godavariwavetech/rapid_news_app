@@ -129,16 +129,25 @@ function HomeScreen({navigation}) {
   const handleTabPress = useCallback((tabId) => {
     if (tabId === 'CategoriesTab') {
       setCategoriesModalVisible(true);
-    }else if (tabId === 'LocationTab') {
-    setActiveTab(tabId);
-    dispatch(clearNews());
-    dispatch(fetchNews({
-      currentLocation, 
-      category: selectedCategory, 
-      page: 1, 
-      isLocationMode: true 
-    }));
-  } else {
+    } else if (tabId === 'LocationTab') {
+      setActiveTab(tabId);
+      setHeaderTitle(displayLocationName);
+      dispatch(clearNews());
+      dispatch(fetchNews({
+        currentLocation, 
+        category: selectedCategory, 
+        page: 1, 
+        isLocationMode: true 
+      }));
+      if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+    } else if (tabId === 'HomeTab') {
+      setActiveTab(tabId);
+      setHeaderTitle('న్యూస్');
+      dispatch(setSelectedCategory('all'));
+      dispatch(clearNews());
+      dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
+      if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+    } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
         dispatch(clearNews());
@@ -146,7 +155,7 @@ function HomeScreen({navigation}) {
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
       }
     }
-  }, [selectedCategory, currentLocation]);
+  }, [selectedCategory, currentLocation, displayLocationName, dispatch]);
 
   return (
     <View style={styles.container}>

@@ -128,6 +128,34 @@ export const postToken = createAsyncThunk(
   },
 );
 
+export const startActivity = createAsyncThunk(
+  'auth/startActivity',
+  async (payload, { rejectWithValue }) => {
+    try {
+      console.log(payload,">>>>>>>>>>>>>PAYLOASDDDD");
+      const response = await api.post(endpoints.START_ACTIVITY, payload);
+      console.log(response,"<>>>>>>>>>>>>Resposeee Activity");
+      return response.data;
+    } catch (error) {
+      console.log(error, "ERROR Starting Activity");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+export const endActivity = createAsyncThunk(
+  'auth/endActivity',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.END_ACTIVITY);
+      return response.data;
+    } catch (error) {
+      console.log(error, "ERROR Ending Activity");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
 
 
 const authSlice = createSlice({

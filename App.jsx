@@ -14,11 +14,14 @@ import VersionCheck from 'react-native-version-check';
 import CustomModal from './src/components/CustomModal';
 import { getFCMToken } from './src/services/NotificationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { NativeModules } from 'react-native';
+
 
 LogBox.ignoreAllLogs();
 
 function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { CustomNewsNotification } = NativeModules;
 
   const checkAndRequestPermissions = async () => {
     try {
@@ -79,6 +82,14 @@ function App() {
     });
   }, []);
 
+  const testNot= async () =>{
+const newsHtml = '<b>BREAKING: <font color="#ffffff">పాలు తాగి ఐదుగురు మృతి</font></b>';
+  const newsId = '98765'; // The ID of the article
+
+  // Pass the ID as the second argument
+  CustomNewsNotification.show(newsHtml, newsId);
+  }
+
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <Provider store={store}>
@@ -93,6 +104,7 @@ function App() {
               onConfirm={handleUpdate}
               cancelText=''
             />
+            <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>
           </TabBarProvider>
         </PersistGate>
       </Provider>
