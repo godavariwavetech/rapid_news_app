@@ -4,6 +4,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
+import { AppState, Linking } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -34,7 +35,7 @@ import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
 import { endActivity, startActivity } from '../redux/reducers/auth';
-import { AppState } from 'react-native';
+import { fetchArticleById } from '../redux/reducers/news';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -64,19 +65,16 @@ function AppNavigator() {
   const currentLocation = useSelector(state => state.location?.currentLocation);
   const appState = useRef(AppState.currentState);
   const districtIdRef = useRef(currentLocation?.district?._id);
-  
-  // Ref to store the session/request ID
   const sessionIdRef = useRef(null);
 
   const serviceHandler = async () =>{
     const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
-    console.log(response,">>>>>>>>>>>>>>>.responseeee>>>>>>>>");
-    
-    // Capture the requestId from the meta object
     if (response?.meta?.requestId) {
       sessionIdRef.current = response.meta.requestId;
     }
   }
+
+  
 
   useEffect(() => {
     districtIdRef.current = currentLocation?.district?._id;
@@ -103,10 +101,8 @@ function AppNavigator() {
         appState.current === 'active' &&
         nextAppState.match(/inactive|background/)
       ) {
-        // Send the captured session ID when the app goes to the background
         if (sessionIdRef.current) {
           dispatch(endActivity({ session_id: sessionIdRef.current }));
-          // Optional: clear it after ending
           sessionIdRef.current = null;
         }
       }
@@ -117,6 +113,45 @@ function AppNavigator() {
       subscription.remove();
     };
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleNotificationClick = async (url) => {
+      if (url && url.startsWith('rapidnews://news/')) {
+        const newsId = url.replace('rapidnews://news/', '');
+
+        console.log(newsId,">>>>>>>>>>>>>>>>>>>newsId");
+        
+        // 1. Fetch the news data
+       const resp = await dispatch(fetchArticleById(newsId));
+
+       console.log(resp,">>>>>>>>GGGGGGGGGGLLLLL");
+        
+        // 2. Safely navigate to the NewsDetail screen
+        const navigateToNews = () => {
+          if (navigationRef.isReady()) {
+            navigationRef.current.navigate('NewsDetail', { newsId: newsId });
+          } else {
+            setTimeout(navigateToNews, 300); // Retry if navigation isn't ready
+          }
+        };
+        navigateToNews();
+      }
+    };
+
+    // Listen for notification click when app is killed/closed
+    Linking.getInitialURL().then((url) => {
+      handleNotificationClick(url);
+    });
+
+    // Listen for notification click when app is already open in background
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleNotificationClick(url);
+    });
+
+    return () => {
+      linkingSubscription.remove();
+    };
+  }, [dispatch, navigationRef]);
 
   return (
     <NavigationContainer ref={navigationRef}>

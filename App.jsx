@@ -15,6 +15,7 @@ import CustomModal from './src/components/CustomModal';
 import { getFCMToken } from './src/services/NotificationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { NativeModules } from 'react-native';
+import notifee from '@notifee/react-native';
 
 
 LogBox.ignoreAllLogs();
@@ -72,6 +73,7 @@ function App() {
     checkAndRequestPermissions();
     getToken();
     checkForUpdate();
+    notifee.requestPermission();
   }, []);
 
 
@@ -84,7 +86,7 @@ function App() {
 
   const testNot= async () =>{
 const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
-  const newsId = '98765'; // The ID of the article
+  const newsId = '69983a46dfd2ebf3f26169e3'; // The ID of the article
 
   // Pass the ID as the second argument
   CustomNewsNotification.show(newsHtml, newsId);
@@ -104,7 +106,7 @@ const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
               onConfirm={handleUpdate}
               cancelText=''
             />
-            {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity> */}
+         {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>  */}
           </TabBarProvider>
         </PersistGate>
       </Provider>

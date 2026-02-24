@@ -19,10 +19,9 @@ import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
 import { getBookmarks } from '../redux/reducers/bookmarks';
-import { fetchFCMToken } from '../services/NotificationsService';
 import { postToken } from '../redux/reducers/auth';
+import notifee from '@notifee/react-native';
 
-const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
@@ -69,6 +68,7 @@ function HomeScreen({navigation}) {
     dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
     dispatch(getBookmarks())
     sendToken()
+    notifee.requestPermission();
   }, [selectedCategory, currentLocation, dispatch]);
 
   const sendToken = async () =>{
