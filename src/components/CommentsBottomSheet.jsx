@@ -141,95 +141,98 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
           </View>
 
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardContainer}>
-            
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <TouchableOpacity style={styles.backButton} onPress={handleClose}>
-                  <Icon name="arrow-left" size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {newsTitle || 'Comments'}
-                </Text>
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardContainer}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <TouchableOpacity style={styles.backButton} onPress={handleClose}>
+                    <Icon name="arrow-left" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    {newsTitle || 'Comments'}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            {isLoadingComments ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2196F3" />
-              </View>
-            ) : (
-              <ScrollView
-                style={styles.content}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}>
-                
-                {currentComments && currentComments.length > 0 ? (
-                  currentComments.map((comment, index) => {
-                    const isSame= comment?.user?._id ==reporter?._id
-                    const userName = comment.user?.name || 'User';
-                    const userInitial = userName.charAt(0).toUpperCase();
-                    const timeString = comment.createdAt 
-                      ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                      : '';
+              {isLoadingComments ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#2196F3" />
+                </View>
+              ) : (
+                <ScrollView
+                  style={styles.content}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  showsVerticalScrollIndicator={false}>
+                  
+                  {currentComments && currentComments.length > 0 ? (
+                    currentComments.map((comment, index) => {
+                      const isSame= comment?.user?._id ==reporter?._id
+                      const userName = comment.user?.name || 'User';
+                      const userInitial = userName.charAt(0).toUpperCase();
+                      const timeString = comment.createdAt 
+                        ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                        : '';
 
-                    return (
-                      <View key={comment._id || index} style={styles.commentCard}>
-                        <View style={styles.commentLeft}>
-                          <View style={[styles.avatar, {backgroundColor: '#E8D5F5'}]}>
-                            <Text style={styles.avatarText}>{userInitial}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.commentRight}>
-                          <View style={[styles.commentBubble, {backgroundColor: '#F5F6F8'}]}>
-                            <View style={styles.commentHeader}>
-                              <Text style={styles.username}>{userName} {isSame&& '(You)'}</Text>
+                      return (
+                        <View key={comment._id || index} style={styles.commentCard}>
+                          <View style={styles.commentLeft}>
+                            <View style={[styles.avatar, {backgroundColor: '#E8D5F5'}]}>
+                              <Text style={styles.avatarText}>{userInitial}</Text>
                             </View>
-                            <Text style={styles.commentText}>{comment.text}</Text>
                           </View>
 
-                          <View style={styles.commentActions}>
-                            <Text style={styles.commentTime}>{timeString}</Text>
+                          <View style={styles.commentRight}>
+                            <View style={[styles.commentBubble, {backgroundColor: '#F5F6F8'}]}>
+                              <View style={styles.commentHeader}>
+                                <Text style={styles.username}>{userName} {isSame&& '(You)'}</Text>
+                              </View>
+                              <Text style={styles.commentText}>{comment.text}</Text>
+                            </View>
+
+                            <View style={styles.commentActions}>
+                              <Text style={styles.commentTime}>{timeString}</Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No comments yet.</Text>
-                  </View>
-                )}
-              </ScrollView>
-            )}
+                      );
+                    })
+                  ) : (
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.emptyText}>No comments yet.</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
 
-            {/* Guarded Input Container */}
-            <View style={[styles.inputContainer, {marginBottom: insets.bottom}]}>
-              <TextInput
-                style={[styles.input, !hasToken && { backgroundColor: '#f0f0f0' }]}
-                placeholder={hasToken ? "Write a comment..." : "Login to comment"}
-                placeholderTextColor="#999"
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                editable={hasToken!= null} // Disable typing if not authenticated
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton, 
-                  (!commentText.trim() || !hasToken) && { backgroundColor: '#ccc' }
-                ]}
-                onPress={handleSendComment}
-                disabled={isPostingComment || !commentText.trim() || !hasToken}
-                activeOpacity={0.8}>
-                {isPostingComment ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Icon name="send" size={24} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
+              {/* Guarded Input Container */}
+              <View style={[styles.inputContainer, {marginBottom: insets.bottom}]}>
+                <TextInput
+                  style={[styles.input, !hasToken && { backgroundColor: '#f0f0f0' }]}
+                  placeholder={hasToken ? "Write a comment..." : "Login to comment"}
+                  placeholderTextColor="#999"
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  multiline
+                  editable={hasToken!= null} // Disable typing if not authenticated
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton, 
+                    (!commentText.trim() || !hasToken) && { backgroundColor: '#ccc' }
+                  ]}
+                  onPress={handleSendComment}
+                  disabled={isPostingComment || !commentText.trim() || !hasToken}
+                  activeOpacity={0.8}>
+                  {isPostingComment ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Icon name="send" size={24} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>

@@ -413,7 +413,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
               <Text style={styles.timestamp}>{news.timeAgo}</Text>
             </View>
 
-            <View style={[styles.statsBar, {marginBottom: insets.bottom}]}>
+            <View style={[styles.statsBar, {marginBottom: insets.bottom+10}]}>
               <View style={styles.statsLeft}>
                 {news.commentsEnabled !== false && (
                   <TouchableOpacity
@@ -631,10 +631,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   title: {
-    fontSize: responsiveFontSize(3), 
+    fontSize: responsiveFontSize(2.5), 
     color: '#1A1A1A',
     lineHeight: responsiveFontSize(4),
-    marginBottom: responsiveHeight(2), 
+    marginBottom:7,
+    // marginBottom: responsiveHeight(2), 
     letterSpacing: 0.2,
     fontFamily:fonts.bold
   },
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   body: {
-    fontSize: responsiveFontSize(2.3),
+    fontSize: responsiveFontSize(2.2),
     color: '#333',
     lineHeight: responsiveFontSize(4.0),
     paddingBottom: 10,

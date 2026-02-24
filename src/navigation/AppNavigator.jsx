@@ -122,14 +122,13 @@ function AppNavigator() {
         console.log(newsId,">>>>>>>>>>>>>>>>>>>newsId");
         
         // 1. Fetch the news data
-       const resp = await dispatch(fetchArticleById(newsId));
+       const resp = await dispatch(fetchArticleById("69983a46dfd2ebf3f26169e3"));
 
        console.log(resp,">>>>>>>>GGGGGGGGGGLLLLL");
         
-        // 2. Safely navigate to the NewsDetail screen
         const navigateToNews = () => {
           if (navigationRef.isReady()) {
-            navigationRef.current.navigate('NewsDetail', { newsId: newsId });
+            navigationRef.current.navigate('Main');
           } else {
             setTimeout(navigateToNews, 300); // Retry if navigation isn't ready
           }

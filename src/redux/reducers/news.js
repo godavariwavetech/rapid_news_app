@@ -111,8 +111,14 @@ export const fetchArticleById = createAsyncThunk(
   'news/fetchArticleById',
   async (id, { rejectWithValue }) => {
     try {
+      const deviceId = await getUniqueId();
       const url = endpoints.GET_ARTICLE.replace(':id', id);
-      const response = await api.get(url);
+      console.log(url,">>>>>>>>>>UELLLL>>>>>>>>>");
+      const response = await api.get(url,{},{
+         headers: {
+          'x-device-id': deviceId
+        }
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -166,7 +172,6 @@ export const reactToNews = createAsyncThunk(
   'news/reactToNews',
   async ({ newsId, type }, { rejectWithValue }) => {
     try {
-      console.log({ newsId, type },">>>>>>>>>>>>>>>REACTION PAYLOADDDDD");
       const deviceId = await getUniqueId();
       const payload = { news_id: newsId, type: type };
       const response = await api.post(endpoints.GUEST_REACT_LIKE, payload,{
@@ -256,7 +261,6 @@ export const reportNews = createAsyncThunk(
   'news/reportNews',
   async ({ newsId, reason, message }, { rejectWithValue }) => {
     try {
-      console.log(newsId,reason,message,">>>>>>>>>>>>>>>>>>>MESSAGEEEEEE",`${endpoints.REPORT_NEWS}/${newsId}`);
       const response = await api.post(`${endpoints.REPORT_NEWS}/${newsId}`, {
         reason,
         message

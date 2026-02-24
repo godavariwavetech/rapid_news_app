@@ -73,7 +73,7 @@ function App() {
     checkAndRequestPermissions();
     getToken();
     checkForUpdate();
-    notifee.requestPermission();
+    // notifee.requestPermission();
   }, []);
 
 
