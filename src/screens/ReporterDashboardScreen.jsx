@@ -33,7 +33,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   const {reporterStats} = useSelector((state)=> state.profile)
 
   const [selectedTab, setSelectedTab] = useState('డాష్‌బోర్డ్');
-  const [selectedLocation, setSelectedLocation] = useState('తూర్పు గోదావరి');
+  const [selectedLocation, setSelectedLocation] = useState(reporter?.reporter_profile?.district_id?.name?.en);
   const [refreshing, setRefreshing] = useState(false);
   
   const [modalVisible, setModalVisible] = useState(false);
@@ -48,7 +48,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   ];
 
   const locationTabs = [
-    {id: 1, name: 'తూర్పు గోదావరి', count: null},
+    {id: 1, name: reporter?.reporter_profile?.district_id?.name?.en || 'తూర్పు గోదావరి', count: null},
     // {id: 2, name: 'Thallapudi', count: 1},
     // {id: 3, name: 'Rajamundry', count: 1},
   ];
@@ -135,6 +135,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   };
 
   const testNotification = async () => {
+    return
     await notifee.requestPermission();
     const channelId = await notifee.createChannel({
       id: 'custom_test_channel',
@@ -254,15 +255,15 @@ await notifee.displayNotification({
         </View>
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_submitted}</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_submitted || 0}</Text>
             <Text style={styles.statLabel}>సబ్మిట్</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_rejected}</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_rejected || 0}</Text>
             <Text style={styles.statLabel}>రిజెక్ట్</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_approved}</Text>
+            <Text style={styles.statNumber}>{reporterStats?.total_approved || 0}</Text>
             <Text style={styles.statLabel}>లైవ్</Text>
           </View>
         </View>

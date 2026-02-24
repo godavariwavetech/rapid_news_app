@@ -46,12 +46,12 @@ function CustomDrawerContent({ navigation }) {
       icon: 'home-variant-outline',
       screen: 'ReporterDashboard',
     },
-    {
-      id: 'profile',
-      label: 'ప్రొఫైల్',
-      icon: 'account-outline',
-      screen: 'Profile',
-    },
+    // {
+    //   id: 'profile',
+    //   label: 'ప్రొఫైల్',
+    //   icon: 'account-outline',
+    //   screen: 'Profile',
+    // },
     {
       id: 'reporter',
       label: 'రిపోర్ట్',

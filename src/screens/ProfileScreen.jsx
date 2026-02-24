@@ -24,6 +24,9 @@ const ProfileScreen = ({navigation}) => {
   
   // Select data from Redux
   const {reporter,user} = useSelector(state => state.auth);
+
+  console.log(reporter,">>>>>>>>>>>>>>>>reporter");
+
   // Get location data from Redux store
   const {currentLocation} = useSelector(state => state.location);
   const {
@@ -131,12 +134,12 @@ const ProfileScreen = ({navigation}) => {
         {/* Profile Section */}
         <TouchableOpacity onPress={handleGoogleLogin} style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-          { ( user?.profile_image)? <Image source={{uri:user?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color="#CCC" />}
+          { ( user?.profile_image||reporter?.profile_image)? <Image source={{uri:user?.profile_image||reporter?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color="#CCC" />}
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{user?.name || reporter?.reporter_profile?.username || "Guest"}</Text>
             {/* <TouchableOpacity> */}
-             <Text style={styles.profileLink}>{user?.email||"Click here to select email id"}</Text>
+             <Text style={styles.profileLink}>{user?.email|| reporter?.email||"Click here to select email id"}</Text>
             {/* </TouchableOpacity> */}
           </View>
         </TouchableOpacity>

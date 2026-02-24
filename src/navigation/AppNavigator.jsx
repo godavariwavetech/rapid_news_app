@@ -60,13 +60,22 @@ function AppNavigator() {
   const isOnboardingComplete = useSelector(
     state => state.auth.isOnboardingComplete,
   );
+  
   const currentLocation = useSelector(state => state.location?.currentLocation);
   const appState = useRef(AppState.currentState);
   const districtIdRef = useRef(currentLocation?.district?._id);
+  
+  // Ref to store the session/request ID
+  const sessionIdRef = useRef(null);
 
   const serviceHandler = async () =>{
     const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
     console.log(response,">>>>>>>>>>>>>>>.responseeee>>>>>>>>");
+    
+    // Capture the requestId from the meta object
+    if (response?.meta?.requestId) {
+      sessionIdRef.current = response.meta.requestId;
+    }
   }
 
   useEffect(() => {
@@ -94,7 +103,12 @@ function AppNavigator() {
         appState.current === 'active' &&
         nextAppState.match(/inactive|background/)
       ) {
-        dispatch(endActivity());
+        // Send the captured session ID when the app goes to the background
+        if (sessionIdRef.current) {
+          dispatch(endActivity({ session_id: sessionIdRef.current }));
+          // Optional: clear it after ending
+          sessionIdRef.current = null;
+        }
       }
       appState.current = nextAppState;
     });

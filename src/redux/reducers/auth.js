@@ -22,7 +22,6 @@ export const requestOTP = createAsyncThunk(
       const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload);
       return response;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>LOGIN");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -33,10 +32,8 @@ export const verifyOTP = createAsyncThunk(
   async (payload, {getState, rejectWithValue}) => {
     try {
       const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -54,10 +51,8 @@ export const applyReporter = createAsyncThunk(
         }
       };
       const response = await api.post(endpoints.APPLY_REPORTER, payload, config);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -67,12 +62,9 @@ export const getProfile = createAsyncThunk(
   'auth/getProfile',
   async (_, {getState, rejectWithValue}) => {
     try {
-      console.log(">>>>>>>>>>>>>CALLING");
       const response = await api.get(endpoints.GET_USER_PROFILE);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -81,12 +73,8 @@ export const getProfile = createAsyncThunk(
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (payload, { rejectWithValue }) => {
-    console.log("Called here>>>>>>>>>>>>");
     try {
-      // endpoints.GET_USER_PROFILE maps to 'users/my-profile'
       const response = await api.patch(endpoints.GET_USER_PROFILE, payload);
-
-      console.log(response,">>>>>>>>>>responseeeeee update profile");
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -100,7 +88,6 @@ export const userLogin = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const response = await api.post(endpoints.GOOGLE_LOGIN, payload);
-      console.log(response,">>>>>>>>>>>>>Responseeee>>>>>>>>>>>>");
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -120,7 +107,6 @@ export const postToken = createAsyncThunk(
         device_type: Platform.OS?.toUpperCase(),
       };
       const response = await api.post(endpoints.POST_FCM_TOKEN, payload);
-      console.log(response,"TOKEN RESPONSEE");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -132,9 +118,7 @@ export const startActivity = createAsyncThunk(
   'auth/startActivity',
   async (payload, { rejectWithValue }) => {
     try {
-      console.log(payload,">>>>>>>>>>>>>PAYLOASDDDD");
       const response = await api.post(endpoints.START_ACTIVITY, payload);
-      console.log(response,"<>>>>>>>>>>>>Resposeee Activity");
       return response.data;
     } catch (error) {
       console.log(error, "ERROR Starting Activity");
@@ -145,9 +129,11 @@ export const startActivity = createAsyncThunk(
 
 export const endActivity = createAsyncThunk(
   'auth/endActivity',
-  async (_, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.END_ACTIVITY);
+      console.log(">>>>>>>>>>>Responseee>>>>>>>>>>>>>>>PAYLOAD",payload);
+      const response = await api.post(endpoints.END_ACTIVITY, payload);
+      console.log(response,">>>RESP");
       return response.data;
     } catch (error) {
       console.log(error, "ERROR Ending Activity");
@@ -205,7 +191,6 @@ const authSlice = createSlice({
           state.reporter=action.payload
         })
         .addCase(userLogin.fulfilled, (state, action) => {
-          console.log(action.payload,">>>>>>>>>>>>>PREEPPEPEPEPEP");
           state.loading = false;
           state.user=action.payload.user
           state.userToken=action.payload.token

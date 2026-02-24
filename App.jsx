@@ -83,7 +83,7 @@ function App() {
   }, []);
 
   const testNot= async () =>{
-const newsHtml = '<b>BREAKING: <font color="#ffffff">పాలు తాగి ఐదుగురు మృతి</font></b>';
+const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
   const newsId = '98765'; // The ID of the article
 
   // Pass the ID as the second argument
@@ -104,7 +104,7 @@ const newsHtml = '<b>BREAKING: <font color="#ffffff">పాలు తాగి �
               onConfirm={handleUpdate}
               cancelText=''
             />
-            <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>
+            {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity> */}
           </TabBarProvider>
         </PersistGate>
       </Provider>

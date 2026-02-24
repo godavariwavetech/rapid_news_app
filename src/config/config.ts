@@ -44,5 +44,5 @@ export const endpoints = {
   POST_FCM_TOKEN:'users/register-fcm',
   FEEDBACK: 'feedback',
   START_ACTIVITY: 'activity/start',
-  END_ACTIVITY: 'session/end'
+  END_ACTIVITY: 'activity/end'
 };
