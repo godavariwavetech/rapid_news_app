@@ -51,12 +51,14 @@ const NewsDetailScreen = ({ route, navigation }) => {
   }
 
   const onShare = async () => {
-    try {
+try {
+      const shareUrl = `https://godavariwave.in/news/${newsId}`;
       await Share.share({
-        message: `${news.content.title}\n\n${news.content.short}`,
+        message: `${newsTitle}\n\nRead full story: ${shareUrl}`,
+        url: shareUrl,
       });
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
     }
   };
 

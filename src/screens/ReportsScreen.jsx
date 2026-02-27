@@ -97,13 +97,13 @@ const ReportsScreen = ({ navigation }) => {
           <Text style={styles.newsTitle} numberOfLines={2}>
             {item.content?.te?.title || item.content?.title || 'No Title Available'}
           </Text>
-          <TouchableOpacity 
+        {item?.status?.toUpperCase()=="PENDING" &&  <TouchableOpacity 
             onPress={() => handleEditNews(item)} 
             style={styles.editButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Icon name="pencil-outline" size={18} color="#6B7280" />
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
         
         <View style={styles.newsItemFooter}>

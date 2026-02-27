@@ -9,29 +9,18 @@ import { CameraRoll } from "@react-native-camera-roll/camera-roll";
  * @param {string} newsId - Unique ID to generate the link
  */
 export const handleShare = async (title, body, newsId) => {
-  try {
-    // Construct the formatted message
-    const shareLink = `https://yourapp.com/news/${newsId}`;
-    const message = `${title}\n\n${body}\n\nRead more at: ${shareLink}`;
+// Use the ID from the news object
+      const shareUrl = `https://godavariwave.in/news/${newsId}`;
+      // const title = news.content?.title || news.title;
+      // const body = news.content?.short || news.description || '';
 
-    const result = await Share.share({
-      title: title,
-      message: message,
-      url: shareLink, // iOS specific for link preview
-    });
-
-    if (result.action === Share.sharedAction) {
-      if (result.activityType) {
-        // shared with activity type of result.activityType
-      } else {
-        // shared
-      }
-    } else if (result.action === Share.dismissedAction) {
-      // dismissed
-    }
-  } catch (error) {
-    console.error("Sharing Error:", error.message);
-  }
+      await Share.share({
+        message: `${title}\n\n${body}\n\nRead more here: ${shareUrl}`,
+        url: shareUrl, // For iOS
+        title: title   // For Android title
+      });
+  
+    
 };
 
 /**

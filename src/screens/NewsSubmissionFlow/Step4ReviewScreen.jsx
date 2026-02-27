@@ -70,7 +70,6 @@ const Step4ReviewScreen = ({navigation, route}) => {
     setIsSubmitting(true);
     let finalPayload = { ...apiPayload };
 
-    // Handle Image Upload if it's a new image (has base64)
     if (image && image.base64) {
       const s3Url = await uploadToS3(image);
       if (!s3Url) {

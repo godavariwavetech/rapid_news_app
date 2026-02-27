@@ -196,9 +196,9 @@ await notifee.displayNotification({
                 <Text style={styles.newsTitle} numberOfLines={2}>
                   {item.content?.te?.title || item.content?.title || 'No Title'}
                 </Text>
-                <TouchableOpacity onPress={() => handleEditNews(item)} style={{padding: 4}}>
+               {item?.status?.toUpperCase()=="PENDING" && <TouchableOpacity onPress={() => handleEditNews(item)} style={{padding: 4}}>
                   <Icon name="pencil-outline" size={20} color="#000" />
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
               <View style={styles.newsItemFooter}>
                 <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
