@@ -21,9 +21,9 @@ function Header({onProfilePress, onTogglePress, title}) {
       {/* Right - Hide/Show Toggle Icon */}
       <TouchableOpacity
         style={styles.iconButton}
-        onPress={onTogglePress}
+        // onPress={onTogglePress}
         activeOpacity={0.7}>
-        <Icon name="eye-off-outline" size={24} color="#FFFFFF" />
+        {/* <Icon name="eye-off-outline" size={24} color="#FFFFFF" /> */}
       </TouchableOpacity>
     </View>
   );

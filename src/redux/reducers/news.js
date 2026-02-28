@@ -57,7 +57,11 @@ export const fetchNews = createAsyncThunk(
   async (arg = 'all', { getState, rejectWithValue }) => {
     let category = 'all';
     let page = 1;
-    let location = {};
+    let location = {
+      village_id: "697d8135322a103bdabf0fc7",
+        district_id: "697d8135322a103bdabf0fc5",
+        state_id: "697d8135322a103bdabf0fc3",
+    };
     let isLocationMode = false;
 
     if (typeof arg === 'object') {

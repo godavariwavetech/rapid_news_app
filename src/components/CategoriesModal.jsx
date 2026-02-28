@@ -49,13 +49,13 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
     const resultAction = await dispatch(postFeedback({ message: feedback }));
     console.log(resultAction,">>>>>>>>>>>>>>RESUT ACTION");
-    // if (postFeedback.fulfilled.match(resultAction)) {
-    //   Alert.alert('Success', 'Thank you for your feedback!');
-    //   setFeedback('');
-    //   dispatch(resetFeedbackStatus());
-    // } else {
-    //   Alert.alert('Error', feedbackError || 'Failed to submit feedback. Please try again.');
-    // }
+    if (postFeedback.fulfilled.match(resultAction)) {
+      Alert.alert('Success', 'Thank you for your feedback!');
+      setFeedback('');
+      dispatch(resetFeedbackStatus());
+    } else {
+      Alert.alert('Error', feedbackError || 'Failed to submit feedback. Please try again.');
+    }
   };
   
   const translateY = useSharedValue(SHEET_HEIGHT);
