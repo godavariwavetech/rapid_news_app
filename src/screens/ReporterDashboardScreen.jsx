@@ -23,10 +23,12 @@ import { getProfile } from '../redux/reducers/auth';
 import { fonts } from '../config/theme';
 import { getReporterStats } from '../redux/reducers/profile';
 import { NotificationAndroidPriority } from '@react-native-firebase/messaging';
+import { useTheme } from '../context/ThemeContext';
 
 const ReporterDashboardScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   
   const {reporter, isActive} = useSelector(state => state.auth);
   const {reporterNews} = useSelector(state => state.news);
@@ -43,18 +45,11 @@ const ReporterDashboardScreen = ({navigation}) => {
   const mainTabs = [
     {id: 'dashboard', name: 'డాష్‌బోర్డ్'},
     {id: 'stories', name: 'నా స్టోరీస్'},
-    // {id: 'wallet', name: 'నా జిల్లా'},
-    // {id: 'videos', name: 'టాప్ వీడియోలు'},
   ];
 
   const locationTabs = [
     {id: 1, name: reporter?.reporter_profile?.district_id?.name?.en || 'తూర్పు గోదావరి', count: null},
-    // {id: 2, name: 'Thallapudi', count: 1},
-    // {id: 3, name: 'Rajamundry', count: 1},
   ];
-
-
-  console.log(reporterStats,">>>>>>>>>>>>>>>>>>>>>reporterStats");
 
   const fetchDashboardData = useCallback(async () => {
     setRefreshing(true);
@@ -63,8 +58,7 @@ const ReporterDashboardScreen = ({navigation}) => {
         dispatch(getReporterNews()).unwrap(),
         dispatch(getProfile()).unwrap()
       ]);
-      const res = await dispatch(getReporterStats())
-      console.log(">>>>>>>>>>>>>>>>>ressssss",res);
+      await dispatch(getReporterStats())
     } catch (error) {
       console.error("Refresh Error:", error);
     } finally {
@@ -118,7 +112,7 @@ const ReporterDashboardScreen = ({navigation}) => {
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
-      case 'PENDING': return '#000000';
+      case 'PENDING': return isDarkMode ? '#FFF' : '#000000';
       case 'APPROVED': return '#28A745';
       case 'REJECTED': return '#DC3545';
       default: return '#999';
@@ -132,34 +126,6 @@ const ReporterDashboardScreen = ({navigation}) => {
       case 'REJECTED': return 'తిరస్కరించబడింది';
       default: return status;
     }
-  };
-
-  const testNotification = async () => {
-    return
-    await notifee.requestPermission();
-    const channelId = await notifee.createChannel({
-      id: 'custom_test_channel',
-      name: 'Custom Test',
-      importance: AndroidImportance.HIGH,
-      badge: true
-    });
-
-await notifee.displayNotification({
-  id: `news_${Date.now()}`,
-  // 1. Move the styled text to the TOP-LEVEL title so it is visible when collapsed
-  title: `<h1><b>BREAKING: <font color="#FF3131">పాలు తాగి ఐదుగురు మృతి</font></b></h1>`,
-  // 2. Put a space in the body to ensure the notification renders properly
-  body: '\u00A0', 
-  android: {
-    channelId,
-    // 3. This places the square logo on the LEFT (default for non-styled notifications)
-    largeIcon: 'https://www.sitinetworks.com/siti-assets/images/logo.png', 
-    importance: AndroidImportance.HIGH,
-    priority: NotificationAndroidPriority.MAX,
-    groupId: `group_${Date.now()}`,
-    // 4. REMOVE the 'style' object entirely for now to fix the icon position
-  },
-});
   };
 
   const renderBlockedBanner = () => (
@@ -177,33 +143,33 @@ await notifee.displayNotification({
         reporterNews.map((item) => (
           <TouchableOpacity 
             key={item._id} 
-            style={styles.newsItemContainer}
+            style={[styles.newsItemContainer, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}
             activeOpacity={0.7}
             onPress={() => handleNewsPress(item)}
           >
-            <View style={styles.imageWrapper}>
+            <View style={[styles.imageWrapper, { backgroundColor: isDarkMode ? '#222' : '#F5F5F5' }]}>
               {item.images && item.images.length > 0 ? (
                 <Image source={{ uri: item.images[0] }} style={styles.newsImage} />
               ) : (
                 <View style={[styles.newsImage, styles.placeholderImage]}>
-                  <Icon name="image-off" size={24} color="#C2C2C2" />
+                  <Icon name="image-off" size={24} color={isDarkMode ? '#444' : '#C2C2C2'} />
                 </View>
               )}
             </View>
 
             <View style={styles.newsContent}>
               <View style={styles.headingRow}>
-                <Text style={styles.newsTitle} numberOfLines={2}>
+                <Text style={[styles.newsTitle, { color: theme.text }]} numberOfLines={2}>
                   {item.content?.te?.title || item.content?.title || 'No Title'}
                 </Text>
                {item?.status?.toUpperCase()=="PENDING" && <TouchableOpacity onPress={() => handleEditNews(item)} style={{padding: 4}}>
-                  <Icon name="pencil-outline" size={20} color="#000" />
+                  <Icon name="pencil-outline" size={20} color={theme.text} />
                 </TouchableOpacity>}
               </View>
               <View style={styles.newsItemFooter}>
-                <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+                <Text style={[styles.timeText, { color: theme.textSecondary }]}>{formatTime(item.createdAt)}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                  <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+                  <Text style={[styles.statusText, { color: (item?.status?.toUpperCase() === 'PENDING' && isDarkMode) ? '#000' : '#FFF' }]}>{getStatusLabel(item.status)}</Text>
                 </View>
               </View>
             </View>
@@ -219,18 +185,18 @@ await notifee.displayNotification({
 
   const renderDashboardContent = () => (
     <>
-      <View style={styles.locationTabsContainer}>
+      <View style={[styles.locationTabsContainer, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationTabsScrollContent}>
           {locationTabs.map(tab => (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.locationTab, selectedLocation === tab.name && styles.locationTabActive]}
+              style={[styles.locationTab, { backgroundColor: isDarkMode ? '#222' : '#F5F5F5' }, selectedLocation === tab.name && [styles.locationTabActive, { backgroundColor: isDarkMode ? theme.primary : '#000' }]]}
               onPress={() => setSelectedLocation(tab.name)}>
-              <Text style={[styles.locationTabText, selectedLocation === tab.name && styles.locationTabTextActive]}>
+              <Text style={[styles.locationTabText, { color: theme.textSecondary }, selectedLocation === tab.name && styles.locationTabTextActive]}>
                 {tab.name}
               </Text>
               {tab.count && (
-                <View style={styles.badge}><Text style={styles.badgeText}>{tab.count}</Text></View>
+                <View style={[styles.badge, { backgroundColor: isDarkMode ? theme.primary : '#000' }]}><Text style={styles.badgeText}>{tab.count}</Text></View>
               )}
             </TouchableOpacity>
           ))}
@@ -238,52 +204,52 @@ await notifee.displayNotification({
       </View>
 
       <TouchableOpacity
-        style={[styles.ctaCard, isActive === false && styles.ctaDisabled]}
+        style={[styles.ctaCard, { borderColor: isDarkMode ? theme.primary : '#000' }, isActive === false && styles.ctaDisabled]}
         activeOpacity={0.8}
         onPress={handleStartSubmission}>
         <View style={styles.ctaTextSection}>
-          <Text style={styles.ctaTitle}>స్టోరీస్ పోస్ట్ చేయండి</Text>
-          <Text style={styles.ctaSubtitle}>వార్తలను పంచుకోండి మరియు ఆదాయం పొందండి</Text>
+          <Text style={[styles.ctaTitle, { color: theme.text }]}>స్టోరీస్ పోస్ట్ చేయండి</Text>
+          <Text style={[styles.ctaSubtitle, { color: theme.textSecondary }]}>వార్తలను పంచుకోండి మరియు ఆదాయం పొందండి</Text>
         </View>
-        <Icon name={isActive === false ? "lock" : "plus-circle"} size={30} color="#000" />
+        <Icon name={isActive === false ? "lock" : "plus-circle"} size={30} color={isDarkMode ? theme.primary : "#000"} />
       </TouchableOpacity>
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderSymmetry}>
-          <Text style={styles.sectionHeaderTitle}>నా గణాంకాలు</Text>
-          <Text style={styles.monthText}>Nov 2025</Text>
+          <Text style={[styles.sectionHeaderTitle, { color: theme.text }]}>నా గణాంకాలు</Text>
+          <Text style={[styles.monthText, { color: theme.textSecondary }]}>Nov 2025</Text>
         </View>
         <View style={styles.statsGrid}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_submitted || 0}</Text>
-            <Text style={styles.statLabel}>సబ్మిట్</Text>
+          <View style={[styles.statBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{reporterStats?.total_submitted || 0}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>సబ్మిట్</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_rejected || 0}</Text>
-            <Text style={styles.statLabel}>రిజెక్ట్</Text>
+          <View style={[styles.statBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{reporterStats?.total_rejected || 0}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>రిజెక్ట్</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{reporterStats?.total_approved || 0}</Text>
-            <Text style={styles.statLabel}>లైవ్</Text>
+          <View style={[styles.statBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{reporterStats?.total_approved || 0}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>లైవ్</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.earningsSection}>
         <View style={styles.earningsHeaderSymmetry}>
-          <Text style={styles.sectionHeaderTitle}>నా ఆదాయం</Text>
+          <Text style={[styles.sectionHeaderTitle, { color: theme.text }]}>నా ఆదాయం</Text>
           <TouchableOpacity>
-             <Text style={styles.statementLink}>Statement <Icon name="chevron-right" size={14} color="#000" /></Text>
+             <Text style={[styles.statementLink, { color: theme.text }]}>Statement <Icon name="chevron-right" size={14} color={theme.text} /></Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.earningsCard}>
+        <View style={[styles.earningsCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#000' }]}>
           <View style={styles.earningsRow}>
             <View style={styles.earningItem}><Text style={styles.earningLabel}>మొత్తం ఆదాయం</Text><Text style={styles.earningAmount}>₹0</Text></View>
-            <View style={styles.dividerVertical} />
+            <View style={[styles.dividerVertical, { backgroundColor: isDarkMode ? '#333' : '#333' }]} />
             <View style={styles.earningItem}><Text style={styles.earningLabel}>ప్రస్తుత ఆదాయం</Text><Text style={styles.earningAmount}>₹0</Text></View>
           </View>
-          <TouchableOpacity style={styles.payButton} onPress={testNotification}>
-            <Text style={styles.payButtonText}>పేమెంట్ అభ్యర్థించండి</Text>
+          <TouchableOpacity style={[styles.payButton, { backgroundColor: isDarkMode ? theme.primary : '#FFF' }]}>
+            <Text style={[styles.payButtonText, { color: isDarkMode ? '#000' : '#000' }]}>పేమెంట్ అభ్యర్థించండి</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -291,24 +257,24 @@ await notifee.displayNotification({
   );
 
   return (
-    <View style={[styles.container, { paddingTop: isActive === false ? 0 : insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.container, { paddingTop: isActive === false ? 0 : insets.top, backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
       {isActive === false && renderBlockedBanner()}
 
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
         <View style={styles.headerLeftGroup}>
           <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-            <Icon name="menu" size={26} color="#000" />
+            <Icon name="menu" size={26} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.profileTextContainer}>
-            <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
-            <Text style={styles.profileRole}>Reporter @{reporter?.reporter_profile?.district_id?.name?.en || "Location"}</Text>
+            <Text style={[styles.profileName, { color: theme.text }]}>{reporter?.reporter_profile?.username || "Guest"}</Text>
+            <Text style={[styles.profileRole, { color: theme.textSecondary }]}>Reporter @{reporter?.reporter_profile?.district_id?.name?.en || "Location"}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.headerHomeBtn} onPress={handleHomeNavigation}>
-          <Icon name="home-outline" size={26} color="#000" />
+          <Icon name="home-outline" size={26} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -316,7 +282,7 @@ await notifee.displayNotification({
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={fetchDashboardData} tintColor="#000" />
+          <RefreshControl refreshing={refreshing} onRefresh={fetchDashboardData} tintColor={theme.text} />
         }
       >
         {selectedTab === 'డాష్‌బోర్డ్' && renderDashboardContent()}
@@ -326,14 +292,14 @@ await notifee.displayNotification({
         <View style={{height: 40}} />
       </ScrollView>
 
-      <View style={[styles.bottomTabsContainer, {paddingBottom: Math.max(insets.bottom, 12)}]}>
+      <View style={[styles.bottomTabsContainer, {paddingBottom: Math.max(insets.bottom, 12), backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bottomTabsContent}>
           {mainTabs.map(tab => (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.bottomTab, selectedTab === tab.name && styles.bottomTabActive]}
+              style={[styles.bottomTab, { backgroundColor: isDarkMode ? '#222' : '#F5F5F5' }, selectedTab === tab.name && [styles.bottomTabActive, { backgroundColor: isDarkMode ? theme.primary : '#000' }]]}
               onPress={() => setSelectedTab(tab.name)}>
-              <Text style={[styles.bottomTabText, selectedTab === tab.name && styles.bottomTabTextActive]}>
+              <Text style={[styles.bottomTabText, { color: theme.textSecondary }, selectedTab === tab.name && styles.bottomTabTextActive]}>
                 {tab.name}
               </Text>
             </TouchableOpacity>
@@ -351,7 +317,7 @@ await notifee.displayNotification({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1 },
   blockedBanner: {
     backgroundColor: '#000000',
     flexDirection: 'row',
@@ -368,8 +334,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    backgroundColor: '#FFFFFF',
   },
   headerLeftGroup: {
     flexDirection: 'row',
@@ -381,17 +345,17 @@ const styles = StyleSheet.create({
   profileTextContainer: {
     justifyContent: 'center',
   },
-  profileName: { fontSize: 16, fontFamily: fonts.bold, color: '#000', lineHeight: 20 },
-  profileRole: { fontSize: 11, fontFamily: fonts.medium, color: '#999', textTransform: 'uppercase', marginTop: -2 },
+  profileName: { fontSize: 16, fontFamily: fonts.bold, lineHeight: 20 },
+  profileRole: { fontSize: 11, fontFamily: fonts.medium, textTransform: 'uppercase', marginTop: -2 },
   headerHomeBtn: { padding: 4 },
   content: { flex: 1 },
-  locationTabsContainer: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  locationTabsContainer: { paddingVertical: 12, borderBottomWidth: 1 },
   locationTabsScrollContent: { paddingHorizontal: 16, gap: 10 },
-  locationTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 4, backgroundColor: '#F5F5F5' },
-  locationTabActive: { backgroundColor: '#000' },
-  locationTabText: { fontSize: 12, fontFamily: fonts.bold, color: '#666' },
+  locationTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 4 },
+  locationTabActive: { },
+  locationTabText: { fontSize: 12, fontFamily: fonts.bold },
   locationTabTextActive: { color: '#FFF' },
-  badge: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#000', marginLeft: 6, alignItems: 'center', justifyContent: 'center' },
+  badge: { width: 16, height: 16, borderRadius: 8, marginLeft: 6, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 9, color: '#FFF', fontWeight: 'bold' },
   ctaCard: {
     flexDirection: 'row',
@@ -400,50 +364,49 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#000',
   },
   ctaDisabled: { opacity: 0.3 },
   ctaTextSection: { flex: 1 },
-  ctaTitle: { fontSize: 18, fontFamily: fonts.bold, color: '#000' },
-  ctaSubtitle: { fontSize: 13, fontFamily: fonts.regular, color: '#666', marginTop: 3 },
+  ctaTitle: { fontSize: 18, fontFamily: fonts.bold },
+  ctaSubtitle: { fontSize: 13, fontFamily: fonts.regular, marginTop: 3 },
   section: { paddingHorizontal: 16, marginTop: 15 },
   sectionHeaderSymmetry: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionHeaderTitle: { fontSize: 12, fontFamily: fonts.bold, color: '#000', textTransform: 'uppercase', letterSpacing: 1 },
-  monthText: { fontSize: 12, color: '#999', fontFamily: fonts.medium },
+  sectionHeaderTitle: { fontSize: 12, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  monthText: { fontSize: 12, fontFamily: fonts.medium },
   statsGrid: { flexDirection: 'row', gap: 12 },
-  statBox: { flex: 1, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  statNumber: { fontSize: 24, fontFamily: fonts.bold, color: '#000' },
-  statLabel: { fontSize: 11, fontFamily: fonts.medium, color: '#999', marginTop: 4 },
+  statBox: { flex: 1, padding: 16, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  statNumber: { fontSize: 24, fontFamily: fonts.bold },
+  statLabel: { fontSize: 11, fontFamily: fonts.medium, marginTop: 4 },
   earningsSection: { padding: 16, marginTop: 10 },
   earningsHeaderSymmetry: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  statementLink: { fontSize: 12, color: '#000', fontFamily: fonts.bold },
-  earningsCard: { backgroundColor: '#000', borderRadius: 8, padding: 20 },
+  statementLink: { fontSize: 12, fontFamily: fonts.bold },
+  earningsCard: { borderRadius: 8, padding: 20 },
   earningsRow: { flexDirection: 'row', marginBottom: 20 },
   earningItem: { flex: 1 },
   earningLabel: { fontSize: 11, fontFamily: fonts.medium, color: '#999', marginBottom: 6 },
   earningAmount: { fontSize: 22, fontFamily: fonts.bold, color: '#FFF' },
-  dividerVertical: { width: 1, backgroundColor: '#333', marginHorizontal: 15 },
-  payButton: { backgroundColor: '#FFF', paddingVertical: 14, borderRadius: 4, alignItems: 'center' },
-  payButtonText: { fontSize: 14, fontFamily: fonts.bold, color: '#000' },
+  dividerVertical: { width: 1, marginHorizontal: 15 },
+  payButton: { paddingVertical: 14, borderRadius: 4, alignItems: 'center' },
+  payButtonText: { fontSize: 14, fontFamily: fonts.bold },
   naaJillaContainer: { paddingHorizontal: 16, marginTop: 10 },
-  newsItemContainer: { flexDirection: 'row', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', gap: 16 },
-  imageWrapper: { width: 90, height: 90, borderRadius: 4, overflow: 'hidden', backgroundColor: '#F5F5F5' },
+  newsItemContainer: { flexDirection: 'row', paddingVertical: 15, borderBottomWidth: 1, gap: 16 },
+  imageWrapper: { width: 90, height: 90, borderRadius: 4, overflow: 'hidden' },
   newsImage: { width: '100%', height: '100%' },
   placeholderImage: { alignItems: 'center', justifyContent: 'center' },
   newsContent: { flex: 1, justifyContent: 'space-between' },
   headingRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  newsTitle: { flex: 1, fontSize: 16, fontFamily: fonts.bold, color: '#000', lineHeight: 22 },
+  newsTitle: { flex: 1, fontSize: 16, fontFamily: fonts.bold, lineHeight: 22 },
   newsItemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  timeText: { fontSize: 12, fontFamily: fonts.medium, color: '#999' },
+  timeText: { fontSize: 12, fontFamily: fonts.medium },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2 },
   statusText: { fontSize: 11, fontFamily: fonts.bold, color: '#FFFFFF' },
   emptyState: { alignItems: 'center', paddingVertical: 60 },
   emptyStateText: { color: '#CCC', fontSize: 14, fontFamily: fonts.medium },
-  bottomTabsContainer: { borderTopWidth: 1, borderTopColor: '#F0F0F0', backgroundColor: '#FFF' },
+  bottomTabsContainer: { borderTopWidth: 1 },
   bottomTabsContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
-  bottomTab: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 4, backgroundColor: '#F5F5F5' },
-  bottomTabActive: { backgroundColor: '#000' },
-  bottomTabText: { fontSize: 13, fontFamily: fonts.bold, color: '#666' },
+  bottomTab: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 4 },
+  bottomTabActive: { },
+  bottomTabText: { fontSize: 13, fontFamily: fonts.bold },
   bottomTabTextActive: { color: '#FFF' },
 });
 

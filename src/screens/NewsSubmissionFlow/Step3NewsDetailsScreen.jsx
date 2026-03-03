@@ -20,6 +20,7 @@ import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
+import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -28,6 +29,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const {currentLocation} = useSelector(state => state.location);
   const {categories} = useSelector(state => state.news);
   const insets = useSafeAreaInsets();
+  const { theme, isDarkMode } = useTheme();
   const {reporter} = useSelector(state=>state.auth)
 
   // Params
@@ -76,7 +78,6 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       
       if (imgUrl) setImage({ uri: imgUrl });
 
-      // FIX APPLIED HERE: Handle nested category object or flat category_id
       const categoryId = existingNews.category?._id || existingNews.category_id;
       
       if (categoryId && categories.length > 0) {
@@ -181,7 +182,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             "body": description
           }
         },
-        "images": image?.uri && !image?.base64 ? [image.uri] : [], // If it's an existing image, keep it. If new, it will be uploaded in Step 4.
+        "images": image?.uri && !image?.base64 ? [image.uri] : [], 
         "videos": []
       };
 
@@ -189,7 +190,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         headline,
         description,
         category: selectedCategoryObj.name.en,
-        image: image, // Pass the full image object
+        image: image,
         apiPayload: payload,
         location: locationData ? `${locationData.village?.name?.en}, ${locationData.district?.name?.en}` : "Current Location",
         isEditing: !!existingNews,
@@ -203,15 +204,15 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const isValid = headline.trim() && description.trim() && selectedCategoryObj;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
+          <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>News Details</Text>
-        <Text style={styles.stepIndicator}>2 / 3</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>News Details</Text>
+        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>2 / 3</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -219,75 +220,75 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         {/* Headline */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={styles.inputLabel}>Headline</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Headline</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={headlineTranslitEnabled}
                 onValueChange={setHeadlineTranslitEnabled}
-                trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
+                trackColor={{false: isDarkMode ? '#333' : '#E0E0E0', true: '#4CAF50'}}
                 thumbColor={'#FFFFFF'}
               />
-              <Text style={styles.translitLabel}>TE</Text>
+              <Text style={[styles.translitLabel, { color: theme.textSecondary }]}>TE</Text>
             </View>
           </View>
-          <View style={styles.inputBox}>
+          <View style={[styles.inputBox, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { color: theme.text }]}
               placeholder={headlineTranslitEnabled ? "Type in English & press space..." : "Enter headline..."}
-              placeholderTextColor="#999"
+              placeholderTextColor={isDarkMode ? '#666' : '#999'}
               value={headline}
               onChangeText={handleHeadlineChange}
               maxLength={100}
               multiline
             />
-            <Text style={styles.charCount}>{headline.length} / 100</Text>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{headline.length} / 100</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={styles.inputLabel}>Description</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={descriptionTranslitEnabled}
                 onValueChange={setDescriptionTranslitEnabled}
-                trackColor={{false: '#E0E0E0', true: '#4CAF50'}}
+                trackColor={{false: isDarkMode ? '#333' : '#E0E0E0', true: '#4CAF50'}}
                 thumbColor={'#FFFFFF'}
               />
-              <Text style={styles.translitLabel}>TE</Text>
+              <Text style={[styles.translitLabel, { color: theme.textSecondary }]}>TE</Text>
             </View>
           </View>
-          <View style={[styles.inputBox, styles.descriptionBox]}>
+          <View style={[styles.inputBox, styles.descriptionBox, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
             <TextInput
-              style={[styles.textInput, styles.descriptionInput]}
+              style={[styles.textInput, styles.descriptionInput, { color: theme.text }]}
               placeholder={descriptionTranslitEnabled ? "Type in English & press space..." : "Enter full details here..."}
-              placeholderTextColor="#999"
+              placeholderTextColor={isDarkMode ? '#666' : '#999'}
               value={description}
               onChangeText={handleDescriptionChange}
               maxLength={1000}
               multiline
               textAlignVertical="top"
             />
-            <Text style={styles.charCount}>{description.length} / 1000</Text>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{description.length} / 1000</Text>
           </View>
         </View>
 
         {/* Category */}
-        <Text style={styles.inputLabel}>Category</Text>
-        <TouchableOpacity style={styles.categorySelector} onPress={() => setShowCategoryModal(true)}>
-          <Text style={[styles.categoryText, !selectedCategoryObj && styles.placeholderText]}>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Category</Text>
+        <TouchableOpacity style={[styles.categorySelector, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]} onPress={() => setShowCategoryModal(true)}>
+          <Text style={[styles.categoryText, { color: theme.text }, !selectedCategoryObj && styles.placeholderText]}>
             {selectedCategoryObj ? selectedCategoryObj.name.en : 'Select Category'}
           </Text>
-          <Icon name="chevron-down" size={24} color="#666" />
+          <Icon name="chevron-down" size={24} color={theme.textSecondary} />
         </TouchableOpacity>
 
         {/* Image */}
-        <Text style={styles.inputLabel}>Cover Image</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Cover Image</Text>
         {!image ? (
-          <TouchableOpacity style={styles.uploadButton} onPress={() => setShowImageOptions(true)}>
-            <Icon name="image-outline" size={24} color="#666" />
-            <Text style={styles.uploadText}>Upload Image</Text>
+          <TouchableOpacity style={[styles.uploadButton, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#E0E0E0' }]} onPress={() => setShowImageOptions(true)}>
+            <Icon name="image-outline" size={24} color={theme.textSecondary} />
+            <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Upload Image</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.imagePreviewContainer}>
@@ -299,12 +300,12 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, {marginBottom: insets.bottom}]}>
+      <View style={[styles.footer, {marginBottom: insets.bottom, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
         <TouchableOpacity
-          style={[styles.submitButton, isValid && styles.submitButtonActive]}
+          style={[styles.submitButton, { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' }, isValid && [styles.submitButtonActive, { backgroundColor: theme.primary }]]}
           onPress={handleNext}
           disabled={!isValid}>
-          <Text style={styles.submitButtonText}>
+          <Text style={[styles.submitButtonText, { color: isValid ? '#FFF' : theme.textSecondary }]}>
             {existingNews ? 'Update Preview' : 'Next Step →'}
           </Text>
         </TouchableOpacity>
@@ -313,13 +314,13 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       {/* Category Modal */}
       <Modal visible={showCategoryModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowCategoryModal(false)}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
              <FlatList
               data={categories}
               keyExtractor={(item) => item._id}
               renderItem={({item}) => (
-                <TouchableOpacity style={styles.categoryOption} onPress={() => handleCategorySelect(item)}>
-                  <Text style={styles.categoryOptionText}>{item.name.en}</Text>
+                <TouchableOpacity style={[styles.categoryOption, { borderBottomColor: isDarkMode ? '#333' : '#F5F5F5' }]} onPress={() => handleCategorySelect(item)}>
+                  <Text style={[styles.categoryOptionText, { color: theme.text }]}>{item.name.en}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -330,14 +331,14 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       {/* Image Options Modal */}
       <Modal visible={showImageOptions} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
             <TouchableOpacity style={styles.imageOptionButton} onPress={handleCamera}>
-              <Icon name="camera" size={24} color="#2196F3" />
-              <Text style={styles.imageOptionText}>Take Photo</Text>
+              <Icon name="camera" size={24} color={theme.accentBlue} />
+              <Text style={[styles.imageOptionText, { color: theme.text }]}>Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.imageOptionButton} onPress={handleGallery}>
-              <Icon name="image" size={24} color="#9C27B0" />
-              <Text style={styles.imageOptionText}>Gallery</Text>
+              <Icon name="image" size={24} color={theme.secondary} />
+              <Text style={[styles.imageOptionText, { color: theme.text }]}>Gallery</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -348,37 +349,37 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: STATUS_BAR_HEIGHT + 10, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E8EAED' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  stepIndicator: { fontSize: 16, color: '#999', fontWeight: '600' },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: STATUS_BAR_HEIGHT + 10, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  stepIndicator: { fontSize: 16, fontWeight: '600' },
   content: { flex: 1, padding: 20 },
   inputContainer: { marginBottom: 20 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#666', marginLeft: 4 },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginLeft: 4 },
   translitToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  translitLabel: { fontSize: 12, fontWeight: '600', color: '#666' },
-  inputBox: { backgroundColor: '#F5F6F8', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#F0F0F0' },
-  textInput: { fontSize: 16, color: '#333', padding: 0 },
+  translitLabel: { fontSize: 12, fontWeight: '600' },
+  inputBox: { borderRadius: 12, padding: 16, borderWidth: 1 },
+  textInput: { fontSize: 16, padding: 0 },
   descriptionBox: { minHeight: 150 },
   descriptionInput: { height: 120 },
-  charCount: { fontSize: 12, color: '#999', textAlign: 'right', marginTop: 8 },
-  categorySelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F5F6F8', borderRadius: 12, padding: 16, marginBottom: 20 },
-  categoryText: { fontSize: 16, color: '#333' },
+  charCount: { fontSize: 12, textAlign: 'right', marginTop: 8 },
+  categorySelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 12, padding: 16, marginBottom: 20 },
+  categoryText: { fontSize: 16 },
   placeholderText: { color: '#999' },
-  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F6F8', borderRadius: 12, padding: 30, borderStyle: 'dashed', borderWidth: 1, borderColor: '#E0E0E0', gap: 10 },
-  uploadText: { fontSize: 16, fontWeight: '600', color: '#666' },
+  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: 30, borderStyle: 'dashed', borderWidth: 1, gap: 10 },
+  uploadText: { fontSize: 16, fontWeight: '600' },
   imagePreviewContainer: { position: 'relative', borderRadius: 12, overflow: 'hidden', marginBottom: 40 },
   imagePreview: { width: '100%', height: 220, resizeMode: 'cover' },
   removeImageButton: { position: 'absolute', top: 10, right: 10 },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#E8EAED' },
-  submitButton: { backgroundColor: '#E0E0E0', paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  submitButtonActive: { backgroundColor: '#2196F3' },
-  submitButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  footer: { padding: 20, borderTopWidth: 1 },
+  submitButton: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  submitButtonActive: { },
+  submitButtonText: { fontSize: 16, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '50%' },
-  categoryOption: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  categoryOptionText: { fontSize: 16, color: '#333' },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '50%' },
+  categoryOption: { paddingVertical: 16, borderBottomWidth: 1 },
+  categoryOptionText: { fontSize: 16 },
   imageOptionButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 16 },
   imageOptionText: { fontSize: 16, fontWeight: '600' },
 });

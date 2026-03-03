@@ -4,8 +4,9 @@ import {
   Modal, KeyboardAvoidingView, Platform, Alert, ActivityIndicator 
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { reportNews } from '../redux/reducers/news';
+import { lightTheme, darkTheme } from '../config/theme';
 
 const REPORT_REASONS = [
   { label: "Fake News", value: "FAKE_NEWS" },
@@ -18,6 +19,9 @@ const REPORT_REASONS = [
 
 const ReportModal = ({ visible, onClose, newsId }) => {
   const dispatch = useDispatch();
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
   const [reason, setReason] = useState(null);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -47,25 +51,25 @@ const ReportModal = ({ visible, onClose, newsId }) => {
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={styles.sheet}
+          style={[styles.sheet, { backgroundColor: theme.background }]}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Report this Content</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Report this Content</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>దయచేసి కారణాన్ని ఎంచుకోండి:</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>దయచేసి కారణాన్ని ఎంచుకోండి:</Text>
           
           <View style={styles.grid}>
             {REPORT_REASONS.map((item) => (
               <TouchableOpacity
                 key={item.value}
-                style={[styles.chip, reason === item.value && styles.activeChip]}
+                style={[styles.chip, { backgroundColor: isDarkMode ? '#2A2A2A' : '#f9f9f9', borderColor: isDarkMode ? '#333' : '#eee' }, reason === item.value && styles.activeChip]}
                 onPress={() => setReason(item.value)}
               >
-                <Text style={[styles.chipText, reason === item.value && styles.activeChipText]}>
+                <Text style={[styles.chipText, { color: isDarkMode ? '#CCC' : '#555' }, reason === item.value && styles.activeChipText]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -73,9 +77,9 @@ const ReportModal = ({ visible, onClose, newsId }) => {
           </View>
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F2F2F2', color: theme.text }]}
             placeholder="Tell us more about the issue (Optional)..."
-            placeholderTextColor="#999"
+            placeholderTextColor={isDarkMode ? '#666' : '#999'}
             multiline
             numberOfLines={4}
             value={message}
@@ -83,7 +87,7 @@ const ReportModal = ({ visible, onClose, newsId }) => {
           />
 
           <TouchableOpacity 
-            style={[styles.submitBtn, !reason && styles.disabledBtn]} 
+            style={[styles.submitBtn, { backgroundColor: isDarkMode ? theme.primary : '#1a1a1a' }, !reason && styles.disabledBtn]} 
             onPress={handleReport}
             disabled={submitting}
           >
@@ -101,7 +105,7 @@ const ReportModal = ({ visible, onClose, newsId }) => {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
+  sheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 22, fontWeight: '800', color: '#1a1a1a' },
   label: { fontSize: 14, color: '#666', marginBottom: 15, fontWeight: '600' },

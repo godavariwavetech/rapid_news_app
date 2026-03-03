@@ -35,10 +35,10 @@ import { applogo } from '../assets';
 
 // Redux Actions
 import {getBookmarks, toggleBookmarkApi} from '../redux/reducers/bookmarks';
-import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
-import { fonts } from '../config/theme';
+import {reactToNews, getComments, trackAdClick} from '../redux/reducers/news';
+import {fonts, lightTheme, darkTheme} from '../config/theme';
 import ReportModal from './ReportModal';
-import { downloadImageToGallery, handleShare } from '../utils/FileHelpers';
+import {downloadImageToGallery, handleShare} from '../utils/FileHelpers';
 import Video from 'react-native-video';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
@@ -49,6 +49,9 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const {bookmarkIds} = useSelector(state => state.bookmarks);
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -282,8 +285,8 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const isBookmarked = bookmarkIds?.includes(news.id)
 
   return (
-    <View style={styles.card}>
-      <View style={styles.imageSection}>
+    <View style={[styles.card, { backgroundColor: theme.background }]}>
+      <View style={[styles.imageSection, { backgroundColor: isDarkMode ? '#121212' : '#f0f0f0' }]}>
         {hasVideos ? (
           <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT, backgroundColor: '#000'}}>
             <TouchableWithoutFeedback 
@@ -394,33 +397,33 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
           containerStyle={{flex: 1}}
           style={{flex: 1}}>
           <View style={styles.contentSection}>
-            <Text style={styles.title}>{news.title}</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{news.title}</Text>
 
             <ScrollView
               style={styles.bodyContainer}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled={true}>
-              <Text style={styles.body}>
+              <Text style={[styles.body, { color: theme.textSecondary }]}>
                 {news.body || news.description}
                 {news.fullContent && (
-                  <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
+                  <Text style={[styles.body, { color: theme.textSecondary }]}>{'\n\n' + news.fullContent}</Text>
                 )}
               </Text>
             </ScrollView>
 
             <View style={styles.timestampContainer}>
-              <Icon name="clock-outline" size={14} color="#999" />
-              <Text style={styles.timestamp}>{news.timeAgo}</Text>
+              <Icon name="clock-outline" size={14} color={theme.textSecondary} />
+              <Text style={[styles.timestamp, { color: theme.textSecondary }]}>{news.timeAgo}</Text>
             </View>
 
-            <View style={[styles.statsBar, {marginBottom: insets.bottom+10}]}>
+            <View style={[styles.statsBar, {marginBottom: insets.bottom+10, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
               <View style={styles.statsLeft}>
                 {news.commentsEnabled !== false && (
                   <TouchableOpacity
                     style={styles.statButton}
                     onPress={handleCommentsPress}>
-                    <Icon name="comment-outline" size={20} color="#565B67" />
-                    <Text style={styles.statText}>{news.comments}</Text>
+                    <Icon name="comment-outline" size={20} color={theme.textSecondary} />
+                    <Text style={[styles.statText, { color: theme.textSecondary }]}>{news.comments}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -430,9 +433,9 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                   <Icon
                     name={liked ? 'thumb-up' : 'thumb-up-outline'}
                     size={20}
-                    color={liked ? '#2196F3' : '#565B67'}
+                    color={liked ? '#2196F3' : theme.textSecondary}
                   />
-                  <Text style={[styles.statText, liked && {color: '#2196F3'}]}>
+                  <Text style={[styles.statText, { color: liked ? '#2196F3' : theme.textSecondary }]}>
                     {liked ? parseInt(news?.likes || 0) + 1 : news.likes || 0}
                   </Text>
                 </TouchableOpacity>
@@ -443,7 +446,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                   <Icon
                     name={disliked ? 'thumb-down' : 'thumb-down-outline'}
                     size={20}
-                    color={disliked ? '#F44336' : '#565B67'}
+                    color={disliked ? '#F44336' : theme.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -452,7 +455,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                 <TouchableOpacity
                   style={styles.iconButton}
                   onPress={handleMenuPress}>
-                  <Icon name="dots-vertical" size={22} color="#565B67" />
+                  <Icon name="dots-vertical" size={22} color={theme.textSecondary} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -460,7 +463,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                   onPress={() =>
                     handleShareNews(news.title, news.short, news.id)
                   }>
-                  <Icon name="share-variant" size={20} color="#565B67" />
+                  <Icon name="share-variant" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -484,36 +487,36 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
         <RNTouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.menuOverlay}>
             <RNTouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.menuContainer}>
+              <View style={[styles.menuContainer, { backgroundColor: theme.cardBackground }]}>
                 <RNTouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('bookmark')}>
                   <Icon
                     name={isBookmarked ? 'bookmark-minus' : 'bookmark-outline'}
                     size={24}
-                    color="#333"
+                    color={theme.text}
                   />
-                  <Text style={styles.menuText}>
+                  <Text style={[styles.menuText, { color: theme.text }]}>
                     {isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
                   </Text>
                 </RNTouchableOpacity>
 
-                <View style={styles.menuDivider} />
+                <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
 
                 <RNTouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('report')}>
-                  <Icon name="alert-circle-outline" size={24} color="#333" />
-                  <Text style={styles.menuText}>Report</Text>
+                  <Icon name="alert-circle-outline" size={24} color={theme.text} />
+                  <Text style={[styles.menuText, { color: theme.text }]}>Report</Text>
                 </RNTouchableOpacity>
 
-                <View style={styles.menuDivider} />
+                <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
 
                 <RNTouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('download')}>
-                  <Icon name="download-outline" size={24} color="#333" />
-                  <Text style={styles.menuText}>Download Image</Text>
+                  <Icon name="download-outline" size={24} color={theme.text} />
+                  <Text style={[styles.menuText, { color: theme.text }]}>Download Image</Text>
                 </RNTouchableOpacity>
               </View>
             </RNTouchableWithoutFeedback>

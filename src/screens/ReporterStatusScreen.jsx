@@ -12,13 +12,15 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, lightTheme } from '../config/theme'; //
+import { fonts } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 const ReporterStatusScreen = ({ route, navigation }) => {
   const { status } = route.params || { status: 'PENDING' };
   const insets = useSafeAreaInsets();
+  const { theme, isDarkMode } = useTheme();
 
   // Animations
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
@@ -26,7 +28,6 @@ const ReporterStatusScreen = ({ route, navigation }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    // Sequence animations for a polished entrance
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -55,8 +56,8 @@ const ReporterStatusScreen = ({ route, navigation }) => {
         return {
           icon: 'shield-alert-outline',
           iconColor: '#DC2626',
-          bgColor: '#FEF2F2', // Light Red
-          borderColor: '#FEE2E2',
+          bgColor: isDarkMode ? '#2D1F1F' : '#FEF2F2',
+          borderColor: isDarkMode ? '#442222' : '#FEE2E2',
           title: 'Application Not Approved',
           message: 'Thank you for your interest. Unfortunately, your profile did not meet our current criteria for reporters.',
           subMessage: 'If you believe this is a mistake, please review your details or contact our support team.',
@@ -67,10 +68,10 @@ const ReporterStatusScreen = ({ route, navigation }) => {
       case 'PENDING':
       default:
         return {
-          icon: 'shield-check-outline', // Or 'timer-sand'
-          iconColor: lightTheme.primary, // #064081
-          bgColor: '#F0F9FF', // Light Blue
-          borderColor: '#E0F2FE',
+          icon: 'shield-check-outline',
+          iconColor: theme.primary,
+          bgColor: isDarkMode ? '#1A222D' : '#F0F9FF',
+          borderColor: isDarkMode ? '#223344' : '#E0F2FE',
           title: 'Verification Pending',
           message: 'Your application is currently under review by our verification team.',
           subMessage: 'This usually takes 24-48 hours. We will notify you once your reporter access is approved.',
@@ -91,8 +92,8 @@ const ReporterStatusScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
       {/* Decorative Background Circles */}
       <View style={[styles.circle, styles.circleTop, { backgroundColor: config.bgColor }]} />
@@ -114,24 +115,24 @@ const ReporterStatusScreen = ({ route, navigation }) => {
 
         {/* Text Content */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          <Text style={styles.title}>{config.title}</Text>
-          <Text style={styles.message}>{config.message}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{config.title}</Text>
+          <Text style={[styles.message, { color: theme.textSecondary }]}>{config.message}</Text>
           
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E5E7EB' }]} />
           
-          <Text style={styles.subMessage}>{config.subMessage}</Text>
+          <Text style={[styles.subMessage, { color: theme.textSecondary }]}>{config.subMessage}</Text>
         </Animated.View>
       </View>
 
       {/* Action Buttons */}
       <Animated.View style={[styles.footer, { paddingBottom: insets.bottom + 20, opacity: fadeAnim }]}>
         <TouchableOpacity 
-          style={[styles.primaryButton, { backgroundColor: lightTheme.primary }]} //
+          style={[styles.primaryButton, { backgroundColor: theme.primary }]}
           onPress={handlePrimaryPress}
           activeOpacity={0.8}
         >
-          <Text style={styles.primaryButtonText}>{config.primaryAction}</Text>
-          <Icon name="arrow-right" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+          <Text style={[styles.primaryButtonText, { color: isDarkMode ? '#000' : '#FFF' }]}>{config.primaryAction}</Text>
+          <Icon name="arrow-right" size={20} color={isDarkMode ? '#000' : '#FFF'} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
 
         {config.showSecondary && (
@@ -140,7 +141,7 @@ const ReporterStatusScreen = ({ route, navigation }) => {
             onPress={handleSecondaryPress}
             activeOpacity={0.6}
           >
-            <Text style={[styles.secondaryButtonText, { color: lightTheme.darkGray }]}>{config.secondaryAction}</Text>
+            <Text style={[styles.secondaryButtonText, { color: theme.textSecondary }]}>{config.secondaryAction}</Text>
           </TouchableOpacity>
         )}
       </Animated.View>
@@ -151,7 +152,6 @@ const ReporterStatusScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     overflow: 'hidden',
   },
@@ -186,41 +186,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 40,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
     elevation: 5,
   },
   title: {
     fontSize: 26,
-    fontFamily: fonts.bold, //
-    color: '#1A1A1A',
+    fontFamily: fonts.bold,
     textAlign: 'center',
     marginBottom: 16,
     letterSpacing: -0.5,
   },
   message: {
     fontSize: 16,
-    fontFamily: fonts.medium, //
-    color: '#4A4A4A',
+    fontFamily: fonts.medium,
     textAlign: 'center',
     lineHeight: 24,
   },
   divider: {
     height: 1,
     width: 60,
-    backgroundColor: '#E5E7EB',
     marginVertical: 24,
     alignSelf: 'center',
   },
   subMessage: {
     fontSize: 14,
-    fontFamily: fonts.regular, //
-    color: '#6B7280',
+    fontFamily: fonts.regular,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -234,19 +223,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: "#064081",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
     elevation: 4,
   },
   primaryButtonText: {
     fontSize: 16,
-    fontFamily: fonts.bold, //
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
   },
   secondaryButton: {
     height: 48,
@@ -257,7 +238,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 15,
-    fontFamily: fonts.medium, //
+    fontFamily: fonts.medium,
   },
 });
 

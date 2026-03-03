@@ -6,9 +6,11 @@ import {PersistGate} from 'redux-persist/integration/react';
 import {store, persistorStore} from './src/redux/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import {TabBarProvider} from './src/context/TabBarContext';
+import {ThemeProvider} from './src/context/ThemeContext';
 import {
   checkNotifications,
   requestNotifications,
+  RESULTS,
 } from 'react-native-permissions';
 import VersionCheck from 'react-native-version-check'; 
 import CustomModal from './src/components/CustomModal';
@@ -97,15 +99,17 @@ const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistorStore}>
           <TabBarProvider>
-            <AppNavigator />
-            <CustomModal
-              visible={showUpdateModal}
-              title="Update Available"
-              message="A new version of the app is available. Please update to continue using all features."
-              confirmText="Update Now"
-              onConfirm={handleUpdate}
-              cancelText=''
-            />
+            <ThemeProvider>
+              <AppNavigator />
+              <CustomModal
+                visible={showUpdateModal}
+                title="Update Available"
+                message="A new version of the app is available. Please update to continue using all features."
+                confirmText="Update Now"
+                onConfirm={handleUpdate}
+                cancelText=''
+              />
+            </ThemeProvider>
          {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>  */}
           </TabBarProvider>
         </PersistGate>

@@ -20,6 +20,7 @@ import {createNews, updateNews} from '../../redux/reducers/news';
 import { Buffer } from 'buffer';
 import api from '../../utils/api';
 import axios from 'axios';
+import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -27,17 +28,17 @@ const STATUS_BAR_HEIGHT =
 const Step4ReviewScreen = ({navigation, route}) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const {reporter} = useSelector(state => state.auth);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Destructure new params: isEditing and newsId
+  // Destructure params
   const {location, headline, description, category, image, isEditing, newsId, apiPayload} = route.params;
 
   const uploadToS3 = async (imageAsset) => {
     if (!imageAsset || !imageAsset.base64) return imageAsset?.uri || null;
 
     try {
-      // 1. Get Pre-signed URL
       const response = await api.post('media/upload-url', {
         filename: imageAsset.fileName || `news_${Date.now()}.jpg`,
         type: imageAsset.type || 'image/jpeg',
@@ -51,7 +52,6 @@ const Step4ReviewScreen = ({navigation, route}) => {
             'Content-Type': imageAsset.type || 'image/jpeg',
             'Content-Disposition': 'attachment'
           },
-          
           transformRequest: [(data) => data], 
           timeout: 120000,
         });
@@ -81,17 +81,12 @@ const Step4ReviewScreen = ({navigation, route}) => {
     }
 
     let response;
-    // Check if we are in Edit Mode
     if (isEditing && newsId) {
-      // Dispatch Update Action
       response = await dispatch(updateNews({
         id: newsId,
         payload: finalPayload
       }));
-
-      console.log(response,">>>>>>>>>>>>>>RESPONSEEEEEE");
     } else {
-      // Dispatch Create Action
       response = await dispatch(createNews(finalPayload));
     }
 
@@ -116,77 +111,72 @@ const Step4ReviewScreen = ({navigation, route}) => {
         ]
       );
     } else {
-      Alert.alert('Failed', 'Something went wrong', [
-        {
-          text: 'OK',
-        },
-      ]);
+      Alert.alert('Failed', 'Something went wrong', [{ text: 'OK' }]);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
+          <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
-        {/* Dynamic Header Title */}
-        <Text style={styles.headerTitle}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
-        <Text style={styles.stepIndicator}>3 / 3</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
+        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>3 / 3</Text>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Location</Text>
-          <View style={styles.infoCard}>
-            <Icon name="map-marker" size={20} color="#666" />
-            <Text style={styles.infoText}>{location}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Location</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Icon name="map-marker" size={20} color={theme.textSecondary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>{location}</Text>
           </View>
         </View>
 
         {/* Category */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Category</Text>
-          <View style={styles.infoCard}>
-            <Icon name="folder-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>{category}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Category</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Icon name="folder-outline" size={20} color={theme.textSecondary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>{category}</Text>
           </View>
         </View>
 
         {/* Headline */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Headline</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.contentText}>{headline}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Headline</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Text style={[styles.contentText, { color: theme.text }]}>{headline}</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Description</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.contentText}>{description}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Description</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Text style={[styles.contentText, { color: theme.text }]}>{description}</Text>
           </View>
         </View>
 
         {/* Image */}
         {image && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Image</Text>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Image</Text>
             <Image source={{uri: image.uri || image}} style={styles.previewImage} />
           </View>
         )}
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={[styles.footer, {marginBottom: insets.bottom}]}>
+      <View style={[styles.footer, {marginBottom: insets.bottom, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -206,10 +196,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -217,7 +204,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
   },
   backButton: {
     padding: 4,
@@ -227,11 +213,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   stepIndicator: {
     fontSize: 16,
-    color: '#999',
   },
   content: {
     flex: 1,
@@ -242,25 +226,21 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#999',
     marginBottom: 10,
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F6F8',
     padding: 16,
     borderRadius: 12,
     gap: 12,
   },
   infoText: {
     fontSize: 15,
-    color: '#333',
     fontWeight: '600',
   },
   contentText: {
     fontSize: 15,
-    color: '#333',
     lineHeight: 22,
   },
   previewImage: {
@@ -271,7 +251,6 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
   },
   submitButton: {
     backgroundColor: '#4CAF50',
@@ -292,86 +271,3 @@ const styles = StyleSheet.create({
 });
 
 export default Step4ReviewScreen;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#FFFFFF',
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     paddingTop: STATUS_BAR_HEIGHT + 10,
-//     paddingHorizontal: 16,
-//     paddingBottom: 12,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#E8EAED',
-//   },
-//   backButton: {
-//     padding: 4,
-//     marginRight: 12,
-//   },
-//   headerTitle: {
-//     flex: 1,
-//     fontSize: 18,
-//     fontWeight: '700',
-//     color: '#1A1A1A',
-//   },
-//   stepIndicator: {
-//     fontSize: 16,
-//     color: '#999',
-//   },
-//   content: {
-//     flex: 1,
-//   },
-//   section: {
-//     padding: 20,
-//   },
-//   sectionLabel: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#999',
-//     marginBottom: 10,
-//   },
-//   infoCard: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#F5F6F8',
-//     padding: 16,
-//     borderRadius: 12,
-//     gap: 12,
-//   },
-//   infoText: {
-//     fontSize: 15,
-//     color: '#333',
-//     fontWeight: '600',
-//   },
-//   contentText: {
-//     fontSize: 15,
-//     color: '#333',
-//     lineHeight: 22,
-//   },
-//   previewImage: {
-//     width: '100%',
-//     height: 200,
-//     borderRadius: 12,
-//   },
-//   footer: {
-//     padding: 20,
-//     borderTopWidth: 1,
-//     borderTopColor: '#E8EAED',
-//   },
-//   submitButton: {
-//     backgroundColor: '#4CAF50',
-//     paddingVertical: 16,
-//     borderRadius: 12,
-//     alignItems: 'center',
-//   },
-//   submitButtonText: {
-//     fontSize: 16,
-//     fontWeight: '700',
-//     color: '#FFFFFF',
-//   },
-// });
-
-// export default Step4ReviewScreen;

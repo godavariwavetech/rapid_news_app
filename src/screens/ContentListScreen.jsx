@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../context/ThemeContext';
 
 const ContentListScreen = ({navigation, route}) => {
+  const { theme, isDarkMode } = useTheme();
   const {type} = route.params; // 'magazines' or 'videos'
   const insets = useSafeAreaInsets()
 
@@ -22,7 +24,6 @@ const ContentListScreen = ({navigation, route}) => {
   const items = [
     {
       id: 1,
-      // Using a colored background instead of network image
       bgColor: '#4CAF50',
       icon: isVideos ? 'video-outline' : 'book-open-variant',
       category: 'Special',
@@ -84,11 +85,11 @@ const ContentListScreen = ({navigation, route}) => {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#808080" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: isDarkMode ? theme.background : '#808080' }]}>
+      <StatusBar barStyle="light-content" backgroundColor={isDarkMode ? theme.background : "#808080"} />
 
       {/* Header */}
-      <View style={[styles.header]}>
+      <View style={[styles.header, { backgroundColor: isDarkMode ? theme.background : '#808080' }]}>
         <TouchableOpacity
           style={[styles.backButton,{marginTop:insets.top}]}
           onPress={() => navigation.goBack()}>
@@ -97,12 +98,13 @@ const ContentListScreen = ({navigation, route}) => {
         <Text style={[styles.headerTitle,{marginTop:insets.top}]}>{headerTitle}</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.content, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
         {items.map((item, index) => (
           <TouchableOpacity
             key={item.id}
             style={[
               styles.itemCard,
+              { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' },
               index === items.length - 1 && styles.lastItemCard,
             ]}
             activeOpacity={0.7}>
@@ -140,10 +142,10 @@ const ContentListScreen = ({navigation, route}) => {
               </View>
 
               {/* Title */}
-              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={[styles.itemTitle, { color: theme.text }]}>{item.title}</Text>
 
               {/* Date */}
-              <Text style={styles.itemDate}>{item.date}</Text>
+              <Text style={[styles.itemDate, { color: theme.textSecondary }]}>{item.date}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -157,14 +159,12 @@ const ContentListScreen = ({navigation, route}) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#808080',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#808080',
   },
   backButton: {
     padding: 4,
@@ -178,14 +178,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   itemCard: {
     flexDirection: 'row',
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
   },
   lastItemCard: {
     borderBottomWidth: 0,
@@ -251,13 +249,11 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 8,
   },
   itemDate: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#999',
   },
 });
 

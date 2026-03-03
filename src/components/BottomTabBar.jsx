@@ -3,9 +3,11 @@ import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../context/ThemeContext';
 
 const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   const tabs = [
     {
       id: 'HomeTab',
@@ -35,7 +37,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   ];
 
   return (
-    <View style={[styles.bottomTabBar,{paddingBottom:insets.bottom}]}>
+    <View style={[styles.bottomTabBar, { paddingBottom: insets.bottom, backgroundColor: theme.tabBar }]}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
@@ -48,14 +50,14 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
               <Icon
                 name={tab.icon}
                 size={20}
-                color={isActive ? '#FFFFFF' : '#BBBBBB'}
+                color={isActive ? theme.primary : theme.textSecondary}
               />
             </View>
             <Text
-            numberOfLines={1}
+              numberOfLines={1}
               style={[
                 styles.tabLabel,
-                {color: isActive ? '#FFFFFF' : '#BBBBBB'},
+                { color: isActive ? theme.primary : theme.textSecondary },
               ]}>
               {tab.label}
             </Text>
@@ -69,14 +71,17 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
 const styles = StyleSheet.create({
   bottomTabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingVertical: 6,
-    paddingBottom: 12,
     paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   tabButton: {
     alignItems: 'center',

@@ -15,12 +15,14 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
 import { verifyOTP } from '../redux/reducers/auth';
 import { setReporterTempToken } from '../redux/reducers/location';
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const OTPVerificationScreen = ({navigation, route}) => {
-  const dispatch = useDispatch(); // Fixed typo: disptach -> dispatch
+  const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const {mobile} = route.params;
   const [otp, setOtp] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(23);
@@ -70,7 +72,6 @@ const OTPVerificationScreen = ({navigation, route}) => {
     }
   };
 
-  // --- UPDATED VERIFY LOGIC STARTS HERE ---
   const handleVerify = async () => {
     const otpCode = otp.join('');
     if (otpCode.length === 4) {
@@ -85,26 +86,16 @@ const OTPVerificationScreen = ({navigation, route}) => {
       try {
         const response = await dispatch(verifyOTP(payload));
         
-        console.log('Verify OTP Response:', response);
-        
         if (response.type === 'auth/verifyOTP/fulfilled') {
           const { token, user } = response.payload;
-          console.log(response.payload,">>>>>>>>>>>>response.payload");
-          // Logic based on User Name and Reporter Status
           if (!user.reporter_profile?.full_name) {
             dispatch(setReporterTempToken(token))
-            // Case 1: Name is null -> Go to Profile Setup
             navigation.replace('ProfileSetup', { token: token });
           } else {
-            // Case 2: Name exists -> Check Reporter Status
             const status = user?.reporter_profile?.status;
-
             if (status === 'APPROVED') {
-              // Case 2a: Approved -> Go to Reporter App
               navigation.replace('ReporterApp');
             } else {
-              // Case 2b: Disapproved/Pending -> Go to Status Screen
-              // We pass the status to display the correct message
               navigation.replace('ReporterStatus', { status: status });
             }
           }
@@ -121,7 +112,6 @@ const OTPVerificationScreen = ({navigation, route}) => {
       }
     }
   };
-  // --- UPDATED VERIFY LOGIC ENDS HERE ---
 
   const handleResend = () => {
     if (canResend) {
@@ -130,15 +120,14 @@ const OTPVerificationScreen = ({navigation, route}) => {
       setOtp(['', '', '', '']);
       setErrorMessage('');
       inputRefs.current[0]?.focus();
-      // Add actual resend API call here if needed
     }
   };
 
   const isOtpComplete = otp.join('').length === 4;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Back Button */}
       <View style={styles.backButtonContainer}>
@@ -146,7 +135,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}>
-          <Icon name="arrow-left" size={24} color="#333" />
+          <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -156,8 +145,8 @@ const OTPVerificationScreen = ({navigation, route}) => {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.headerSection}>
-            <Text style={styles.otpTitle}>Enter OTP</Text>
-            <Text style={styles.description}>
+            <Text style={[styles.otpTitle, { color: theme.text }]}>Enter OTP</Text>
+            <Text style={[styles.description, { color: theme.textSecondary }]}>
               Enter the OTP sent to your phone number{'\n'}
               {maskPhoneNumber(mobile)}
             </Text>
@@ -171,6 +160,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
                 ref={ref => (inputRefs.current[index] = ref)}
                 style={[
                   styles.otpInput,
+                  { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#D0D5DD', color: theme.text },
                   errorMessage && styles.otpInputError
                 ]}
                 value={digit}
@@ -186,7 +176,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
 
           {/* Error Message Display */}
           {errorMessage ? (
-            <View style={styles.errorContainer}>
+            <View style={[styles.errorContainer, { backgroundColor: isDarkMode ? '#331111' : '#FEE2E2' }]}>
               <Icon name="alert-circle" size={18} color="#DC2626" />
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
@@ -195,7 +185,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
           {/* Timer and Resend */}
           <View style={styles.resendSection}>
             {!canResend ? (
-              <Text style={styles.timerText}>Resend OTP in {timer}s</Text>
+              <Text style={[styles.timerText, { color: theme.textSecondary }]}>Resend OTP in {timer}s</Text>
             ) : null}
             <TouchableOpacity
               onPress={handleResend}
@@ -204,7 +194,8 @@ const OTPVerificationScreen = ({navigation, route}) => {
               <Text
                 style={[
                   styles.resendText,
-                  (!canResend || isLoading) && styles.resendTextDisabled,
+                  { color: theme.text },
+                  (!canResend || isLoading) && [styles.resendTextDisabled, { color: isDarkMode ? '#444' : '#BBBBBB' }],
                 ]}>
                 Resend OTP
               </Text>
@@ -215,15 +206,16 @@ const OTPVerificationScreen = ({navigation, route}) => {
           <TouchableOpacity
             style={[
               styles.proceedButton,
-              isOtpComplete && styles.proceedButtonActive,
+              { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' },
+              isOtpComplete && [styles.proceedButtonActive, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }],
             ]}
             onPress={handleVerify}
             disabled={!isOtpComplete || isLoading}
             activeOpacity={0.8}>
             {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={isDarkMode ? "#000" : "#FFFFFF"} />
             ) : (
-              <Text style={styles.proceedButtonText}>Proceed</Text>
+              <Text style={[styles.proceedButtonText, { color: isDarkMode && isOtpComplete ? '#000' : '#FFFFFF' }]}>Proceed</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -235,7 +227,6 @@ const OTPVerificationScreen = ({navigation, route}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   backButtonContainer: {
     paddingTop: STATUS_BAR_HEIGHT + 10,
@@ -262,13 +253,11 @@ const styles = StyleSheet.create({
   otpTitle: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 16,
     letterSpacing: -0.5,
   },
   description: {
     fontSize: 15,
-    color: '#666',
     lineHeight: 22,
   },
   otpContainer: {
@@ -281,13 +270,10 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
     borderRadius: 12,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '600',
-    color: '#1A1A1A',
-    backgroundColor: '#FFFFFF',
   },
   otpInputError: {
     borderColor: '#DC2626',
@@ -297,7 +283,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -315,7 +300,6 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 15,
-    color: '#666',
     marginBottom: 8,
   },
   resendButton: {
@@ -323,28 +307,21 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 15,
-    color: '#1A1A1A',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  resendTextDisabled: {
-    color: '#BBBBBB',
-  },
+  resendTextDisabled: { },
   proceedButton: {
-    backgroundColor: '#E0E0E0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 56,
   },
-  proceedButtonActive: {
-    backgroundColor: '#1A1A1A',
-  },
+  proceedButtonActive: { },
   proceedButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
 });
 

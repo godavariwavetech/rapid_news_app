@@ -16,6 +16,7 @@ import { viewNews } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
+import { lightTheme, darkTheme } from '../config/theme';
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -38,10 +39,10 @@ const formatTimeAgo = (dateString) => {
 };
 
 // --- SKELETON LOADING COMPONENT ---
-const NewsSkeleton = ({ height }) => {
+const NewsSkeleton = ({ height, theme }) => {
   const imageHeight = height * 0.45;
   return (
-    <View style={[styles.skeletonContainer, { height }]}>
+    <View style={[styles.skeletonContainer, { height, backgroundColor: theme?.background || '#FFF' }]}>
       <ShimmerLoader height={imageHeight} borderRadius={0} />
       <View style={styles.skeletonContent}>
         <ShimmerLoader height={30} borderRadius={4} />
@@ -86,13 +87,13 @@ const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, i
 }, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive);
 
 // 2. CardHalf
-const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true }) => {
+const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
   const isTop = side === 'top';
   return (
-  <View style={styles.halfCardContainer}>
-      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight }]}>
+  <View style={[styles.halfCardContainer, { backgroundColor: theme?.background || '#fff' }]}>
+      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: theme?.background || '#fff' }]}>
         {newsItem.type === 'SURVEY' ? (
           <SurveyCard survey={newsItem} />
         ) : (
@@ -107,7 +108,9 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange }, ref) => {
   const dispatch = useDispatch();
   const { articles, loading, hasMore } = useSelector(state => state.news);
-    const {bookmarks} = useSelector(state => state.bookmarks);
+  const {bookmarks} = useSelector(state => state.bookmarks);
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
   
   
     const bookmarkedIds = useMemo(() => {
@@ -417,20 +420,20 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   // --- SKELETON RENDER LOGIC ---
   if (loading && formattedNews.length === 0) {
      return (
-        <View style={styles.container} onLayout={onLayout}>
-           <NewsSkeleton height={containerHeight} />
+        <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
+           <NewsSkeleton height={containerHeight} theme={theme} />
         </View>
      );
   }
 
   if (!displayNews) {
-    return <View style={styles.container} onLayout={onLayout} />;
+    return <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout} />;
   }
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={styles.container} onLayout={onLayout}>
+        <Animated.View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
           
           {activeNextNews && (
              <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
@@ -444,20 +447,20 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           )}
 
           <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} />
+            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} />
           </Animated.View>
 
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} />
+            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} />
           </Animated.View>
 
           {nextNews && (
             <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
               <Animated.View style={[styles.face, nextFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
               </Animated.View>
               <Animated.View style={[styles.face, nextBackStyle]}>
-                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -466,10 +469,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {prevNews && (
             <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
               <Animated.View style={[styles.face, prevFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
               </Animated.View>
               <Animated.View style={[styles.face, prevBackStyle]}>
-                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -498,13 +501,11 @@ const styles = StyleSheet.create({
   halfCardContainer: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#fff',
   },
   innerContainer: {
     position: 'absolute',
     width: '100%',
     left: 0,
-    backgroundColor: '#fff',
   },
   face: {
     ...StyleSheet.absoluteFillObject,
@@ -517,7 +518,6 @@ const styles = StyleSheet.create({
   },
   skeletonContainer: {
     flex: 1,
-    backgroundColor: '#FFF',
   },
   skeletonContent: {
     flex: 1,

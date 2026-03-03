@@ -14,36 +14,38 @@ import {completeOnboarding} from '../redux/reducers/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
+import { useTheme } from '../context/ThemeContext';
 
-  const languages = [
-    {
-      id: 'telugu',
-      icon: 'తె',
-      name: 'తెలుగు',
-      englishName: 'Telugu',
-      color: '#FFE5F1',
-      iconColor: '#FF1493',
-    },
-    {
-      id: 'tamil',
-      icon: 'த',
-      name: 'தமிழ்',
-      englishName: 'Tamil',
-      color: '#E8F5E9',
-      iconColor: '#4CAF50',
-    },
-    {
-      id: 'kannada',
-      icon: 'ಕ',
-      name: 'ಕನ್ನಡ',
-      englishName: 'Kannada',
-      color: '#E3F2FD',
-      iconColor: '#2196F3',
-    },
-  ];
+const languages = [
+  {
+    id: 'telugu',
+    icon: 'తె',
+    name: 'తెలుగు',
+    englishName: 'Telugu',
+    color: '#FFE5F1',
+    iconColor: '#FF1493',
+  },
+  {
+    id: 'tamil',
+    icon: 'த',
+    name: 'தமிழ்',
+    englishName: 'Tamil',
+    color: '#E8F5E9',
+    iconColor: '#4CAF50',
+  },
+  {
+    id: 'kannada',
+    icon: 'ಕ',
+    name: 'ಕನ್ನಡ',
+    englishName: 'Kannada',
+    color: '#E3F2FD',
+    iconColor: '#2196F3',
+  },
+];
 
 const OnboardingScreen = ({navigation}) => {
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const [selectedLanguage, setSelectedLanguage] = useState('telugu');
 
   const handleLanguageSelect = (languageId) => {
@@ -56,41 +58,45 @@ const OnboardingScreen = ({navigation}) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Title */}
-        <Text style={styles.title}>Choose your preferred language{'\n'}to read the news</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Choose your preferred language{'\n'}to read the news</Text>
 
         {/* Language Options */}
         <View style={styles.languageList}>
           {languages.map((language) => {
             const isSelected = selectedLanguage === language.id;
+            const cardBgColor = isDarkMode ? (isSelected ? '#1E1A1A' : theme.background) : (isSelected ? '#FFFBFB' : '#FFFFFF');
+            const iconBgColor = isDarkMode ? (language.id === 'telugu' ? '#2D1A24' : language.id === 'tamil' ? '#1A2D1F' : '#1A222D') : language.color;
+
             return (
               <TouchableOpacity
                 key={language.id}
                 style={[
                   styles.languageCard,
-                  isSelected && styles.languageCardSelected,
+                  { backgroundColor: cardBgColor, borderColor: isDarkMode ? '#333' : '#E8EAED' },
+                  isSelected && { borderColor: theme.primary },
                 ]}
                 onPress={() => handleLanguageSelect(language.id)}
                 activeOpacity={0.7}>
-                <View style={[styles.iconContainer, {backgroundColor: language.color}]}>
+                <View style={[styles.iconContainer, {backgroundColor: iconBgColor}]}>
                   <Text style={[styles.iconText, {color: language.iconColor}]}>
                     {language.icon}
                   </Text>
                 </View>
                 <View style={styles.languageInfo}>
-                  <Text style={styles.languageName}>{language.name}</Text>
-                  <Text style={styles.languageEnglishName}>{language.englishName}</Text>
+                  <Text style={[styles.languageName, { color: theme.text }]}>{language.name}</Text>
+                  <Text style={[styles.languageEnglishName, { color: theme.textSecondary }]}>{language.englishName}</Text>
                 </View>
                 {isSelected && (
-                  <View style={styles.checkmark}>
-                    <Icon name="check" size={20} color="#FFFFFF" />
+                  <View style={[styles.checkmark, { backgroundColor: theme.primary }]}>
+                    <Icon name="check" size={20} color={isDarkMode ? '#000' : "#FFFFFF"} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -100,12 +106,12 @@ const OnboardingScreen = ({navigation}) => {
       </ScrollView>
 
       {/* Continue Button - Fixed at Bottom */}
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
         <TouchableOpacity 
-          style={styles.continueButton}
+          style={[styles.continueButton, { backgroundColor: theme.primary }]}
           onPress={handleContinue}
           activeOpacity={0.8}>
-          <Text style={styles.continueButtonText}>Continue</Text>
+          <Text style={[styles.continueButtonText, { color: isDarkMode ? '#000' : '#FFFFFF' }]}>Continue</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -115,7 +121,6 @@ const OnboardingScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -127,7 +132,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A',
     textAlign: 'center',
     paddingHorizontal: 40,
     paddingBottom: 35,
@@ -140,15 +144,9 @@ const styles = StyleSheet.create({
   languageCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#E8EAED',
-  },
-  languageCardSelected: {
-    borderColor: '#FF3B30',
-    backgroundColor: '#FFFBFB',
   },
   iconContainer: {
     width: 56,
@@ -168,31 +166,25 @@ const styles = StyleSheet.create({
   languageName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 2,
   },
   languageEnglishName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
   },
   checkmark: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonContainer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   continueButton: {
-    backgroundColor: '#FF3B30',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -201,7 +193,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
 });
 

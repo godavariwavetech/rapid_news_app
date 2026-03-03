@@ -10,10 +10,12 @@ import {
   TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const SearchScreen = ({navigation}) => {
+  const { theme, isDarkMode } = useTheme();
   const [searchText, setSearchText] = useState('');
   const [selectedTime, setSelectedTime] = useState('1 hour');
 
@@ -29,45 +31,45 @@ const SearchScreen = ({navigation}) => {
   ];
 
   const categories = [
-    {id: 'videos', icon: 'video', label: 'Videos', color: '#E74C3C'},
-    {id: 'magazines', icon: 'book-open-variant', label: 'Magazines', color: '#E74C3C'},
-    {id: 'world', icon: 'earth', label: 'World', color: '#E74C3C'},
-    {id: 'trending', icon: 'trending-up', label: 'Trending', color: '#E74C3C'},
-    {id: 'health', icon: 'heart-pulse', label: 'Health Tips', color: '#E74C3C'},
-    {id: 'sports', icon: 'trophy', label: 'Sports', color: '#E74C3C'},
-    {id: 'lifestyle', icon: 'coffee', label: 'Lifestyle', color: '#E74C3C'},
+    {id: 'videos', icon: 'video', label: 'Videos', color: theme.primary},
+    {id: 'magazines', icon: 'book-open-variant', label: 'Magazines', color: theme.primary},
+    {id: 'world', icon: 'earth', label: 'World', color: theme.primary},
+    {id: 'trending', icon: 'trending-up', label: 'Trending', color: theme.primary},
+    {id: 'health', icon: 'heart-pulse', label: 'Health Tips', color: theme.primary},
+    {id: 'sports', icon: 'trophy', label: 'Sports', color: theme.primary},
+    {id: 'lifestyle', icon: 'coffee', label: 'Lifestyle', color: theme.primary},
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
       {/* Header with Back Button */}
-      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8}]}>
+      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8, backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={26} color="#333" />
+          <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
         <View style={styles.placeholder} />
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Icon name="magnify" size={24} color="#666" style={styles.searchIcon} />
+      <View style={[styles.searchSection, { backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+        <View style={[styles.searchBar, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F0F2F5' }]}>
+          <Icon name="magnify" size={24} color={theme.textSecondary} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.text }]}
             placeholder="ex : Modi, Politics, Health, Stocks, ..."
-            placeholderTextColor="#999"
+            placeholderTextColor={isDarkMode ? '#666' : '#999'}
             value={searchText}
             onChangeText={setSearchText}
             autoFocus={false}
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText('')}>
-              <Icon name="close-circle" size={20} color="#999" />
+              <Icon name="close-circle" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -77,8 +79,8 @@ const SearchScreen = ({navigation}) => {
         {/* Last 24 Hours Updates */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Icon name="clock-outline" size={20} color="#333" />
-            <Text style={styles.sectionTitle}>Last 24 Hours Updates</Text>
+            <Icon name="clock-outline" size={20} color={theme.text} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Last 24 Hours Updates</Text>
           </View>
 
           {/* Time Filter Chips */}
@@ -91,14 +93,16 @@ const SearchScreen = ({navigation}) => {
                 key={time}
                 style={[
                   styles.chip,
-                  selectedTime === time && styles.chipSelected,
+                  { backgroundColor: theme.background, borderColor: isDarkMode ? '#333' : '#DDD' },
+                  selectedTime === time && [styles.chipSelected, { backgroundColor: isDarkMode ? theme.primary : '#333', borderColor: isDarkMode ? theme.primary : '#333' }],
                 ]}
                 onPress={() => setSelectedTime(time)}
                 activeOpacity={0.7}>
                 <Text
                   style={[
                     styles.chipText,
-                    selectedTime === time && styles.chipTextSelected,
+                    { color: theme.textSecondary },
+                    selectedTime === time && [styles.chipTextSelected, { color: isDarkMode ? '#000' : '#FFF' }],
                   ]}>
                   {time}
                 </Text>
@@ -109,26 +113,29 @@ const SearchScreen = ({navigation}) => {
 
         {/* Categories Section */}
         <View style={styles.categoriesSection}>
-          <Text style={styles.categoriesTitle}>Categories</Text>
+          <Text style={[styles.categoriesTitle, { color: theme.text }]}>Categories</Text>
           
-          {categories.map((category, index) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryItem,
-                index === categories.length - 1 && styles.lastCategoryItem,
-              ]}
-              onPress={() => console.log(`${category.label} pressed`)}
-              activeOpacity={0.7}>
-              <View style={styles.categoryLeft}>
-                <View style={styles.iconContainer}>
-                  <Icon name={category.icon} size={26} color={category.color} />
+          <View style={[styles.categoriesCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderRadius: 12, overflow: 'hidden' }]}>
+            {categories.map((category, index) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryItem,
+                  { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' },
+                  index === categories.length - 1 && styles.lastCategoryItem,
+                ]}
+                onPress={() => console.log(`${category.label} pressed`)}
+                activeOpacity={0.7}>
+                <View style={styles.categoryLeft}>
+                  <View style={styles.iconContainer}>
+                    <Icon name={category.icon} size={26} color={category.color} />
+                  </View>
+                  <Text style={[styles.categoryLabel, { color: theme.text }]}>{category.label}</Text>
                 </View>
-                <Text style={styles.categoryLabel}>{category.label}</Text>
-              </View>
-              <Icon name="chevron-right" size={22} color="#CCC" />
-            </TouchableOpacity>
-          ))}
+                <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={{height: 20}} />
@@ -140,7 +147,6 @@ const SearchScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
   },
   header: {
     flexDirection: 'row',
@@ -148,11 +154,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
     elevation: 3,
   },
   backButton: {
@@ -161,22 +162,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   placeholder: {
     width: 34,
   },
   searchSection: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F2F5',
     borderRadius: 25,
     paddingHorizontal: 16,
     height: 48,
@@ -187,7 +184,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
   },
   content: {
     flex: 1,
@@ -206,7 +202,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#333',
   },
   chipsContainer: {
     paddingHorizontal: 12,
@@ -216,21 +211,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DDD',
   },
-  chipSelected: {
-    backgroundColor: '#333',
-    borderColor: '#333',
-  },
+  chipSelected: { },
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#666',
   },
   chipTextSelected: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   categoriesSection: {
@@ -240,23 +228,18 @@ const styles = StyleSheet.create({
   categoriesTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 14,
   },
   categoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
   },
   lastCategoryItem: {
     borderBottomWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
   },
   categoryLeft: {
     flexDirection: 'row',
@@ -272,7 +255,6 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
   },
 });
 

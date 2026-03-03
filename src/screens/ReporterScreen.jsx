@@ -13,12 +13,14 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getProfile } from '../redux/reducers/auth';
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterScreen = ({navigation}) => {
   const dispatch = useDispatch()
+  const { theme, isDarkMode } = useTheme();
   const {reporter,reporterToken} = useSelector((state)=>state.auth)
   const [activeTab, setActiveTab] = useState('submitted');
   const [expandedQuestion, setExpandedQuestion] = useState(null);
@@ -32,7 +34,7 @@ const ReporterScreen = ({navigation}) => {
     {
       id: 2,
       question: 'SITI సున్నాన్ కు వార్తలు ఎలా సంపాలి',
-      answer: 'వార్తలను పంపడానికి యాప్‌లో "వార్తను పంపించండి" ఆప్షన్‌ను ఎంచుకోండి. ఫోటో లేదా వీడియో అప్‌లోడ్ చేసి, వివరణ రాసి సబ్మిట్ చేయండి. మా టీమ్ దీనిని రివ్యూ చేసి ప్రచురిస్తుంది.',
+      answer: 'వార్తలను పంపడానికి యాప్‌లో "వార్తను పంపించండి" ఆప్션을 ఎంచుకోండి. ఫోటో లేదా వీడియో అప్‌లోడ్ చేసి, వివరణ రాసి సబ్మిట్ చేయండి. మా టీమ్ దీనిని రివ్యూ చేసి ప్రచురిస్తుంది.',
     },
     {
       id: 3,
@@ -105,79 +107,79 @@ const ReporterScreen = ({navigation}) => {
   },[])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.headerWrapper}>
-        <View style={styles.header}>
+      <View style={[styles.headerWrapper, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.background }]}>
           <View style={styles.profileSection}>
            {reporter?.username ? <Image
               source={{uri:reporter?.profile_image }}
               style={styles.profileImage}
-            />:<Icon name="account-circle" size={48} color="#CCC" />}
+            />:<Icon name="account-circle" size={48} color={isDarkMode ? '#555' : "#CCC"} />}
             <View style={styles.welcomeSection}>
-              <Text style={styles.welcomeText}>Welcome</Text>
-              <Text style={styles.guestText}>{reporter?.username || "Guest"}</Text>
+              <Text style={[styles.welcomeText, { color: theme.text }]}>Welcome</Text>
+              <Text style={[styles.guestText, { color: theme.textSecondary }]}>{reporter?.username || "Guest"}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.homeButton}>
-            <Icon name="home-outline" size={26} color="#333" />
+            <Icon name="home-outline" size={26} color={theme.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Section Title */}
-        <Text style={styles.sectionTitle}>పొస్ట్ చేయండి</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>పొస్ట్ చేయండి</Text>
 
         {/* Action Cards */}
         <TouchableOpacity
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}
           activeOpacity={0.7}
           onPress={() =>navigation.navigate(reporterToken  ?  "ReporterApp" :'MobileLogin')}>
-          <View style={styles.iconCircle}>
+          <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? '#2D1F1F' : '#FFE5E5' }]}>
             <Icon name="microphone" size={28} color="#E74C3C" />
           </View>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>రిపోర్టర్ అవ్వండి</Text>
-            <Text style={styles.actionSubtitle}>
+            <Text style={[styles.actionTitle, { color: theme.text }]}>రిపోర్టర్ అవ్వండి</Text>
+            <Text style={[styles.actionSubtitle, { color: theme.textSecondary }]}>
               సున్నాన్ పోస్ట్ చేసి ఆదాయం పొందండి
             </Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#999" />
+          <Icon name="chevron-right" size={24} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('AdFreeSubscription')}>
-          <View style={[styles.iconCircle, {backgroundColor: '#FFE5E5'}]}>
+          <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? '#2D1F1F' : '#FFE5E5' }]}>
             <Icon name="television" size={28} color="#E74C3C" />
           </View>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>
+            <Text style={[styles.actionTitle, { color: theme.text }]}>
               ప్రాసికి ప్రకటనలు పోస్ట్ చేయండి
             </Text>
-            <Text style={styles.actionSubtitle}>ఆదాయం పొందండి</Text>
+            <Text style={[styles.actionSubtitle, { color: theme.textSecondary }]}>ఆదాయం పొందండి</Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#999" />
+          <Icon name="chevron-right" size={24} color={theme.textSecondary} />
         </TouchableOpacity>
 
         {/* Tabs Section */}
-        <Text style={styles.sectionTitle}>తరచుగా అడుగుతున్న ప్రశ్నలు</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>తరచుగా అడుగుతున్న ప్రశ్నలు</Text>
 
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E8EAED' }]}>
           <TouchableOpacity
             style={[
               styles.tab,
-              activeTab === 'submitted' && styles.activeTab,
+              activeTab === 'submitted' && [styles.activeTab, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }],
             ]}
             onPress={() => setActiveTab('submitted')}>
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'submitted' && styles.activeTabText,
+                { color: isDarkMode ? '#888' : '#666' },
+                activeTab === 'submitted' && [styles.activeTabText, { color: isDarkMode ? '#000' : '#FFF' }],
               ]}>
               సున్నాన్ గురించి
             </Text>
@@ -186,13 +188,14 @@ const ReporterScreen = ({navigation}) => {
           <TouchableOpacity
             style={[
               styles.tab,
-              activeTab === 'published' && styles.activeTab,
+              activeTab === 'published' && [styles.activeTab, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }],
             ]}
             onPress={() => setActiveTab('published')}>
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'published' && styles.activeTabText,
+                { color: isDarkMode ? '#888' : '#666' },
+                activeTab === 'published' && [styles.activeTabText, { color: isDarkMode ? '#000' : '#FFF' }],
               ]}>
               ప్రకటన గురించి
             </Text>
@@ -202,22 +205,22 @@ const ReporterScreen = ({navigation}) => {
         {/* FAQ List with Expandable Answers */}
         <View style={styles.questionsList}>
           {faqData.map((faq) => (
-            <View key={faq.id} style={styles.faqContainer}>
+            <View key={faq.id} style={[styles.faqContainer, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}>
               <TouchableOpacity
                 style={styles.questionItem}
                 activeOpacity={0.7}
                 onPress={() => toggleQuestion(faq.id)}>
-                <Text style={styles.questionText}>{faq.question}</Text>
+                <Text style={[styles.questionText, { color: theme.text }]}>{faq.question}</Text>
                 <Icon
                   name={expandedQuestion === faq.id ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color="#999"
+                  color={theme.textSecondary}
                 />
               </TouchableOpacity>
               
               {expandedQuestion === faq.id && (
-                <View style={styles.answerContainer}>
-                  <Text style={styles.answerText}>{faq.answer}</Text>
+                <View style={[styles.answerContainer, { borderTopColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+                  <Text style={[styles.answerText, { color: theme.textSecondary }]}>{faq.answer}</Text>
                 </View>
               )}
             </View>
@@ -233,11 +236,9 @@ const ReporterScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
   },
   headerWrapper: {
     paddingTop: STATUS_BAR_HEIGHT,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -245,7 +246,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
   },
   profileSection: {
     flexDirection: 'row',
@@ -264,11 +264,9 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   guestText: {
     fontSize: 14,
-    color: '#666',
     marginTop: 2,
   },
   homeButton: {
@@ -280,7 +278,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 12,
@@ -288,22 +285,16 @@ const styles = StyleSheet.create({
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
     elevation: 2,
   },
   iconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFE5E5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -314,19 +305,16 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 4,
   },
   actionSubtitle: {
     fontSize: 13,
-    color: '#666',
     lineHeight: 18,
   },
   tabsContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: '#E8EAED',
     borderRadius: 12,
     padding: 4,
   },
@@ -336,22 +324,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
   },
-  activeTab: {
-    backgroundColor: '#1A1A1A',
-  },
+  activeTab: { },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
   },
-  activeTabText: {
-    color: '#FFFFFF',
-  },
+  activeTabText: { },
   questionsList: {
     paddingHorizontal: 16,
   },
   faqContainer: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 10,
     overflow: 'hidden',
@@ -366,7 +348,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     lineHeight: 20,
     marginRight: 10,
   },
@@ -375,11 +356,9 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingTop: 0,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   answerText: {
     fontSize: 14,
-    color: '#666',
     lineHeight: 22,
   },
 });

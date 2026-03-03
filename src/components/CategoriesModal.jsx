@@ -28,6 +28,7 @@ import Animated, {
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCategories, postFeedback, resetFeedbackStatus } from '../redux/reducers/news';
+import { lightTheme, darkTheme } from '../config/theme';
 
 const {width, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -35,6 +36,8 @@ const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
   const {reporterToken, userToken, isAuthenticated} = useSelector((state)=>state.auth);
   const {categories, isSubmittingFeedback, feedbackSuccess, feedbackError} = useSelector((state) => state.news);
 
@@ -227,15 +230,15 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
         <TouchableOpacity style={styles.absoluteFill} activeOpacity={1} onPress={closeModal} />
       </Animated.View>
 
-      <Animated.View style={[styles.sheetContainer, sheetStyle]}>
+      <Animated.View style={[styles.sheetContainer, sheetStyle, { backgroundColor: theme.background }]}>
         <GestureDetector gesture={pan}>
-          <View style={styles.handleBarContainer}>
-            <View style={styles.handleBar} />
+          <View style={[styles.handleBarContainer, { backgroundColor: theme.background }]}>
+            <View style={[styles.handleBar, { backgroundColor: isDarkMode ? '#444' : '#E0E0E0' }]} />
           </View>
         </GestureDetector>
 
         <View style={styles.contentWrapper}>
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F8F9FA', borderRightColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
             <View style={styles.sidebarLogo}>
                <Icon name="lightning-bolt" size={28} color="#FF6B35" />
             </View>
@@ -245,17 +248,17 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
                 style={[styles.sidebarItem]}
                 onPress={() => scrollToSection(item.id)}
                 activeOpacity={0.7}>
-                <View style={[styles.sidebarIconBox, activeSection === item.id && styles.sidebarIconBoxActive]}>
+                <View style={[styles.sidebarIconBox, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFF' }, activeSection === item.id && styles.sidebarIconBoxActive]}>
                    <Icon name={item.icon} size={22} color={activeSection === item.id ? '#FFF' : '#A0A0A0'} />
                 </View>
-                <Text style={[styles.sidebarLabel, activeSection === item.id && styles.sidebarLabelActive]}>{item.label}</Text>
+                <Text style={[styles.sidebarLabel, activeSection === item.id && { color: '#FF6B35' }]}>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <ScrollView
             ref={scrollViewRef}
-            style={styles.scrollView}
+            style={[styles.scrollView, { backgroundColor: theme.background }]}
             onScroll={handleScroll}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
@@ -264,9 +267,9 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             {/* SECTION: news */}
             <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={styles.section}>
               <View style={styles.searchRow}>
-                <TouchableOpacity style={styles.premiumSearch} onPress={handleSearchNavigation} activeOpacity={0.9}>
-                  <Icon name="magnify" size={22} color="#666" />
-                  <Text style={styles.searchPlaceholder}>Discover anything...</Text>
+                <TouchableOpacity style={[styles.premiumSearch, { backgroundColor: isDarkMode ? '#222' : '#F1F3F5' }]} onPress={handleSearchNavigation} activeOpacity={0.9}>
+                  <Icon name="magnify" size={22} color={isDarkMode ? '#888' : '#666'} />
+                  <Text style={[styles.searchPlaceholder, { color: isDarkMode ? '#666' : '#868E96' }]}>Discover anything...</Text>
                 </TouchableOpacity>
               </View>
 
@@ -345,26 +348,26 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
             {/* SECTION: reporter */}
             <View style={styles.menuSection} onLayout={(e) => sectionRefs.current['reporter'] = e.nativeEvent.layout.y}>
-              <Text style={styles.menuTitle}>Reporter</Text>
-              <View style={styles.menuCard}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Reporter</Text>
+              <View style={[styles.menuCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F8F9FA' }]}>
                 <TouchableOpacity style={styles.menuItem} onPress={handleReporterNavigation} activeOpacity={0.7}>
                   <View style={styles.menuLeft}>
-                    <View style={[styles.iconContainer, {backgroundColor: '#FFEBEE'}]}><Icon name="microphone" size={22} color="#E91E63" /></View>
-                    <View><Text style={styles.menuText}>రిపోర్టర్ అవ్వండి</Text><Text style={styles.menuSubText}>వార్తలను రిపోర్ట్ చేయండి</Text></View>
+                    <View style={[styles.iconContainer, {backgroundColor: isDarkMode ? '#2D1F24' : '#FFEBEE'}]}><Icon name="microphone" size={22} color="#E91E63" /></View>
+                    <View><Text style={[styles.menuText, { color: theme.text }]}>రిపోర్టర్ అవ్వండి</Text><Text style={[styles.menuSubText, { color: theme.textSecondary }]}>వార్తలను రిపోర్ట్ చేయండి</Text></View>
                   </View>
-                  <Icon name="chevron-right" size={22} color="#CCC" />
+                  <Icon name="chevron-right" size={22} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* SECTION: feedback */}
             <View style={styles.feedbackSection} onLayout={(e) => sectionRefs.current['feedback'] = e.nativeEvent.layout.y}>
-              <Text style={styles.menuTitle}>Feedback</Text>
-              <View style={styles.feedbackCard}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Feedback</Text>
+              <View style={[styles.feedbackCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F8F9FA' }]}>
                 <TextInput
-                  style={styles.feedbackInput}
+                  style={[styles.feedbackInput, { backgroundColor: isDarkMode ? '#222' : '#FFF', color: theme.text, borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}
                   placeholder="Share your feedback..."
-                  placeholderTextColor="#A0A0A0"
+                  placeholderTextColor={isDarkMode ? '#666' : '#A0A0A0'}
                   multiline
                   numberOfLines={4}
                   value={feedback}
@@ -397,18 +400,18 @@ const styles = StyleSheet.create({
   overlayWrapper: { ...StyleSheet.absoluteFillObject, elevation: 100 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   absoluteFill: { width: '100%', height: '100%' },
-  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, zIndex: 2, overflow: 'hidden', elevation: 25 },
-  handleBarContainer: { width: '100%', alignItems: 'center', paddingTop: 14, paddingBottom: 10, backgroundColor: '#FFFFFF' },
-  handleBar: { width: 44, height: 5, backgroundColor: '#E0E0E0', borderRadius: 2.5 },
+  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, borderTopLeftRadius: 32, borderTopRightRadius: 32, zIndex: 2, overflow: 'hidden', elevation: 25 },
+  handleBarContainer: { width: '100%', alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
+  handleBar: { width: 44, height: 5, borderRadius: 2.5 },
   contentWrapper: { flex: 1, flexDirection: 'row' },
-  sidebar: { width: 75, backgroundColor: '#F8F9FA', paddingVertical: 20, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#F0F0F0' },
+  sidebar: { width: 75, paddingVertical: 20, alignItems: 'center', borderRightWidth: 1 },
   sidebarLogo: { marginBottom: 30 },
   sidebarItem: { alignItems: 'center', marginBottom: 25, width: '100%' },
-  sidebarIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, marginBottom: 6 },
+  sidebarIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, marginBottom: 6 },
   sidebarIconBoxActive: { backgroundColor: '#FF6B35', elevation: 6, shadowColor: '#FF6B35', shadowOpacity: 0.3, shadowRadius: 8 },
   sidebarLabel: { fontSize: 10, fontWeight: '700', color: '#A0A0A0', textAlign: 'center' },
   sidebarLabelActive: { color: '#FF6B35' },
-  scrollView: { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollView: { flex: 1 },
   scrollPadding: { paddingBottom: 100 },
   section: { padding: 18 },
   searchRow: { marginBottom: 20 },
@@ -434,15 +437,15 @@ const styles = StyleSheet.create({
   bentoTeLabel: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
   menuSection: { paddingHorizontal: 18, marginTop: 30 },
   menuTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A1A', marginBottom: 16, letterSpacing: -0.5 },
-  menuCard: { backgroundColor: '#F8F9FA', borderRadius: 24, overflow: 'hidden' },
+  menuCard: { borderRadius: 24, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
   menuLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   iconContainer: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   menuText: { fontSize: 17, fontWeight: '800', color: '#2D3436' },
   menuSubText: { fontSize: 13, color: '#636E72', marginTop: 3, fontWeight: '500' },
   feedbackSection: { paddingHorizontal: 18, marginTop: 30 },
-  feedbackCard: { backgroundColor: '#F8F9FA', borderRadius: 24, padding: 18, marginBottom: 20 },
-  feedbackInput: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, fontSize: 15, color: '#1A1A1A', height: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: '#F0F0F0', marginBottom: 16 },
+  feedbackCard: { borderRadius: 24, padding: 18, marginBottom: 20 },
+  feedbackInput: { borderRadius: 16, padding: 16, fontSize: 15, height: 120, textAlignVertical: 'top', borderWidth: 1, marginBottom: 16 },
   feedbackButton: { backgroundColor: '#FF6B35', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   feedbackButtonDisabled: { backgroundColor: '#FFB899' },
   feedbackButtonText: { fontSize: 16, fontWeight: '800', color: '#FFF' },

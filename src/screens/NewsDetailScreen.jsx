@@ -82,7 +82,7 @@ try {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.contentBody}>
+        <View style={[styles.contentBody, { backgroundColor: theme.background }]}>
           {/* Category & Date */}
           <View style={styles.metaRow}>
             <Text style={[styles.reporter, { color: theme.primary }]}>
@@ -102,7 +102,7 @@ try {
           <View style={[styles.divider, { backgroundColor: theme.textSecondary + '20' }]} />
 
           {/* Full Body Text */}
-          <Text style={[styles.bodyText, { color: theme.textSecondary }]}>
+          <Text style={[styles.bodyText, { color: theme.text }]}>
             {news.content.body}
           </Text>
         </View>
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
   },
-  contentBody: { padding: 20, marginTop: -20, borderTopLeftRadius: 25, borderTopRightRadius: 25, backgroundColor: '#FFF' },
+  contentBody: { padding: 20, marginTop: -20, borderTopLeftRadius: 25, borderTopRightRadius: 25 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   reporter: { fontWeight: 'bold', fontSize: 14 },
   date: { fontSize: 12 },

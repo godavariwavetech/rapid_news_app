@@ -23,17 +23,19 @@ import {
   getStates, 
   getDistrict, 
   getVillages, 
-  checkVillageCapacity, // 1. Import the new action
+  checkVillageCapacity,
   resolveLocation
 } from '../redux/reducers/location';
 import {applyReporter} from '../redux/reducers/auth';
 import LocationService from '../utils/LocationService';
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ProfileSetupScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   
   const {states, districts, villages, loading: locationLoading} = useSelector(state => state.location);
   const {loading: authLoading} = useSelector(state => state.auth || {});
@@ -49,7 +51,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [checkingCapacity, setCheckingCapacity] = useState(false); // 2. New Loading State
+  const [checkingCapacity, setCheckingCapacity] = useState(false);
 
   // Modals Visibility
   const [showStatePicker, setShowStatePicker] = useState(false);
@@ -59,10 +61,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const init = async () => {
-      dispatch(getStates());
-    };
-    init();
+    dispatch(getStates());
   }, [dispatch]);
 
   const handleDetectLocation = async (isAuto = false) => {
@@ -135,19 +134,11 @@ const ProfileSetupScreen = ({navigation, route}) => {
         state_id: selectedState._id,
         district_id: selectedDistrict._id,
         village_id: selectedVillage._id,
-        // profile_image: profileImageBase64 ? `data:image/jpeg;base64,${profileImageBase64}` : null
         profile_image:"https://png.pngtree.com/png-vector/20190710/ourmid/pngtree-user-vector-avatar-png-image_1541962.jpg"
       };
 
-      console.log(payload,">>>>>PAYLOADDDDD");
-      // return
-
       try {
         const resultAction = await dispatch(applyReporter(payload));
-        
-
-        console.log(resultAction.payload,"resultAction.payload?");
-        
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [
             { text: 'OK', onPress: () => navigation.replace('ReporterStatus', { status: 'PENDING' }) }
@@ -195,37 +186,24 @@ const ProfileSetupScreen = ({navigation, route}) => {
     if (errors.district) setErrors({...errors, district: null});
   };
 
-  // 3. UPDATED: Handle Village Select with Capacity Check
   const handleVillageSelect = async (item) => {
     setCheckingCapacity(true);
     try {
-      // Dispatch the check
       const resultAction = await dispatch(checkVillageCapacity(item._id));
-
-      console.log(checkVillageCapacity.fulfilled.match(resultAction),">>>>>>>>>>>>>>checkVillageCapacity",resultAction);
-
-      // console.log(object);
-      
       if (checkVillageCapacity.fulfilled.match(resultAction)) {
         const data = resultAction.payload;
-        console.log(data,">>>>>>>>>>>>>>>DATATATATA");
-        // Assuming the API returns { available: true } or similar
-        // If the API returns { count: x, capacity: y }, you can adjust the condition:
-        // if (data.count < data.capacity) ...
-        // Here we assume a boolean 'available' property based on standard practices
         if (data) {
           setSelectedVillage(item);
           setShowVillagePicker(false);
           if (errors.village) setErrors({...errors, village: null});
         } else {
           Alert.alert("Village Full", "This village has reached its maximum reporter capacity. Please select another village.");
-          setSelectedVillage(null); // Ensure it's not selected
+          setSelectedVillage(null);
         }
       } else {
         Alert.alert("Error", "Could not verify village capacity. Please try again.");
       }
     } catch (error) {
-      console.log("Capacity check error:", error);
       Alert.alert("Error", "An unexpected error occurred while checking capacity.");
     } finally {
       setCheckingCapacity(false);
@@ -243,16 +221,15 @@ const ProfileSetupScreen = ({navigation, route}) => {
   const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color="#333" /></TouchableOpacity>
+        <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color={theme.text} /></TouchableOpacity>
           </View>
-          {/* Show loader inside modal if checking capacity */}
           {checkingCapacity && title === "Select Village" ? (
              <View style={{ padding: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#2196F3" />
-                <Text style={{ marginTop: 10, color: '#666' }}>Checking availability...</Text>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={{ marginTop: 10, color: theme.textSecondary }}>Checking availability...</Text>
              </View>
           ) : (
             <FlatList
@@ -261,12 +238,12 @@ const ProfileSetupScreen = ({navigation, route}) => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{paddingBottom: 20}}
               renderItem={({item}) => (
-                <TouchableOpacity style={styles.listItem} onPress={() => onSelect(item)}>
-                  <Text style={styles.listItemText}>{item.name?.en || item.name}</Text>
-                  <Icon name="chevron-right" size={20} color="#ccc" />
+                <TouchableOpacity style={[styles.listItem, { borderBottomColor: isDarkMode ? '#333' : '#F5F5F5' }]} onPress={() => onSelect(item)}>
+                  <Text style={[styles.listItemText, { color: theme.text }]}>{item.name?.en || item.name}</Text>
+                  <Icon name="chevron-right" size={20} color={isDarkMode ? '#444' : "#ccc"} />
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={<Text style={styles.emptyText}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
+              ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.textSecondary }]}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
             />
           )}
         </View>
@@ -275,8 +252,8 @@ const ProfileSetupScreen = ({navigation, route}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
@@ -285,50 +262,50 @@ const ProfileSetupScreen = ({navigation, route}) => {
               {profileImage ? (
                 <Image source={{uri: profileImage}} style={styles.profileImage} />
               ) : (
-                <View style={styles.placeholderImage}><Icon name="camera" size={32} color="#2196F3" /></View>
+                <View style={[styles.placeholderImage, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#2196F3' }]}><Icon name="camera" size={32} color={theme.primary} /></View>
               )}
             </TouchableOpacity>
             <View style={styles.titleSection}>
-              <Text style={styles.completeText}>Complete</Text>
-              <Text style={styles.profileTitle}>your basic profile</Text>
+              <Text style={[styles.completeText, { color: theme.textSecondary }]}>Complete</Text>
+              <Text style={[styles.profileTitle, { color: theme.text }]}>your basic profile</Text>
             </View>
           </View>
 
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>User Name</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>User Name</Text>
               <TextInput
-                style={[styles.input, errors.username && styles.inputError]}
+                style={[styles.input, { color: theme.text, borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.username && styles.inputError]}
                 value={username}
                 onChangeText={(t) => { setUsername(t); if(errors.username) setErrors({...errors, username: null}) }}
                 placeholder="Enter username"
-                placeholderTextColor="#999"
+                placeholderTextColor={isDarkMode ? '#444' : "#999"}
                 autoCapitalize="none"
               />
               {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Full Name</Text>
               <TextInput
-                style={[styles.input, errors.fullName && styles.inputError]}
+                style={[styles.input, { color: theme.text, borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.fullName && styles.inputError]}
                 value={fullName}
                 onChangeText={(t) => { setFullName(t); if(errors.fullName) setErrors({...errors, fullName: null}) }}
                 placeholder="Enter full name"
-                placeholderTextColor="#999"
+                placeholderTextColor={isDarkMode ? '#444' : "#999"}
                 autoCapitalize="words"
               />
               {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Email Address</Text>
               <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
+                style={[styles.input, { color: theme.text, borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.email && styles.inputError]}
                 value={email}
                 onChangeText={(t) => { setEmail(t); if(errors.email) setErrors({...errors, email: null}) }}
                 placeholder="Enter email address"
-                placeholderTextColor="#999"
+                placeholderTextColor={isDarkMode ? '#444' : "#999"}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -336,44 +313,44 @@ const ProfileSetupScreen = ({navigation, route}) => {
             </View>
 
             <View style={styles.locationHeader}>
-              <Text style={styles.label}>Location Details</Text>
-              <TouchableOpacity style={styles.detectButton} onPress={() => handleDetectLocation(false)} disabled={isLocating}>
-                {isLocating ? <ActivityIndicator size="small" color="#2196F3" /> : <><Icon name="crosshairs-gps" size={16} color="#2196F3" /><Text style={styles.detectButtonText}>Use Current Location</Text></>}
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Location Details</Text>
+              <TouchableOpacity style={[styles.detectButton, { backgroundColor: isDarkMode ? '#1A222D' : '#E3F2FD' }]} onPress={() => handleDetectLocation(false)} disabled={isLocating}>
+                {isLocating ? <ActivityIndicator size="small" color={theme.primary} /> : <><Icon name="crosshairs-gps" size={16} color={theme.primary} /><Text style={[styles.detectButtonText, { color: theme.primary }]}>Use Current Location</Text></>}
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.subLabel}>State</Text>
-              <TouchableOpacity style={[styles.input, styles.dropdownInput, errors.state && styles.inputError]} onPress={() => setShowStatePicker(true)}>
-                <Text style={[styles.inputText, !selectedState && styles.placeholderText]}>{selectedState ? selectedState.name.en : 'Select State'}</Text>
-                <Icon name="chevron-down" size={24} color="#999" />
+              <Text style={[styles.subLabel, { color: theme.textSecondary }]}>State</Text>
+              <TouchableOpacity style={[styles.input, styles.dropdownInput, { borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.state && styles.inputError]} onPress={() => setShowStatePicker(true)}>
+                <Text style={[styles.inputText, { color: theme.text }, !selectedState && { color: isDarkMode ? '#444' : '#999' }]}>{selectedState ? selectedState.name.en : 'Select State'}</Text>
+                <Icon name="chevron-down" size={24} color={isDarkMode ? '#444' : "#999"} />
               </TouchableOpacity>
               {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.subLabel}>District</Text>
+              <Text style={[styles.subLabel, { color: theme.textSecondary }]}>District</Text>
               <TouchableOpacity 
-                style={[styles.input, styles.dropdownInput, errors.district && styles.inputError, !selectedState && styles.disabledInput]} 
+                style={[styles.input, styles.dropdownInput, { borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.district && styles.inputError, !selectedState && styles.disabledInput]} 
                 onPress={() => selectedState && setShowDistrictPicker(true)} 
                 disabled={!selectedState}
               >
-                <Text style={[styles.inputText, !selectedDistrict && styles.placeholderText]}>{selectedDistrict ? selectedDistrict.name.en : 'Select District'}</Text>
-                <Icon name="chevron-down" size={24} color="#999" />
+                <Text style={[styles.inputText, { color: theme.text }, !selectedDistrict && { color: isDarkMode ? '#444' : '#999' }]}>{selectedDistrict ? selectedDistrict.name.en : 'Select District'}</Text>
+                <Icon name="chevron-down" size={24} color={isDarkMode ? '#444' : "#999"} />
               </TouchableOpacity>
               {!selectedState && <Text style={styles.helperText}>Select state first</Text>}
               {errors.district && <Text style={styles.errorText}>{errors.district}</Text>}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.subLabel}>Village</Text>
+              <Text style={[styles.subLabel, { color: theme.textSecondary }]}>Village</Text>
               <TouchableOpacity 
-                style={[styles.input, styles.dropdownInput, errors.village && styles.inputError, !selectedDistrict && styles.disabledInput]} 
+                style={[styles.input, styles.dropdownInput, { borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }, errors.village && styles.inputError, !selectedDistrict && styles.disabledInput]} 
                 onPress={() => selectedDistrict && setShowVillagePicker(true)} 
                 disabled={!selectedDistrict}
               >
-                <Text style={[styles.inputText, !selectedVillage && styles.placeholderText]}>{selectedVillage ? selectedVillage.name.en : 'Select Village'}</Text>
-                <Icon name="chevron-down" size={24} color="#999" />
+                <Text style={[styles.inputText, { color: theme.text }, !selectedVillage && { color: isDarkMode ? '#444' : '#999' }]}>{selectedVillage ? selectedVillage.name.en : 'Select Village'}</Text>
+                <Icon name="chevron-down" size={24} color={isDarkMode ? '#444' : "#999"} />
               </TouchableOpacity>
               {!selectedDistrict && <Text style={styles.helperText}>Select district first</Text>}
               {errors.village && <Text style={styles.errorText}>{errors.village}</Text>}
@@ -382,14 +359,14 @@ const ProfileSetupScreen = ({navigation, route}) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.proceedButton, isFormValid && !authLoading && styles.proceedButtonActive]}
+            style={[styles.proceedButton, { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' }, isFormValid && !authLoading && [styles.proceedButtonActive, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }]]}
             onPress={handleProceed}
             disabled={!isFormValid || authLoading}
           >
             {authLoading ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={isDarkMode ? "#000" : "#FFF"} />
             ) : (
-              <Text style={styles.proceedButtonText}>Proceed</Text>
+              <Text style={[styles.proceedButtonText, { color: isDarkMode && isFormValid ? '#000' : '#FFFFFF' }]}>Proceed</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -403,41 +380,40 @@ const ProfileSetupScreen = ({navigation, route}) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingTop: STATUS_BAR_HEIGHT + 20, paddingHorizontal: 24, paddingBottom: 30 },
   headerSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 30, gap: 16 },
   profileImageContainer: { width: 90, height: 90 },
   profileImage: { width: 90, height: 90, borderRadius: 45 },
-  placeholderImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: '#2196F3', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  placeholderImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   titleSection: { flex: 1 },
-  completeText: { fontSize: 18, color: '#666', marginBottom: 4 },
-  profileTitle: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', letterSpacing: -0.5 },
+  completeText: { fontSize: 18, marginBottom: 4 },
+  profileTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   formSection: { marginBottom: 30 },
   inputGroup: { marginBottom: 20 },
   locationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 10 },
-  detectButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#E3F2FD', borderRadius: 20 },
-  detectButtonText: { fontSize: 13, color: '#2196F3', fontWeight: '600' },
-  label: { fontSize: 16, color: '#666', marginBottom: 8, fontWeight: '600' },
-  subLabel: { fontSize: 15, color: '#666', marginBottom: 8, fontWeight: '500' },
-  input: { fontSize: 16, color: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#E0E0E0', paddingVertical: 12 },
+  detectButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 },
+  detectButtonText: { fontSize: 13, fontWeight: '600' },
+  label: { fontSize: 16, marginBottom: 8, fontWeight: '600' },
+  subLabel: { fontSize: 15, marginBottom: 8, fontWeight: '500' },
+  input: { fontSize: 16, borderBottomWidth: 1, paddingVertical: 12 },
   dropdownInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  disabledInput: { opacity: 0.5, backgroundColor: '#F9F9F9' },
-  inputText: { fontSize: 16, color: '#1A1A1A' },
-  placeholderText: { color: '#999' },
+  disabledInput: { opacity: 0.5 },
+  inputText: { fontSize: 16 },
   inputError: { borderBottomColor: '#FF3B30' },
   errorText: { fontSize: 12, color: '#FF3B30', marginTop: 6 },
   helperText: { fontSize: 12, color: '#999', marginTop: 4 },
-  proceedButton: { backgroundColor: '#E0E0E0', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  proceedButtonActive: { backgroundColor: '#1A1A1A' },
-  proceedButtonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
+  proceedButton: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  proceedButtonActive: { },
+  proceedButtonText: { fontSize: 18, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', paddingBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  listItemText: { fontSize: 16, color: '#333' },
-  emptyText: { textAlign: 'center', color: '#999', marginTop: 20, fontSize: 16 },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, paddingBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1 },
+  listItemText: { fontSize: 16 },
+  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });
 
 export default ProfileSetupScreen;

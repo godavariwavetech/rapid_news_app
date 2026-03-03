@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Logic & Theme Imports
 import { logout } from '../redux/reducers/auth';
 import { fonts } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 // Import your screens
 import ReporterDashboardScreen from '../screens/ReporterDashboardScreen';
@@ -33,6 +34,7 @@ const Drawer = createDrawerNavigator();
 function CustomDrawerContent({ navigation }) {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const { reporter } = useSelector(state => state.auth);
   
   // Get current route name
@@ -46,12 +48,6 @@ function CustomDrawerContent({ navigation }) {
       icon: 'home-variant-outline',
       screen: 'ReporterDashboard',
     },
-    // {
-    //   id: 'profile',
-    //   label: 'ప్రొఫైల్',
-    //   icon: 'account-outline',
-    //   screen: 'Profile',
-    // },
     {
       id: 'reporter',
       label: 'రిపోర్ట్',
@@ -78,11 +74,11 @@ function CustomDrawerContent({ navigation }) {
           onPress: async () => {
             dispatch(logout());
             navigation.dispatch(
-    CommonActions.reset({
-      index: 0,
-      routes: [{ name: 'Main' }], 
-    })
-  );
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Main' }], 
+              })
+            );
             await AsyncStorage.clear();
           }
         }
@@ -91,14 +87,14 @@ function CustomDrawerContent({ navigation }) {
   };
 
   return (
-    <View style={[styles.drawerContainer, {paddingTop: insets.top}]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.drawerContainer, {paddingTop: insets.top, backgroundColor: theme.background}]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{flexGrow: 1}}>
         {/* Professional Profile Section */}
-        <View style={styles.profileSection}>
+        <View style={[styles.profileSection, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
           <Image
             source={{
               uri:
@@ -107,15 +103,15 @@ function CustomDrawerContent({ navigation }) {
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
+            <Text style={[styles.profileName, { color: theme.text }]}>
               {reporter?.reporter_profile?.username || 'Guest'}
             </Text>
-            <Text style={styles.profileRole}>Reporter Desk</Text>
+            <Text style={[styles.profileRole, { color: theme.textSecondary }]}>Reporter Desk</Text>
           </View>
           <TouchableOpacity
             onPress={() => navigation.navigate('EditProfile')}
             style={styles.editButton}>
-            <Icon name="pencil-outline" size={22} color="#000" />
+            <Icon name="pencil-outline" size={22} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -126,16 +122,16 @@ function CustomDrawerContent({ navigation }) {
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.menuItem, isActive && styles.menuItemActive]}
+                style={[styles.menuItem, isActive && [styles.menuItemActive, { backgroundColor: isDarkMode ? '#222' : '#F5F5F5' }]]}
                 onPress={() => navigation.navigate(item.screen)}
                 activeOpacity={0.7}>
                 <Icon
                   name={item.icon}
                   size={24}
-                  color={isActive ? '#000' : '#666'}
+                  color={isActive ? theme.primary : theme.textSecondary}
                 />
                 <Text
-                  style={[styles.menuText, isActive && styles.menuTextActive]}>
+                  style={[styles.menuText, { color: theme.textSecondary }, isActive && [styles.menuTextActive, { color: theme.primary }]]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -143,17 +139,17 @@ function CustomDrawerContent({ navigation }) {
           })}
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
 
         {/* Support Section */}
         <View style={styles.bottomMenuSection}>
           <TouchableOpacity style={styles.menuItem}>
-            <Icon name="information-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>మా గురించి</Text>
+            <Icon name="information-outline" size={24} color={theme.textSecondary} />
+            <Text style={[styles.menuText, { color: theme.textSecondary }]}>మా గురించి</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
-            <Icon name="help-circle-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>ప్రశ్నలు</Text>
+            <Icon name="help-circle-outline" size={24} color={theme.textSecondary} />
+            <Text style={[styles.menuText, { color: theme.textSecondary }]}>ప్రశ్నలు</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -162,11 +158,11 @@ function CustomDrawerContent({ navigation }) {
       <TouchableOpacity
         style={[
           styles.logoutButton,
-          {marginBottom: Math.max(insets.bottom, 20)},
+          { backgroundColor: isDarkMode ? '#1A1A1A' : '#F9F9F9', marginBottom: Math.max(insets.bottom, 20)},
         ]}
         onPress={handleLogout}>
-        <Icon name="logout" size={22} color="#000" />
-        <Text style={styles.logoutText}>Logout Account</Text>
+        <Icon name="logout" size={22} color={isDarkMode ? theme.error : "#000"} />
+        <Text style={[styles.logoutText, { color: isDarkMode ? theme.error : "#000" }]}>Logout Account</Text>
       </TouchableOpacity>
     </View>
   );
@@ -174,6 +170,7 @@ function CustomDrawerContent({ navigation }) {
 
 // Main Drawer Navigator
 function ReporterDrawerNavigator() {
+  const { theme, isDarkMode } = useTheme();
   return (
     <Drawer.Navigator
       drawerContent={props => <CustomDrawerContent {...props} />}
@@ -182,7 +179,7 @@ function ReporterDrawerNavigator() {
         drawerType: 'slide',
         drawerStyle: {
           width: '80%',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.background,
         },
       }}>
       <Drawer.Screen name="ReporterDashboard" component={ReporterDashboardScreen} />
@@ -197,14 +194,12 @@ function ReporterDrawerNavigator() {
 const styles = StyleSheet.create({
   drawerContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
     marginBottom: 10,
   },
   profileImage: {
@@ -220,12 +215,10 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 18,
     fontFamily: fonts.bold,
-    color: '#000',
   },
   profileRole: {
     fontSize: 12,
     fontFamily: fonts.medium,
-    color: '#999',
     marginTop: 2,
     textTransform: 'uppercase',
   },
@@ -243,21 +236,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 4,
   },
-  menuItemActive: {
-    backgroundColor: '#F5F5F5',
-  },
+  menuItemActive: { },
   menuText: {
     fontSize: 15,
     fontFamily: fonts.bold,
-    color: '#666',
     marginLeft: 16,
   },
-  menuTextActive: {
-    color: '#000',
-  },
+  menuTextActive: { },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
     marginVertical: 15,
     marginHorizontal: 28,
   },
@@ -269,13 +256,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     marginHorizontal: 16,
-    backgroundColor: '#F9F9F9',
     borderRadius: 8,
   },
   logoutText: {
     fontSize: 15,
     fontFamily: fonts.bold,
-    color: '#000',
     marginLeft: 16,
   },
 });
