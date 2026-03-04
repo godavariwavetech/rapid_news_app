@@ -3,11 +3,10 @@ import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme } from '../context/ThemeContext';
 
 const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
+  
   const tabs = [
     {
       id: 'HomeTab',
@@ -37,7 +36,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   ];
 
   return (
-    <View style={[styles.bottomTabBar, { paddingBottom: insets.bottom, backgroundColor: theme.tabBar }]}>
+    <View style={[styles.bottomTabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
@@ -49,15 +48,16 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
             <View style={styles.iconContainer}>
               <Icon
                 name={tab.icon}
-                size={20}
-                color={isActive ? theme.primary : theme.textSecondary}
+                size={22}
+                // Active: Greyish White | Inactive: Dimmed Grey
+                color={isActive ? '#E0E0E0' : '#888888'}
               />
             </View>
             <Text
               numberOfLines={1}
               style={[
                 styles.tabLabel,
-                { color: isActive ? theme.primary : theme.textSecondary },
+                { color: isActive ? '#E0E0E0' : '#888888' },
               ]}>
               {tab.label}
             </Text>
@@ -73,15 +73,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingVertical: 6,
+    paddingTop: 10,
     paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
-    elevation: 8,
+    backgroundColor: '#2C2C2C', // Fixed Greyish Black Background
+    elevation: 15, // Slightly higher elevation for a floating look
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   tabButton: {
     alignItems: 'center',
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: responsiveFontSize(1.1),
+    fontSize: responsiveFontSize(1.2),
     fontWeight: '600',
     textAlign: 'center',
     letterSpacing: 0.2,

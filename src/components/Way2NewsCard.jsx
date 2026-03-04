@@ -27,7 +27,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   responsiveFontSize, 
   responsiveWidth, 
-  responsiveHeight 
 } from 'react-native-responsive-dimensions';
 
 // Assets
@@ -90,14 +89,14 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
     }
   };
 
-  const handlePlayPauseToggle = () => { // New function for play/pause button
+  const handlePlayPauseToggle = () => { 
     if (nudgeTimeout.current) {
       clearTimeout(nudgeTimeout.current);
       nudgeTimeout.current = null;
-      hasNudged.current = true; // Consider it nudged if user intervened
+      hasNudged.current = true; 
     }
     setIsVideoPaused(prev => !prev);
-    showControlsTemporarily(); // Keep controls visible for a bit after play/pause
+    showControlsTemporarily(); 
   };
 
   const triggerNudge = () => {
@@ -217,7 +216,6 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   };
 
   const handleShareNews = () => {
-     console.log("Share pressed for news:", news.id);
      handleShare(news.title, news.short || news.body);
   };
 
@@ -234,9 +232,9 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
       case 'report':
         setReportModalVisible(true);
         break;
-      case 'download':
-        downloadImageToGallery(news.image || (news.images && news.images[0]));
-        break;
+    //   case 'download':
+    //     downloadImageToGallery(news.image || (news.images && news.images[0]));
+    //     break;
     }
   };
 
@@ -282,11 +280,13 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
       </View>
     </TouchableWithoutFeedback>
   );
-  const isBookmarked = bookmarkIds?.includes(news.id)
+  
+  const isBookmarked = bookmarkIds?.includes(news.id);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.background }]}>
-      <View style={[styles.imageSection, { backgroundColor: isDarkMode ? '#121212' : '#f0f0f0' }]}>
+    <View style={styles.card}>
+      {/* Top Image Section */}
+      <View style={styles.imageSection}>
         {hasVideos ? (
           <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT, backgroundColor: '#000'}}>
             <TouchableWithoutFeedback 
@@ -332,7 +332,6 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
               </View>
             )}
 
-            {/* Conditional rendering for play/pause button */}
             {showControls && (
               <View style={[StyleSheet.absoluteFill, styles.centerOverlay]} pointerEvents="box-none">
                 <TouchableOpacity
@@ -386,97 +385,87 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
             />
           </TouchableWithoutFeedback>
         )}
-
-        {/* Standard News gets the logo */}
         <Image source={applogo} style={styles.watermarkLogo} />
       </View>
 
+      {/* Main Bottom Container */}
       <View style={styles.bottomContainer}>
         <TouchableWithoutFeedback
           onPress={handleDoubleTap}
           containerStyle={{flex: 1}}
           style={{flex: 1}}>
           <View style={styles.contentSection}>
-            <Text style={[styles.title, { color: theme.text }]}>{news.title}</Text>
-
+            <Text style={styles.title}>{news.title}</Text>
             <ScrollView
               style={styles.bodyContainer}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled={true}>
-              <Text style={[styles.body, { color: theme.textSecondary }]}>
+              <Text style={styles.body}>
                 {news.body || news.description}
                 {news.fullContent && (
-                  <Text style={[styles.body, { color: theme.textSecondary }]}>{'\n\n' + news.fullContent}</Text>
+                  <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
                 )}
               </Text>
             </ScrollView>
-
             <View style={styles.timestampContainer}>
-              <Icon name="clock-outline" size={14} color={theme.textSecondary} />
-              <Text style={[styles.timestamp, { color: theme.textSecondary }]}>{news.timeAgo}</Text>
-            </View>
-
-            <View style={[styles.statsBar, {marginBottom: insets.bottom+10, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
-              <View style={styles.statsLeft}>
-                {news.commentsEnabled !== false && (
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={handleCommentsPress}>
-                    <Icon name="comment-outline" size={20} color={theme.textSecondary} />
-                    <Text style={[styles.statText, { color: theme.textSecondary }]}>{news.comments}</Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={styles.statButton}
-                  onPress={handleLike}>
-                  <Icon
-                    name={liked ? 'thumb-up' : 'thumb-up-outline'}
-                    size={20}
-                    color={liked ? '#2196F3' : theme.textSecondary}
-                  />
-                  <Text style={[styles.statText, { color: liked ? '#2196F3' : theme.textSecondary }]}>
-                    {liked ? parseInt(news?.likes || 0) + 1 : news.likes || 0}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={handleDislike}>
-                  <Icon
-                    name={disliked ? 'thumb-down' : 'thumb-down-outline'}
-                    size={20}
-                    color={disliked ? '#F44336' : theme.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.actionsRight}>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={handleMenuPress}>
-                  <Icon name="dots-vertical" size={22} color={theme.textSecondary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() =>
-                    handleShareNews(news.title, news.short, news.id)
-                  }>
-                  <Icon name="share-variant" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
-              </View>
+              <Icon name="clock-outline" size={14} color="#999" />
+              <Text style={styles.timestamp}>{news.timeAgo}</Text>
             </View>
           </View>
         </TouchableWithoutFeedback>
+
+        {/* --- INVERTED-LOOK ACTION BAR (Reduced Radius & Space) --- */}
+        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
+          
+          <View style={styles.actionLeft}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+              <Icon
+                name={liked ? 'thumb-up' : 'thumb-up-outline'}
+                size={22}
+                color={liked ? '#4dabf5' : '#E0E0E0'} 
+              />
+              <Text style={[styles.actionText, liked && { color: '#4dabf5' }]}>
+                {liked ? parseInt(news?.likes || 0) + 1 : news?.likes || 0}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton} onPress={handleDislike}>
+              <Icon
+                name={disliked ? 'thumb-down' : 'thumb-down-outline'}
+                size={22}
+                color={disliked ? '#F44336' : '#E0E0E0'} 
+              />
+              <Text style={[styles.actionText, disliked && { color: '#F44336' }]}>
+                {disliked ? parseInt(news?.dislikes || 0) + 1 : news?.dislikes || 0}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.actionRight}>
+            {news.commentsEnabled !== false && (
+              <TouchableOpacity style={styles.actionButton} onPress={handleCommentsPress}>
+                <Icon name="comment-outline" size={22} color="#E0E0E0" />
+                <Text style={styles.actionText}>{news?.comments || 0}</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.actionIconButton} onPress={handleMenuPress}>
+              <Icon name="dots-vertical" size={24} color="#E0E0E0" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionIconButton} onPress={() => handleShareNews(news.title, news.short, news.id)}>
+              <Icon name="share" size={24} color="#2196F3" /> 
+            </TouchableOpacity>
+          </View>
+
+        </View>
       </View>
 
-      {/* --- MENU MODAL (Only 3 Options) --- */}
-
+      {/* MODALS */}
       <ReportModal
         visible={reportModalVisible}
         onClose={() => setReportModalVisible(false)}
-        newsId={news.id} // Passing the news ID for the API call
+        newsId={news.id} 
       />
 
       <Modal
@@ -512,19 +501,18 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
 
                 <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
 
-                <RNTouchableOpacity
+             { /*  <RNTouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('download')}>
                   <Icon name="download-outline" size={24} color={theme.text} />
                   <Text style={[styles.menuText, { color: theme.text }]}>Download Image</Text>
-                </RNTouchableOpacity>
+                </RNTouchableOpacity> */ }
               </View>
             </RNTouchableWithoutFeedback>
           </View>
         </RNTouchableWithoutFeedback>
       </Modal>
 
-      {/* --- FULL SCREEN IMAGE MODAL --- */}
       <Modal
         visible={fullScreenImage}
         transparent
@@ -566,11 +554,12 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: IMAGE_HEIGHT,
     position: 'relative',
-    backgroundColor: '#f0f0f0', 
+    backgroundColor: '#202020', 
   },
   bottomContainer: {
     flex: 1, 
     width: '100%',
+    backgroundColor: '#2C2C2C', 
   },
   image: {
     width: responsiveWidth(100),
@@ -629,16 +618,18 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 15, // Reduced radius for the top inward-curve effect
+    borderBottomRightRadius: 15, // Reduced radius for the top inward-curve effect
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 10, // Reduced padding to tighten up space
   },
   title: {
     fontSize: responsiveFontSize(2.5), 
-    color: '#1A1A1A',
+    color: '#1A1A1A', 
     lineHeight: responsiveFontSize(4),
     marginBottom:7,
-    // marginBottom: responsiveHeight(2), 
     letterSpacing: 0.2,
     fontFamily:fonts.bold
   },
@@ -647,7 +638,7 @@ const styles = StyleSheet.create({
   },
   body: {
     fontSize: responsiveFontSize(2.2),
-    color: '#333',
+    color: '#333333', 
     lineHeight: responsiveFontSize(4.0),
     paddingBottom: 10,
     fontWeight: '400', 
@@ -658,8 +649,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingTop: 6,
     justifyContent: 'flex-start',
   },
   timestamp: {
@@ -667,41 +657,42 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '500',
   },
-  statsBar: {
+
+  // --- COMPACT ACTION BAR (Smaller radius and less padding) ---
+  actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
+    backgroundColor: '#2C2C2C', 
+    width: '100%',              
+    paddingTop: 8, // Reduced padding at the top              
+    paddingHorizontal: 16, // Reduced horizontal padding slightly           
   },
-  statsLeft: {
+  actionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 12,
   },
-  statButton: {
+  actionRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    gap: 8,
   },
-  iconButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  statText: {
-    fontSize: 13,
-    color: '#565B67',
+  actionIconButton: {
+    padding: 4,
+  },
+  actionText: {
+    fontSize: 14,
+    color: '#E0E0E0', 
     fontWeight: '600',
   },
-  actionsRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+
+  // --- MODAL STYLES ---
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -710,7 +701,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   menuContainer: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     width: '100%',
     maxWidth: 280,
@@ -731,12 +721,10 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
     flex: 1,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
     marginHorizontal: 16,
   },
   fullScreenContainer: {
@@ -776,44 +764,19 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)', // Dim the background slightly
+    backgroundColor: 'rgba(0,0,0,0.3)', 
     zIndex: 5,
-  },
-    loaderOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.8)',
-  },
-  loaderContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 12,
-    minWidth: 120,
-  },
-  loaderText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 12,
-    textAlign: 'center',
   },
   centerOverlay: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: 5, // Lower zIndex so play/pause button is on top
   },
   playPauseButton: {
     width: 150,
     height: 150,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10, // Ensure it's above the video and overlay
+    zIndex: 10, 
   },
 });
 
