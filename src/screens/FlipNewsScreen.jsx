@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid } from 'react-native';
+import { View, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -72,13 +72,13 @@ const SPRING_CONFIG = {
   restSpeedThreshold: 2,
 };
 
-// 1. Memoized Card
-const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true }) => {
+// 1. Memoized Card (Added onAutoNext Prop)
+const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true, onAutoNext }) => {
   if (!newsItem) return null;
   return (
    <View style={{ height }}>
       {newsItem.type === 'SURVEY' ? (
-        <SurveyCard survey={newsItem} />
+        <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
       ) : (
         <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} />
       )}
@@ -86,8 +86,8 @@ const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, i
   );
 }, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive);
 
-// 2. CardHalf
-const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme }) => {
+// 2. CardHalf (Added onAutoNext Prop)
+const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme, onAutoNext }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
   const isTop = side === 'top';
@@ -95,7 +95,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
   <View style={[styles.halfCardContainer, { backgroundColor: theme?.background || '#fff' }]}>
       <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: theme?.background || '#fff' }]}>
         {newsItem.type === 'SURVEY' ? (
-          <SurveyCard survey={newsItem} />
+          <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
         ) : (
           <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} />
         )}
@@ -112,12 +112,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
   
-  
-    const bookmarkedIds = useMemo(() => {
+  const bookmarkedIds = useMemo(() => {
     return bookmarks?.map(item => item.news?._id);
   }, [bookmarks]);
-  
-  // const isItemBookmarked = (newsId) => bookmarkedIds.includes(newsId);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -186,7 +183,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         };
       }
     });
-  }, [articles]);
+  }, [articles, bookmarkedIds]);
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
@@ -194,21 +191,17 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
   
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const halfHeight = containerHeight / 2;
   const scrollY = useSharedValue(0);
+  const loaderY = useSharedValue(-60); 
   const isAnimating = useSharedValue(false);
   const swipeDirection = useSharedValue(0); 
 
   // Track availability of Next/Prev for Animation Logic
   const hasNext = useSharedValue(false);
   const hasPrev = useSharedValue(false);
-
-  const getIndex = useCallback((i) => {
-    if (!formattedNews || formattedNews.length === 0) return 0;
-    if (i < 0) return 0;
-    if (i >= formattedNews.length) return formattedNews.length - 1;
-    return i;
-  }, [formattedNews]);
 
   const currentNews = useMemo(() => formattedNews[currIndex], [currIndex, formattedNews]);
   
@@ -237,7 +230,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
-  // --- TRIGGER API CALL ON NEWS CHANGE ---
+  // Handle hiding the loader once Redux `loading` is finished
+  useEffect(() => {
+    if (!loading && isRefreshing) {
+      setIsRefreshing(false);
+      loaderY.value = withTiming(-60, { duration: 300 }); // Slide back up
+    }
+  }, [loading, isRefreshing]);
+
+  // Trigger API Call on News Change
   useEffect(() => {
     if (currentNews && currentNews.id && !currentNews.isAd) {
       dispatch(viewNews(currentNews.id));
@@ -272,6 +273,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
 
   const triggerRefresh = () => {
+    setIsRefreshing(true);
+    loaderY.value = withSpring(20, SPRING_CONFIG); 
     if (onRefresh) onRefresh();
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
@@ -279,6 +282,25 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const triggerLoadMore = () => {
     if (onEndReached) onEndReached();
     scrollY.value = withSpring(0, SPRING_CONFIG); 
+  };
+
+  // --- AUTOMATIC SWIPE (CALLED FROM SURVEY CARD) ---
+  const autoSwipeNext = () => {
+    if (isAnimating.value) return;
+    if (!hasNext.value) {
+        if (!hasMore && Platform.OS === 'android') {
+          ToastAndroid.show("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
+        }
+        triggerLoadMore();
+    } else {
+       isAnimating.value = true;
+       swipeDirection.value = 1;
+       scrollY.value = withTiming(
+         1, 
+         { duration: 250, easing: Easing.out(Easing.cubic) }, 
+         (finished) => { if (finished) runOnJS(finishFlip)('next'); }
+       );
+    }
   };
 
   const pan = Gesture.Pan()
@@ -298,6 +320,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       }
       else if (!hasPrev.value && position < 0) {
         position = position / 3; 
+        
+        if (!isRefreshing) {
+          const dragY = e.translationY; 
+          loaderY.value = Math.min(-60 + (dragY * 0.4), 20); 
+        }
       }
 
       scrollY.value = position;
@@ -312,7 +339,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
-            // Toast logic for End of News
             if (!hasMore && Platform.OS === 'android') {
               runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
             }
@@ -329,7 +355,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       } 
       else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
-           runOnJS(triggerRefresh)();
+           if (!isRefreshing) {
+              runOnJS(triggerRefresh)();
+           } else {
+              scrollY.value = withSpring(0, SPRING_CONFIG);
+           }
         } else {
            isAnimating.value = true;
            swipeDirection.value = -1;
@@ -343,6 +373,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       else {
         swipeDirection.value = 0;
         scrollY.value = withSpring(0, SPRING_CONFIG);
+        if (!isRefreshing && !hasPrev.value) {
+           loaderY.value = withSpring(-60, SPRING_CONFIG);
+        }
       }
     });
 
@@ -417,7 +450,13 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  // --- SKELETON RENDER LOGIC ---
+  const topLoaderStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: loaderY.value }],
+      opacity: interpolate(loaderY.value, [-60, 20], [0, 1], Extrapolate.CLAMP),
+    };
+  });
+
   if (loading && formattedNews.length === 0) {
      return (
         <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
@@ -435,32 +474,36 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
           
+          <Animated.View style={[styles.refreshLoaderContainer, topLoaderStyle]}>
+            <ActivityIndicator size="large" color="#4dabf5" />
+          </Animated.View>
+
           {activeNextNews && (
              <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
-               <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} />
+               <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
           {activePrevNews && (
              <Animated.View style={[styles.absoluteFill, destinationPrevStyle]}>
-               <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} />
+               <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
 
           <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} />
+            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
           </Animated.View>
 
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} />
+            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
           </Animated.View>
 
           {nextNews && (
             <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
               <Animated.View style={[styles.face, nextFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
+                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.face, nextBackStyle]}>
-                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
+                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -469,10 +512,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {prevNews && (
             <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
               <Animated.View style={[styles.face, prevFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
+                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.face, prevBackStyle]}>
-                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} />
+                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -522,7 +565,21 @@ const styles = StyleSheet.create({
   skeletonContent: {
     flex: 1,
     padding: 20,
-  }
+  },
+  refreshLoaderContainer: {
+    position: 'absolute',
+    top: 60, 
+    alignSelf: 'center',
+    backgroundColor: '#2C2C2C', 
+    borderRadius: 25,
+    padding: 8,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    zIndex: 9999, 
+  },
 });
 
 export default FlipNewsScreen;

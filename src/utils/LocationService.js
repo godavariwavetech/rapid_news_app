@@ -13,8 +13,15 @@ const LOW_ACCURACY_OPTIONS = {
   maximumAge: 10000,
 };
 
-class LocationService {
+// Added specific options for watching position
+const WATCH_OPTIONS = {
+  enableHighAccuracy: true,
+  distanceFilter: 10, // Minimum distance (in meters) to trigger a location update
+  interval: 5000, // Android only: Time interval (in ms) for updates
+  fastestInterval: 2000, // Android only: Fastest interval for updates
+};
 
+class LocationService {
   async requestPermission() {
     if (Platform.OS === 'ios') {
       const auth = await Geolocation.requestAuthorization('whenInUse');
@@ -37,7 +44,6 @@ class LocationService {
 
     return false;
   }
-
 
   getLocation() {
     return new Promise(async (resolve, reject) => {
@@ -76,6 +82,49 @@ class LocationService {
       },
       LOW_ACCURACY_OPTIONS
     );
+  }
+
+  /**
+   * Starts watching the user's location.
+   * @param {Function} onSuccess - Callback when a new position is received.
+   * @param {Function} onError - Callback when an error occurs.
+   * @returns {Promise<number|null>} - Returns the watchId to be used with stopWatching, or null if permission denied.
+   */
+  async startWatching(onSuccess, onError) {
+    const hasPermission = await this.requestPermission();
+
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission Denied',
+        'Location permission is required. Please enable it in settings.',
+        [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
+      );
+      if (onError) onError(new Error('PERMISSION_DENIED'));
+      return null;
+    }
+
+    const watchId = Geolocation.watchPosition(
+      (position) => {
+        if (onSuccess) onSuccess(position);
+      },
+      (error) => {
+        console.warn(`Watch position failed (${error.code}): ${error.message}`);
+        if (onError) onError(error);
+      },
+      WATCH_OPTIONS
+    );
+
+    return watchId;
+  }
+
+  /**
+   * Stops watching the user's location.
+   * @param {number} watchId - The ID returned by startWatching.
+   */
+  stopWatching(watchId) {
+    if (watchId !== null && watchId !== undefined) {
+      Geolocation.clearWatch(watchId);
+    }
   }
 }
 

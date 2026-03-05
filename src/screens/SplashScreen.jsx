@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, StatusBar, Image } from 'react-native';
 import Animated, { 
   useSharedValue, 
@@ -19,6 +19,7 @@ const SplashScreen = ({ navigation }) => {
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
+  const watchIdRef = useRef(null);
 
 
   const handleNavigation = () => {
@@ -68,6 +69,37 @@ const SplashScreen = ({ navigation }) => {
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
+
+
+
+// useEffect(() => {
+//   const startLocationTracking = async () => {
+//     watchIdRef.current = await LocationService.startWatching(
+//       (position) => {
+//         console.log('New position:', position);
+//          dispatch(
+//             resolveLocation({
+//               latitude: position.coords?.latitude,
+//               longitude: position.coords?.longitude,
+//             }),
+//           );
+//         // Update state with new coordinates here
+//       },
+//       (error) => {
+//         console.error('Watch error:', error);
+//       }
+//     );
+//   };
+
+//   startLocationTracking();
+
+//   // Cleanup function to clear the watch when the component unmounts
+//   // return () => {
+//   //   if (watchIdRef.current !== null) {
+//   //     LocationService.stopWatching(watchIdRef.current);
+//   //   }
+//   // };
+// }, []);
 
   return (
     <View style={styles.container}>

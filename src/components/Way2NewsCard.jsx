@@ -151,7 +151,8 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
   
-  const imageResizeMode = hasImage ? FastImage.resizeMode.stretch : FastImage.resizeMode.contain;
+  // UPDATE: Changed dynamic resizeMode logic to always use contain for the top section
+  const imageResizeMode = FastImage.resizeMode.cover;
 
   const videoUrls = news.videos || [];
   const hasVideos = videoUrls.length > 0 && !isBottomHalf;
@@ -232,9 +233,9 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
       case 'report':
         setReportModalVisible(true);
         break;
-    //   case 'download':
-    //     downloadImageToGallery(news.image || (news.images && news.images[0]));
-    //     break;
+      case 'download':
+        downloadImageToGallery(news.image || (news.images && news.images[0]));
+        break;
     }
   };
 
@@ -296,7 +297,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                 ref={videoRef}
                 source={videoSource}
                 style={styles.image}
-                resizeMode="contain"
+                resizeMode="contain" // Force contain for videos as well
                 repeat={true}
                 paused={isVideoPaused}
                 muted={false}
@@ -381,7 +382,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
             <FastImage
               source={hasImage ? {uri: images[0]} : applogo}
               style={styles.image}
-              resizeMode={imageResizeMode}
+              resizeMode={imageResizeMode} // Always contain
             />
           </TouchableWithoutFeedback>
         )}
@@ -396,6 +397,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
           style={{flex: 1}}>
           <View style={styles.contentSection}>
             <Text style={styles.title}>{news.title}</Text>
+            
             <ScrollView
               style={styles.bodyContainer}
               showsVerticalScrollIndicator={false}
@@ -406,7 +408,20 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                   <Text style={styles.body}>{'\n\n' + news.fullContent}</Text>
                 )}
               </Text>
+
+              {/* --- CLICKABLE GENERIC LINK (Removed YouTube Icon) --- */}
+              <TouchableOpacity 
+                style={styles.linkContainer}
+                onPress={() => Linking.openURL('https://youtube.com/@siti24x7?si=Y6VQiXdQAWrJLk0k')}
+              >
+                {/* REMOVED: YouTube Icon */}
+                <Text style={styles.linkText} numberOfLines={1}>
+                  https://youtube.com/@siti24x7
+                </Text>
+              </TouchableOpacity>
+
             </ScrollView>
+
             <View style={styles.timestampContainer}>
               <Icon name="clock-outline" size={14} color="#999" />
               <Text style={styles.timestamp}>{news.timeAgo}</Text>
@@ -414,7 +429,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
           </View>
         </TouchableWithoutFeedback>
 
-        {/* --- INVERTED-LOOK ACTION BAR (Reduced Radius & Space) --- */}
+        {/* --- INVERTED-LOOK ACTION BAR --- */}
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
           
           <View style={styles.actionLeft}>
@@ -501,12 +516,12 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
 
                 <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
 
-             { /*  <RNTouchableOpacity
+                <RNTouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('download')}>
                   <Icon name="download-outline" size={24} color={theme.text} />
                   <Text style={[styles.menuText, { color: theme.text }]}>Download Image</Text>
-                </RNTouchableOpacity> */ }
+                </RNTouchableOpacity>
               </View>
             </RNTouchableWithoutFeedback>
           </View>
@@ -619,31 +634,43 @@ const styles = StyleSheet.create({
   contentSection: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 15, // Reduced radius for the top inward-curve effect
-    borderBottomRightRadius: 15, // Reduced radius for the top inward-curve effect
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10, // Reduced padding to tighten up space
+    borderBottomLeftRadius: 15, 
+    borderBottomRightRadius: 15, 
+    paddingHorizontal: 18, 
+    paddingTop: 18,
+    paddingBottom: 10, 
   },
   title: {
-    fontSize: responsiveFontSize(2.5), 
-    color: '#1A1A1A', 
-    lineHeight: responsiveFontSize(4),
-    marginBottom:7,
-    letterSpacing: 0.2,
-    fontFamily:fonts.bold
+    fontSize: responsiveFontSize(2.6), 
+    color: '#000000', 
+    lineHeight: responsiveFontSize(3.8), 
+    marginBottom: 10,
+    fontWeight: '700', 
   },
   bodyContainer: {
     flex: 1,
   },
   body: {
-    fontSize: responsiveFontSize(2.2),
-    color: '#333333', 
-    lineHeight: responsiveFontSize(4.0),
-    paddingBottom: 10,
+    // UPDATE: Increased font size and updated line height
+    fontSize: responsiveFontSize(2.4), 
+    // UPDATE: Added grayish color to text
+    color: '#666666', 
+    lineHeight: responsiveFontSize(3.8), 
     fontWeight: '400', 
-    letterSpacing: 0.3,
-    fontFamily:fonts.medium
+    paddingBottom: 10,
+  },
+  // --- LINK STYLES (Updated naming) ---
+  linkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+    paddingBottom: 15,
+  },
+  linkText: {
+    color: '#1A73E8', 
+    fontSize: responsiveFontSize(2),
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   timestampContainer: {
     flexDirection: 'row',
@@ -658,15 +685,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // --- COMPACT ACTION BAR (Smaller radius and less padding) ---
+  // --- ACTION BAR ---
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#2C2C2C', 
     width: '100%',              
-    paddingTop: 8, // Reduced padding at the top              
-    paddingHorizontal: 16, // Reduced horizontal padding slightly           
+    paddingTop: 8,              
+    paddingHorizontal: 16,           
   },
   actionLeft: {
     flexDirection: 'row',

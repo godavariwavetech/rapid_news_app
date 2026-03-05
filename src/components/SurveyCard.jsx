@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions, Image, ToastAndroid, Platform, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { fonts } from '../config/theme';
@@ -12,12 +12,43 @@ const HALF_HEIGHT = SCREEN_HEIGHT / 2;
 const SurveyCard = ({ survey }) => {
   const [voted, setVoted] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  
+  // Local state to handle optimistic updates when a user votes
+  const [localOptions, setLocalOptions] = useState([]);
+  const [localTotalVotes, setLocalTotalVotes] = useState(0);
+
+  useEffect(() => {
+    // Initialize the local state when the survey prop changes
+    if (survey) {
+      setLocalOptions(survey.options || []);
+      setLocalTotalVotes(survey.totalVotes || 0);
+    }
+  }, [survey]);
 
   const handleVote = async (index) => {
-    if (voted) return;
+    if (voted) return; // Prevent multiple votes
+    
+    // 1. Optimistically update local state for instant UI feedback
     setSelectedIndex(index);
     setVoted(true);
 
+    const updatedOptions = [...localOptions];
+    updatedOptions[index] = {
+      ...updatedOptions[index],
+      votes: (updatedOptions[index].votes || 0) + 1
+    };
+    
+    setLocalOptions(updatedOptions);
+    setLocalTotalVotes(localTotalVotes + 1);
+
+    // 2. Show Toast message
+    if (Platform.OS === 'android') {
+      ToastAndroid.show("Thank you for voting!", ToastAndroid.SHORT);
+    } else {
+      Alert.alert("Success", "Thank you for voting!");
+    }
+
+    // 3. Make API call in the background
     try {
       await api.post(`surveys/${survey.id}/vote`, { option_index: index });
     } catch (err) {
@@ -51,9 +82,13 @@ const SurveyCard = ({ survey }) => {
         <View style={styles.bottomHalf}>
           <View style={styles.glassCardBottom}>
             <View style={styles.optionsList}>
-              {survey.options.map((option, index) => {
+              {localOptions.map((option, index) => {
                 const isSelected = selectedIndex === index;
-                const fillWidth = voted ? (isSelected ? '82%' : '18%') : '0%';
+                const votes = option.votes || 0;
+                
+                // Calculate dynamic percentage based on real votes
+                const percentage = localTotalVotes > 0 ? Math.round((votes / localTotalVotes) * 100) : 0;
+                const fillWidth = voted ? `${percentage}%` : '0%';
 
                 return (
                   <TouchableOpacity 

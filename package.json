@@ -71,7 +71,9 @@
     "react-native-wheel-pick": "^1.2.5",
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
-    "redux-thunk": "^3.1.0"
+    "redux-thunk": "^3.1.0",
+    "react-native-youtube-iframe":"^2.4.1",
+    "react-native-webview":"^13.16.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
