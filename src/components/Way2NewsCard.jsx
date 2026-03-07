@@ -151,10 +151,16 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
   
-  // UPDATE: Changed dynamic resizeMode logic to always use contain for the top section
-  const imageResizeMode = FastImage.resizeMode.cover;
+  const imageResizeMode = FastImage.resizeMode.contain;
 
-  const videoUrls = news.videos || [];
+  // =========================================================
+  // --- STATIC MP4 VIDEO FOR TESTING NATIVE PLAYER ---
+  // =========================================================
+  // When your API is ready, delete the static array line and uncomment the original line below it.
+  
+  const videoUrls = ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4']; // <-- STATIC MP4 TEST VIDEO
+  // const videoUrls = news.videos || []; // <-- UNCOMMENT THIS LATER WHEN API IS READY
+
   const hasVideos = videoUrls.length > 0 && !isBottomHalf;
 
   const videoSource = useMemo(() => {
@@ -290,14 +296,17 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
       <View style={styles.imageSection}>
         {hasVideos ? (
           <View style={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT, backgroundColor: '#000'}}>
+            
             <TouchableWithoutFeedback 
               onPress={handleToggleControls}
               containerStyle={{width: SCREEN_WIDTH, height: IMAGE_HEIGHT}}>
+              
+              {/* REGULAR NATIVE MP4 PLAYER */}
               <Video
                 ref={videoRef}
                 source={videoSource}
                 style={styles.image}
-                resizeMode="contain" // Force contain for videos as well
+                resizeMode="contain"
                 repeat={true}
                 paused={isVideoPaused}
                 muted={false}
@@ -313,9 +322,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                 }}
                 onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
                 onError={() => setIsBuffering(false)}
-                onReadyForDisplay={() => {
-                  setIsBuffering(false);
-                }}
+                onReadyForDisplay={() => setIsBuffering(false)}
                 onLoad={() => {
                   hasLoaded.current = true;
                   showControlsTemporarily();
@@ -323,16 +330,18 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                     triggerNudge();
                   }
                 }}
-                controls={false}
+                controls={false} /* This ensures NO native media controls are shown */
               />
             </TouchableWithoutFeedback>
 
+            {/* Buffering Overlay */}
             {isBuffering && (
               <View style={[styles.videoOverlay, styles.centerOverlay]} pointerEvents="none">
                 <ActivityIndicator size="large" color="#FFFFFF" />
               </View>
             )}
 
+            {/* CUSTOM PLAY/PAUSE CONTROLS */}
             {showControls && (
               <View style={[StyleSheet.absoluteFill, styles.centerOverlay]} pointerEvents="box-none">
                 <TouchableOpacity
@@ -382,7 +391,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
             <FastImage
               source={hasImage ? {uri: images[0]} : applogo}
               style={styles.image}
-              resizeMode={imageResizeMode} // Always contain
+              resizeMode={imageResizeMode} 
             />
           </TouchableWithoutFeedback>
         )}
@@ -409,12 +418,10 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                 )}
               </Text>
 
-              {/* --- CLICKABLE GENERIC LINK (Removed YouTube Icon) --- */}
               <TouchableOpacity 
                 style={styles.linkContainer}
                 onPress={() => Linking.openURL('https://youtube.com/@siti24x7?si=Y6VQiXdQAWrJLk0k')}
               >
-                {/* REMOVED: YouTube Icon */}
                 <Text style={styles.linkText} numberOfLines={1}>
                   https://youtube.com/@siti24x7
                 </Text>
@@ -429,7 +436,6 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
           </View>
         </TouchableWithoutFeedback>
 
-        {/* --- INVERTED-LOOK ACTION BAR --- */}
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
           
           <View style={styles.actionLeft}>
@@ -651,15 +657,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   body: {
-    // UPDATE: Increased font size and updated line height
     fontSize: responsiveFontSize(2.4), 
-    // UPDATE: Added grayish color to text
     color: '#666666', 
     lineHeight: responsiveFontSize(3.8), 
     fontWeight: '400', 
     paddingBottom: 10,
   },
-  // --- LINK STYLES (Updated naming) ---
   linkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -685,7 +688,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // --- ACTION BAR ---
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -719,7 +721,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // --- MODAL STYLES ---
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
