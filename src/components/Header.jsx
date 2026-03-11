@@ -23,7 +23,7 @@ function Header({onProfilePress, onTogglePress, title}) {
         style={styles.iconButton}
         // onPress={onTogglePress}
         activeOpacity={0.7}>
-        {/* <Icon name="eye-off-outline" size={24} color="#FFFFFF" /> */}
+        <Icon name="eye-off-outline" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );

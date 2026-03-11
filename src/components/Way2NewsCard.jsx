@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect, useMemo, useCallback} from 'react';
+import React, {useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle} from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   Modal,
   Linking,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-// IMPORTANT: We use touchables from gesture-handler to prevent swipe gestures from swallowing taps
 import {
   TouchableWithoutFeedback,
   TouchableOpacity,
@@ -51,26 +51,47 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-// 1. Define a dummy ID that is used ONLY for bypassing the block
-const DUMMY_VIDEO_ID = 'g5oUluD9ScA'; 
-
-// 2. Define a default video ID if the news article doesn't have one
-const DEFAULT_VIDEO_ID = '3oh7BZ9X7JQ'; 
-
-function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottomHalf = false}) {
+const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = true, isBottomHalf = false}, ref) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const {bookmarkIds} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
 
+  // --- PLAYER STATES ---
+  const [isVideoPaused, setIsVideoPaused] = useState(!isActive || isBottomHalf); 
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [showControls, setShowControls] = useState(false);
+  
+  const playerRef = useRef(null);
+  const videoRef = useRef(null);
+  const flatListRef = useRef(null);
+  const isManuallyPaused = useRef(false);
+  const controlsTimeout = useRef(null);
+
+  // EXPOSE PLAY/PAUSE VIA REF
+  useImperativeHandle(ref, () => ({
+    play: () => {
+      console.log(">>>>>>>>>>>>>>CALLINGGGG>>>>>>>>>>>>>>");
+      setIsVideoPaused(false);
+      isManuallyPaused.current = false;
+    },
+    pause: () => {
+      setIsVideoPaused(true);
+      isManuallyPaused.current = true;
+    },
+    toggle: () => {
+      handlePlayPauseToggle();
+    }
+  }));
+
   // =========================================================
-  // --- VIDEO LOGIC & PLAYER STATES ---
+  // --- VIDEO LOGIC ---
   // =========================================================
   const videoUrls = useMemo(() => 
     (news.videos && news.videos.length > 0) 
       ? news.videos 
-      : [`https://youtu.be/${DEFAULT_VIDEO_ID}?si=2bauUKj4koMogtGX`], 
+      : ['https://youtu.be/dQw4w9WgXcQ'], 
     [news.videos]
   ); 
   
@@ -93,53 +114,46 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const [lastTap, setLastTap] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [playCount, setPlayCount] = useState(0);
+  const [activeYoutubeId, setActiveYoutubeId] = useState(null);
   
-  // --- PLAYER STATES ---
-  const [isVideoPaused, setIsVideoPaused] = useState(true); 
-  const [isBuffering, setIsBuffering] = useState(true);
-  const [showControls, setShowControls] = useState(false);
-  
-  // FAILSAFE: What if the actual video we want to play IS the dummy video?
-  // We temporarily use a different dummy string to force a state change.
-  const initialDummyId = youtubeId === DUMMY_VIDEO_ID ? 'dQw4w9WgXcQ' : DUMMY_VIDEO_ID;
-  
-  // --- STATE-BASED ID SWAP FOR AUTOPLAY HACK ---
-  const [activeYoutubeId, setActiveYoutubeId] = useState(initialDummyId);
-  
-  const playerKey = useMemo(() => `youtube-${news.id}`, [news.id]); 
-  
-  const controlsTimeout = useRef(null);
-  const flatListRef = useRef(null);
-  const videoRef = useRef(null);
+  const playerKey = useMemo(() => `youtube-${news.id}-${playCount}`, [news.id, playCount]); 
 
-  // The Magic Trick: Swap the ID after mount to bypass WebView Autoplay restrictions
+  // Combined Playback & Reset Logic
   useEffect(() => {
-    let timeout;
-    if (isActive && !isBottomHalf && youtubeId) {
-      timeout = setTimeout(() => {
-        setActiveYoutubeId(youtubeId);
-        setIsVideoPaused(false);
-      }, 150); 
+    // 1. Reset states for new news item
+    isManuallyPaused.current = false;
+    setIsBuffering(true);
+    setShowControls(false);
+    setPlayCount(0);
+    
+    const id = hasVideos ? getYoutubeId(videoUrls[0]) : null;
+    setActiveYoutubeId(id);
+    
+    if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+
+    // 2. Initial Playback State
+    if (isActive && !isBottomHalf) {
+      setIsVideoPaused(false);
     } else {
       setIsVideoPaused(true);
-      setActiveYoutubeId(initialDummyId);
     }
-    
-    return () => clearTimeout(timeout);
-  }, [isActive, isBottomHalf, youtubeId, initialDummyId]);
+  }, [news.id]);
 
-  // Handle native video pauses (non-youtube)
+  // Handle visibility changes for current news
   useEffect(() => {
-    if (!youtubeId && hasVideos) {
-      setIsVideoPaused(!isActive || isBottomHalf);
+    if (!isActive || isBottomHalf) {
+      setIsVideoPaused(true);
+    } else if (!isManuallyPaused.current) {
+      setIsVideoPaused(false);
     }
-  }, [isActive, isBottomHalf, youtubeId, hasVideos]);
+  }, [isActive, isBottomHalf]);
 
-  // FAILSAFE: Force hide buffering spinner after 3.5 seconds
+  // Failsafe for buffering spinner
   useEffect(() => {
     let timer;
     if (isBuffering) {
-      timer = setTimeout(() => setIsBuffering(false), 3500); 
+      timer = setTimeout(() => setIsBuffering(false), 5000); 
     }
     return () => clearTimeout(timer);
   }, [isBuffering]);
@@ -147,14 +161,24 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const showControlsTemporarily = () => {
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     setShowControls(true);
-    controlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
+    controlsTimeout.current = setTimeout(() => setShowControls(false), 2000);
   };
 
-  const handlePlayPauseToggle = () => { 
-    setIsVideoPaused(prev => !prev);
+  const handlePlayPauseToggle = useCallback(() => { 
+    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>><<><><><><");
+    
+    setIsVideoPaused(prev => {
+      const next = !prev;
+      isManuallyPaused.current = next;
+      // If we are about to play, increment playCount to refresh the player key
+      if (!next) {
+        setPlayCount(c => c + 1);
+      }
+      return next;
+    });
     showControlsTemporarily(); 
     if (onPress) onPress();
-  };
+  }, [onPress]);
 
   useEffect(() => {
     setActiveSlide(0);
@@ -182,17 +206,29 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
   const imageResizeMode = FastImage.resizeMode.contain;
 
   const onVideoReady = useCallback(() => {
+    playerRef.current?.seekTo(0, true)
+    console.log(">>>> YOUTUBE PLAYER READY <<<<");
+    setIsBuffering(false);
+  }, []);
+
+  const onPlayerError = useCallback((error) => {
+    console.warn(">>>> YOUTUBE PLAYER ERROR <<<<:", error);
     setIsBuffering(false);
   }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
-    if (state === "buffering") setIsBuffering(true);
-    else setIsBuffering(false);
-
-    if (state === "playing") setIsVideoPaused(false);
-    else if (state === "paused" || state === "ended") {
+    console.log(">>>> YOUTUBE STATE CHANGE <<<<:", state);
+    if (state === "playing") {
+      setIsBuffering(false);
+      setIsVideoPaused(false);
+    } else if (state === "paused") {
       setIsVideoPaused(true);
-      if (state === "ended") setShowControls(true);
+    } else if (state === "ended") {
+      setIsVideoPaused(true);
+      isManuallyPaused.current = true;
+      setShowControls(true);
+    } else if (state === "buffering") {
+      setIsBuffering(true);
     }
   }, []);
 
@@ -281,35 +317,39 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
     <View style={styles.card}>
       <View style={[styles.imageSection, !isBottomHalf && { paddingTop: insets.top + 50 }]}>
         {hasVideos ? (
-          <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             
             <View style={{ width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 9) / 16 }}>
-              
-              {/* 1. PLAYER LAYER - Pointer events disabled so WebView ignores touches */}
-              <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-                {youtubeId ? (
+              {/* --- 1. PLAYER LAYER --- */}
+              <View style={StyleSheet.absoluteFillObject}>
+                {activeYoutubeId ? (
                   <YoutubePlayer
-                    key={playerKey} 
-                    height={(SCREEN_WIDTH * 9) / 16}
+                    ref={playerRef}
+                    key={activeYoutubeId} 
+                    height={Math.floor((SCREEN_WIDTH * 9) / 16)}
                     width={SCREEN_WIDTH}
                     play={!isVideoPaused} 
-                    videoId={activeYoutubeId} 
+                    videoId={activeYoutubeId}
                     onChangeState={onYoutubeStateChange}
                     onReady={onVideoReady} 
-                    forceAndroidAutoplay={false} 
-                    webViewProps={{
-                      // REMOVED: androidLayerType: 'hardware'. It causes Z-Index overlay bugs on Android.
-                      pointerEvents: 'none',
-                    }}
+                    onError={onPlayerError}
                     initialPlayerParams={{
-                      autoplay: 1,        
+                      autoplay: 1,
                       controls: 0,        
                       modestbranding: 1,  
                       rel: 0,             
-                      showinfo: 0,        
                       iv_load_policy: 3,  
-                      fs: 0               
+                      cc_load_policy: 0,
                     }}
+                    webViewProps={{
+                      allowsInlineMediaPlayback: true,
+                      androidLayerType: 'hardware',
+                      mediaPlaybackRequiresUserAction: false,
+                      javaScriptEnabled: true,
+                      domStorageEnabled: true,
+                      origin: 'https://www.youtube-nocookie.com'
+                    }}
+                    forceAndroidAutoplay={true}
                   />
                 ) : (
                   /* NATIVE MP4 PLAYER */
@@ -340,30 +380,33 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
                   />
                 )}
               </View>
-              
-              {/* 2. TAP OVERLAY - Uses Gesture Handler's TouchableOpacity to catch tap BEFORE the swipe handler does */}
-              <TouchableOpacity 
-                activeOpacity={1}
-                style={[StyleSheet.absoluteFillObject, { zIndex: 10, elevation: 10 }]} 
-                onPress={handlePlayPauseToggle}
-              >
-                <View style={{ flex: 1, backgroundColor: 'transparent' }} />
-              </TouchableOpacity>
-
-              {/* 3. CUSTOM PLAY ICON */}
-              {isVideoPaused && !isBuffering && (
-                <View style={[StyleSheet.absoluteFill, styles.centerOverlay, {zIndex: 11, elevation: 11}]} pointerEvents="none">
-                  <Icon name="play-circle" size={80} color="rgba(255,255,255,0.9)" />
-                </View>
-              )}
-
-              {/* 4. BUFFERING SPINNER */}
-              {isBuffering && (
-                <View style={[StyleSheet.absoluteFill, styles.centerOverlay, {zIndex: 12, elevation: 12}]} pointerEvents="none">
-                  <ActivityIndicator size="large" color="#FFFFFF" />
-                </View>
-              )}
             </View>
+
+            {/* --- 2. TOUCH OVERLAY LAYER --- */}
+            <Pressable 
+              onPress={handlePlayPauseToggle}
+              style={styles.videoTouchOverlay}
+            >
+              <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                {/* Buffering Spinner */}
+                {isBuffering && (
+                  <View style={styles.loaderOverlay}>
+                    <ActivityIndicator size="large" color="#FFFFFF" />
+                  </View>
+                )}
+                
+                {/* PLAY / PAUSE ICON */}
+                {(isVideoPaused || showControls) && !isBuffering && (
+                  <View style={styles.playPauseIconContainer}>
+                    <Icon 
+                      name={isVideoPaused ? "play" : "pause"} 
+                      size={50} 
+                      color="#FFFFFF" 
+                    />
+                  </View>
+                )}
+              </View>
+            </Pressable>
           </View>
         ) : hasMultipleImages ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -488,7 +531,7 @@ function Way2NewsCard({news, onPress, onCommentsPress, isActive = true, isBottom
       </Modal>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
@@ -537,8 +580,43 @@ const styles = StyleSheet.create({
   fullScreenImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
   imageInfo: { position: 'absolute', bottom: 40, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.7)', padding: 16, borderRadius: 12 },
   imageTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 22 },
-  videoOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   centerOverlay: { justifyContent: 'center', alignItems: 'center' },
+  loaderOverlay: { 
+    ...StyleSheet.absoluteFillObject, 
+    zIndex: 10, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)'
+  },
+  videoWrapper: { 
+    flex: 1, 
+    backgroundColor: '#000', 
+    width: '100%', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    position: 'relative' 
+  },
+  playerContainer: { 
+    width: SCREEN_WIDTH, 
+    height: Math.floor((SCREEN_WIDTH * 9) / 16) 
+  },
+  videoTouchOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    elevation: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playPauseIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
 });
 
 export default Way2NewsCard;

@@ -5,6 +5,7 @@ import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
 import {store, persistorStore} from './src/redux/store';
 import AppNavigator from './src/navigation/AppNavigator';
+import YoutubeTestScreen from './src/screens/YoutubeTestScreen';
 import {TabBarProvider} from './src/context/TabBarContext';
 import {ThemeProvider} from './src/context/ThemeContext';
 import {
@@ -72,7 +73,7 @@ function App() {
 
 
   useEffect(() => {
-    checkAndRequestPermissions();
+    // checkAndRequestPermissions();
     getToken();
     checkForUpdate();
     // notifee.requestPermission();
