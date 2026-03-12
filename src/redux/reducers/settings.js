@@ -3,7 +3,7 @@ import {createSlice} from '@reduxjs/toolkit';
 const initialState = {
   language: 'english',
   location: '',
-  isDarkMode: true,
+  isDarkMode: false,
   notificationsEnabled: true,
   autoPlayVideos: true,
   dataUsageMode: 'medium',

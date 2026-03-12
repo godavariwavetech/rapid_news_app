@@ -36,6 +36,7 @@ import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
 import { endActivity, startActivity } from '../redux/reducers/auth';
 import { fetchArticleById } from '../redux/reducers/news';
+import UnreadNewsScreen from '../screens/UnreadNewsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -320,6 +321,12 @@ function AppNavigator() {
           component={NewsDetailScreen}
           options={{headerShown: false}}
         />
+
+        <Stack.Screen 
+  name="UnreadNewsScreen" 
+  component={UnreadNewsScreen} 
+  options={{ headerShown: false }} 
+/>
       </Stack.Navigator>
     </NavigationContainer>
   );

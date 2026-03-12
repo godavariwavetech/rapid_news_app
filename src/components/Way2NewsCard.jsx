@@ -72,7 +72,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   // EXPOSE PLAY/PAUSE VIA REF
   useImperativeHandle(ref, () => ({
     play: () => {
-      console.log(">>>>>>>>>>>>>>CALLINGGGG>>>>>>>>>>>>>>");
       setIsVideoPaused(false);
       isManuallyPaused.current = false;
     },
@@ -91,7 +90,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const videoUrls = useMemo(() => 
     (news.videos && news.videos.length > 0) 
       ? news.videos 
-      : ['https://youtu.be/dQw4w9WgXcQ'], 
+      : [], 
     [news.videos]
   ); 
   
@@ -99,13 +98,17 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   const youtubeId = useMemo(() => {
     if (hasVideos) return getYoutubeId(videoUrls[0]);
+    // Fallback to external links if no native video
+    if (news.external_links && news.external_links.length > 0) {
+       return getYoutubeId(news.external_links[0]);
+    }
     return null;
-  }, [videoUrls[0], hasVideos]);
+  }, [videoUrls, news.external_links, hasVideos]);
 
   const videoSource = useMemo(() => {
     if (hasVideos && !youtubeId) return {uri: videoUrls[0]};
     return null;
-  }, [videoUrls[0], hasVideos, youtubeId]);
+  }, [videoUrls, hasVideos, youtubeId]);
 
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
@@ -116,31 +119,31 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [playCount, setPlayCount] = useState(0);
   const [activeYoutubeId, setActiveYoutubeId] = useState(null);
-  
-  const playerKey = useMemo(() => `youtube-${news.id}-${playCount}`, [news.id, playCount]); 
 
   // Combined Playback & Reset Logic
   useEffect(() => {
-    // 1. Reset states for new news item
     isManuallyPaused.current = false;
     setIsBuffering(true);
     setShowControls(false);
     setPlayCount(0);
     
-    const id = hasVideos ? getYoutubeId(videoUrls[0]) : null;
+    let id = null;
+    if (hasVideos) {
+      id = getYoutubeId(videoUrls[0]);
+    } else if (news.external_links && news.external_links.length > 0) {
+      id = getYoutubeId(news.external_links[0]);
+    }
     setActiveYoutubeId(id);
     
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
 
-    // 2. Initial Playback State
     if (isActive && !isBottomHalf) {
       setIsVideoPaused(false);
     } else {
       setIsVideoPaused(true);
     }
-  }, [news.id]);
+  }, [news.id, isActive, isBottomHalf]);
 
-  // Handle visibility changes for current news
   useEffect(() => {
     if (!isActive || isBottomHalf) {
       setIsVideoPaused(true);
@@ -149,7 +152,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     }
   }, [isActive, isBottomHalf]);
 
-  // Failsafe for buffering spinner
   useEffect(() => {
     let timer;
     if (isBuffering) {
@@ -165,12 +167,9 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   };
 
   const handlePlayPauseToggle = useCallback(() => { 
-    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>><<><><><><");
-    
     setIsVideoPaused(prev => {
       const next = !prev;
       isManuallyPaused.current = next;
-      // If we are about to play, increment playCount to refresh the player key
       if (!next) {
         setPlayCount(c => c + 1);
       }
@@ -203,21 +202,20 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const images = news.images && news.images.length > 0 ? news.images : (news.image ? [news.image] : []);
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
-  const imageResizeMode = FastImage.resizeMode.contain;
+  
+  // Kept as cover so it fills the gap perfectly without stretching
+  const imageResizeMode = FastImage.resizeMode.cover;
 
   const onVideoReady = useCallback(() => {
     playerRef.current?.seekTo(0, true)
-    console.log(">>>> YOUTUBE PLAYER READY <<<<");
     setIsBuffering(false);
   }, []);
 
   const onPlayerError = useCallback((error) => {
-    console.warn(">>>> YOUTUBE PLAYER ERROR <<<<:", error);
     setIsBuffering(false);
   }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
-    console.log(">>>> YOUTUBE STATE CHANGE <<<<:", state);
     if (state === "playing") {
       setIsBuffering(false);
       setIsVideoPaused(false);
@@ -315,8 +313,9 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   return (
     <View style={styles.card}>
-      <View style={[styles.imageSection, !isBottomHalf && { paddingTop: insets.top + 50 }]}>
-        {hasVideos ? (
+      {/* REMOVED: The forced paddingTop array that was causing the huge black gap! */}
+      <View style={styles.imageSection}>
+        {(hasVideos || activeYoutubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             
             <View style={{ width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 9) / 16 }}>
@@ -328,13 +327,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                     key={activeYoutubeId} 
                     height={Math.floor((SCREEN_WIDTH * 9) / 16)}
                     width={SCREEN_WIDTH}
-                    play={!isVideoPaused} 
+                    play={!isVideoPaused && isActive && !isBottomHalf} 
                     videoId={activeYoutubeId}
                     onChangeState={onYoutubeStateChange}
                     onReady={onVideoReady} 
                     onError={onPlayerError}
                     initialPlayerParams={{
-                      autoplay: 1,
+                      autoplay: 0, 
                       controls: 0,        
                       modestbranding: 1,  
                       rel: 0,             
@@ -360,7 +359,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                     style={StyleSheet.absoluteFill}
                     resizeMode="contain"
                     repeat={true}
-                    paused={isVideoPaused}
+                    paused={isVideoPaused || !isActive || isBottomHalf}
                     muted={false}
                     volume={1.0}
                     playInBackground={false}
@@ -388,14 +387,12 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
               style={styles.videoTouchOverlay}
             >
               <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                {/* Buffering Spinner */}
                 {isBuffering && (
                   <View style={styles.loaderOverlay}>
                     <ActivityIndicator size="large" color="#FFFFFF" />
                   </View>
                 )}
                 
-                {/* PLAY / PAUSE ICON */}
                 {(isVideoPaused || showControls) && !isBuffering && (
                   <View style={styles.playPauseIconContainer}>
                     <Icon 
@@ -448,10 +445,8 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                 {news.body || news.description}
                 {news.fullContent && (<Text style={styles.body}>{'\n\n' + news.fullContent}</Text>)}
               </Text>
-
-              <TouchableOpacity style={styles.linkContainer} onPress={() => Linking.openURL('https://youtube.com/@siti24x7?si=Y6VQiXdQAWrJLk0k')}>
-                <Text style={styles.linkText} numberOfLines={1}>https://youtube.com/@siti24x7</Text>
-              </TouchableOpacity>
+              
+              {/* REMOVED: The static Youtube linking block that was here */}
             </ScrollView>
 
             <View style={styles.timestampContainer}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -17,6 +17,7 @@ import Way2NewsCard from '../components/Way2NewsCard';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -72,7 +73,7 @@ const SPRING_CONFIG = {
   restSpeedThreshold: 2,
 };
 
-// 1. Memoized Card (Added onAutoNext Prop)
+// 1. Memoized Card
 const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true, onAutoNext }) => {
   if (!newsItem) return null;
   return (
@@ -86,7 +87,7 @@ const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, i
   );
 }, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive);
 
-// 2. CardHalf (Added onAutoNext Prop)
+// 2. CardHalf
 const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme, onAutoNext }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
@@ -105,12 +106,18 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 });
 
 // WRAP WITH FORWARD REF
-const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange }, ref) => {
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main' }, ref) => {
   const dispatch = useDispatch();
-  const { articles, loading, hasMore } = useSelector(state => state.news);
+  
+  // DYNAMIC REDUX SELECTION BASED ON feedType PROP
+  const { articles, unreadArticles, loading, isLoadingUnread, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
+
+  const activeArticles = feedType === 'unread' ? unreadArticles : articles;
+  const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
+  const activeHasMore = feedType === 'unread' ? false : hasMore; 
   
   const bookmarkedIds = useMemo(() => {
     return bookmarks?.map(item => item.news?._id);
@@ -128,7 +135,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   }));
 
   const formattedNews = useMemo(() => {
-    const rawItems = articles?.items || (Array.isArray(articles) ? articles : []);
+    const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
     return rawItems.map(item => {
       if (item.type === 'AD') {
         return {
@@ -152,11 +159,13 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         question: item.data.question,
         options: item.data.options,
         totalVotes: item.data.total_votes,
+        voted_option_id: item.data.voted_option_id,
+        user_voted: item.data.user_voted,
         isAd: false,
       };
     }
       else {
-        const data = item.data;
+        const data = item.data || item; 
         return {
           id: data._id,
           type: 'NEWS',
@@ -167,6 +176,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           image: data.images?.length > 0 ? data.images[0] : null,
           images: data.images || [], 
           videos: data.videos || [],
+          external_links: data.external_links || [], 
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
@@ -183,7 +193,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         };
       }
     });
-  }, [articles, bookmarkedIds]);
+  }, [activeArticles, bookmarkedIds]);
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
@@ -232,18 +242,18 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   // Handle hiding the loader once Redux `loading` is finished
   useEffect(() => {
-    if (!loading && isRefreshing) {
+    if (!activeLoading && isRefreshing) {
       setIsRefreshing(false);
-      loaderY.value = withTiming(-60, { duration: 300 }); // Slide back up
+      loaderY.value = withTiming(-60, { duration: 300 }); 
     }
-  }, [loading, isRefreshing]);
+  }, [activeLoading, isRefreshing]);
 
   // Trigger API Call on News Change
   useEffect(() => {
-    if (currentNews && currentNews.id && !currentNews.isAd) {
+    if (currentNews && currentNews.id && !currentNews.isAd && feedType !== 'unread') {
       dispatch(viewNews(currentNews.id));
     }
-  }, [currentNews?.id, dispatch]);
+  }, [currentNews?.id, dispatch, feedType]);
 
   useEffect(() => {
     if (isSwitching) {
@@ -284,21 +294,25 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     scrollY.value = withSpring(0, SPRING_CONFIG); 
   };
 
-  // --- AUTOMATIC SWIPE (CALLED FROM SURVEY CARD) ---
+  // --- AUTOMATIC SWIPE FUNCTION ---
   const autoSwipeNext = () => {
     if (isAnimating.value) return;
+
     if (!hasNext.value) {
-        if (!hasMore && Platform.OS === 'android') {
+        if (!activeHasMore && Platform.OS === 'android') {
           ToastAndroid.show("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
         }
         triggerLoadMore();
     } else {
        isAnimating.value = true;
-       swipeDirection.value = 1;
+       swipeDirection.value = 1; 
+       
        scrollY.value = withTiming(
          1, 
-         { duration: 250, easing: Easing.out(Easing.cubic) }, 
-         (finished) => { if (finished) runOnJS(finishFlip)('next'); }
+         { duration: 300, easing: Easing.out(Easing.cubic) }, 
+         (finished) => { 
+           if (finished) runOnJS(finishFlip)('next'); 
+         }
        );
     }
   };
@@ -339,7 +353,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
-            if (!hasMore && Platform.OS === 'android') {
+            if (!activeHasMore && Platform.OS === 'android') {
               runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
             }
             runOnJS(triggerLoadMore)();
@@ -457,12 +471,22 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     };
   });
 
-  if (loading && formattedNews.length === 0) {
+  if (activeLoading && formattedNews.length === 0) {
      return (
         <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
            <NewsSkeleton height={containerHeight} theme={theme} />
         </View>
      );
+  }
+
+  // ALL CAUGHT UP STATE
+  if (!activeLoading && formattedNews.length === 0) {
+    return (
+      <View style={[styles.container, styles.centerView, { backgroundColor: theme.background }]}>
+        <Icon name="check-all" size={60} color="#666" style={{ marginBottom: 15 }} />
+        <Text style={[styles.emptyText, { color: theme.text }]}>You're all caught up!</Text>
+      </View>
+    );
   }
 
   if (!displayNews) {
@@ -527,59 +551,18 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  absoluteFill: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  halfWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-  },
-  halfCardContainer: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  innerContainer: {
-    position: 'absolute',
-    width: '100%',
-    left: 0,
-  },
-  face: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-    backfaceVisibility: 'visible',
-  },
-  shadow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
-  },
-  skeletonContainer: {
-    flex: 1,
-  },
-  skeletonContent: {
-    flex: 1,
-    padding: 20,
-  },
-  refreshLoaderContainer: {
-    position: 'absolute',
-    top: 60, 
-    alignSelf: 'center',
-    backgroundColor: '#2C2C2C', 
-    borderRadius: 25,
-    padding: 8,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    zIndex: 9999, 
-  },
+  container: { flex: 1, backgroundColor: '#000' },
+  absoluteFill: { ...StyleSheet.absoluteFillObject },
+  halfWrapper: { position: 'absolute', left: 0, right: 0, overflow: 'hidden', backgroundColor: 'transparent' },
+  halfCardContainer: { flex: 1, overflow: 'hidden' },
+  innerContainer: { position: 'absolute', width: '100%', left: 0 },
+  face: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent', backfaceVisibility: 'visible' },
+  shadow: { ...StyleSheet.absoluteFillObject, backgroundColor: 'black' },
+  skeletonContainer: { flex: 1 },
+  skeletonContent: { flex: 1, padding: 20 },
+  centerView: { justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 18, fontWeight: '600' },
+  refreshLoaderContainer: { position: 'absolute', top: 60, alignSelf: 'center', backgroundColor: '#2C2C2C', borderRadius: 25, padding: 8, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, zIndex: 9999 },
 });
 
 export default FlipNewsScreen;

@@ -161,9 +161,13 @@ function HomeScreen({navigation}) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {!shouldShowFallback && (
+     {!shouldShowFallback && (
         <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
-          <Header title={headerTitle} onProfilePress={() => navigation.navigate("Profile")}/>
+          <Header 
+            title={headerTitle} 
+            onProfilePress={() => navigation.navigate("Profile")}
+            onTogglePress={() => navigation.navigate("UnreadNewsScreen")} // <-- ADD THIS LINE
+          />
         </Animated.View>
       )}
 

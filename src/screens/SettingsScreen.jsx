@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,61 @@ import {
   StatusBar,
   Platform,
   Switch,
+  Linking,
+  AppState,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 import { useDispatch } from 'react-redux';
 import { setDarkMode } from '../redux/reducers/settings';
+import notifee, { AuthorizationStatus } from '@notifee/react-native';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
-const SettingsScreen = ({navigation}) => {
+const SettingsScreen = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme();
-  const dispatch = useDispatch()
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [videoAlertsEnabled, setVideoAlertsEnabled] = useState(false);
+  const dispatch = useDispatch();
+  
   const [nightModeEnabled, setNightModeEnabled] = useState(false);
-  const [locationServicesEnabled, setLocationServicesEnabled] = useState(true);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
+
+  // Check notification permission status
+  const checkNotificationPermission = async () => {
+    try {
+      const settings = await notifee.getNotificationSettings();
+      if (
+        settings.authorizationStatus === AuthorizationStatus.AUTHORIZED ||
+        settings.authorizationStatus === AuthorizationStatus.PROVISIONAL
+      ) {
+        setHasNotificationPermission(true);
+      } else {
+        setHasNotificationPermission(false);
+      }
+    } catch (error) {
+      console.error("Failed to check notification settings:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Initial check on component mount
+    checkNotificationPermission();
+
+    // Re-check when the app comes back to the foreground (e.g., returning from settings)
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        checkNotificationPermission();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Open device settings for this app
+  const handleOpenSettings = () => {
+    Linking.openSettings();
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -40,39 +80,42 @@ const SettingsScreen = ({navigation}) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Notification Alert */}
-        <View style={[styles.alertBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFBEE' }]}>
-          <View style={styles.alertHeader}>
-            <Icon name="bell" size={20} color={theme.primary} />
-            <View style={styles.alertHeaderText}>
-              <Text style={[styles.alertTitle, { color: theme.text }]}>Missing notifications?</Text>
-              <TouchableOpacity>
-                <Text style={[styles.clickHere, { color: theme.accentBlue }]}>Click here</Text>
-              </TouchableOpacity>
+        
+        {/* Notification Alert - Only shown if permissions are NOT granted */}
+        {!hasNotificationPermission && (
+          <View style={[styles.alertBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFBEE' }]}>
+            <View style={styles.alertHeader}>
+              <Icon name="bell" size={20} color={theme.primary} />
+              <View style={styles.alertHeaderText}>
+                <Text style={[styles.alertTitle, { color: theme.text }]}>Missing notifications?</Text>
+                <TouchableOpacity onPress={handleOpenSettings}>
+                  <Text style={[styles.clickHere, { color: theme.accentBlue }]}>Click here</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+            <Text style={[styles.alertText, { color: theme.textSecondary }]}>
+              If you're not receiving notifications, please check your device settings and ensure notifications are enabled for this app. You may also need to disable battery optimization for uninterrupted alerts.
+            </Text>
           </View>
-          <Text style={[styles.alertText, { color: theme.textSecondary }]}>
-            If you're not receiving notifications, please check your device settings and ensure notifications are enabled for this app. You may also need to disable battery optimization for uninterrupted alerts.
-          </Text>
-        </View>
+        )}
 
-                  {/* Night Mode */}
-          <View style={styles.toggleColumn}>
-            <View style={[styles.toggleIconCircle, {backgroundColor: '#F3E5F5'}]}>
-              <Icon name="weather-night" size={28} color="#9C27B0" />
-            </View>
-            <Text style={styles.toggleLabel}>నైట్ మోడ్</Text>
-            <Switch
-              value={nightModeEnabled}
-              onValueChange={(value)=>{
-                setNightModeEnabled(value)
-                dispatch(setDarkMode(value))
-              }}
-              trackColor={{false: '#CCCCCC', true: '#FF3B30'}}
-              thumbColor="#FFFFFF"
-              ios_backgroundColor="#CCCCCC"
-            />
+        {/* Night Mode */}
+        <View style={styles.toggleColumn}>
+          <View style={[styles.toggleIconCircle, {backgroundColor: '#F3E5F5'}]}>
+            <Icon name="weather-night" size={28} color="#9C27B0" />
           </View>
+          <Text style={styles.toggleLabel}>నైట్ మోడ్</Text>
+          <Switch
+            value={nightModeEnabled}
+            onValueChange={(value)=>{
+              setNightModeEnabled(value)
+              dispatch(setDarkMode(value))
+            }}
+            trackColor={{false: '#CCCCCC', true: '#FF3B30'}}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#CCCCCC"
+          />
+        </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
@@ -201,30 +244,11 @@ const styles = StyleSheet.create({
   clickHere: {
     fontSize: 15,
     fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   alertText: {
     fontSize: 13,
     lineHeight: 19,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 14,
-    gap: 8,
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   section: {
     paddingHorizontal: 16,
@@ -259,8 +283,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   toggleColumn: {
-    width: '23.5%',
+    width: '100%',
     alignItems: 'center',
+    marginVertical: 10,
   },
   toggleIconCircle: {
     width: 64,
@@ -290,12 +315,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 14,
     borderRadius: 14,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E8EAED',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

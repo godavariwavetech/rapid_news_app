@@ -47,6 +47,11 @@ const initialState = {
   feedbackError: null,
 
   notificationArticle: null,
+
+  // --- Unread News State ---
+  unreadArticles: [],
+  isLoadingUnread: false,
+  unreadError: null,
 };
 
 // --- ASYNC THUNKS ---
@@ -260,7 +265,6 @@ export const getReporterNews = createAsyncThunk(
   }
 );
 
-
 export const reportNews = createAsyncThunk(
   'news/reportNews',
   async ({ newsId, reason, message }, { rejectWithValue }) => {
@@ -277,7 +281,6 @@ export const reportNews = createAsyncThunk(
   }
 );
 
-
 export const postFeedback = createAsyncThunk(
   'news/postFeedback',
   async ({ message }, { getState, rejectWithValue }) => {
@@ -288,6 +291,54 @@ export const postFeedback = createAsyncThunk(
           'x-device-id': deviceId
         }});
       return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Fetch Unread News
+export const fetchUnreadNews = createAsyncThunk(
+  'news/fetchUnreadNews',
+  async (lastSeenAt, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      // Get location from the location reducer
+      const location = state.location?.currentLocation || {};
+      const deviceId = await getUniqueId();
+
+      // Fallback to default IDs if currentLocation is missing
+      const queryParams = {
+        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
+        last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      const response = await api.get('/news/unread', {
+        params: queryParams,
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+
+export const submitSurveyVote = createAsyncThunk(
+  'news/submitSurveyVote',
+  async ({ surveyId, optionId }, { rejectWithValue }) => {
+    try {
+      // Replace this URL with your actual survey voting endpoint if different
+      const payload = { option_id: optionId };
+      const response = await api.post(`/survey/${surveyId}/vote`, payload); 
+      
+      return { surveyId, optionId, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -344,7 +395,6 @@ const newsSlice = createSlice({
         let incomingItems = Array.isArray(data) ? data : (data.items || []);
         
         if (page === 1) {
-          // If we have a notification article, prepend it to the NEW list
           if (state.notificationArticle) {
             const article = state.notificationArticle;
             const filtered = incomingItems.filter(item => 
@@ -352,7 +402,6 @@ const newsSlice = createSlice({
             );
             incomingItems = [article, ...filtered];
             
-            // Re-wrap if necessary
             if (Array.isArray(data)) {
               state.articles = incomingItems;
             } else {
@@ -385,15 +434,12 @@ const newsSlice = createSlice({
         state.loading = false;
         let article = action.payload;
         
-        // Ensure the article matches the feed structure { data, type: 'NEWS' }
         if (!article.data) {
           article = { data: article, type: 'NEWS' };
         }
 
-        // Store this specifically so it can be preserved when clearing or refetching
         state.notificationArticle = article;
 
-        // Ensure the article is added to the top
         if (Array.isArray(state.articles)) {
           const filtered = state.articles.filter(item => 
             (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
@@ -481,7 +527,6 @@ const newsSlice = createSlice({
         state.isPostingComment = false;
         const { newsId } = action.meta.arg;
         
-        // Optimistic Update for comments count
         const updateItemCommentCount = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
           const index = itemsList.findIndex(item => (item.data && item.data._id === newsId));
@@ -535,6 +580,56 @@ const newsSlice = createSlice({
       .addCase(postFeedback.rejected, (state, action) => {
         state.isSubmittingFeedback = false;
         state.feedbackError = action.payload;
+      })
+      
+      // --- Fetch Unread News ---
+      .addCase(fetchUnreadNews.pending, (state) => {
+        state.isLoadingUnread = true;
+        state.unreadError = null;
+      })
+      .addCase(fetchUnreadNews.fulfilled, (state, action) => {
+        state.isLoadingUnread = false;
+        
+        const data = action.payload;
+        let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
+        
+        state.unreadArticles = incomingItems;
+      })
+      .addCase(fetchUnreadNews.rejected, (state, action) => {
+        state.isLoadingUnread = false;
+        state.unreadError = action.payload || 'Failed to fetch unread news';
+      })
+      .addCase(submitSurveyVote.fulfilled, (state, action) => {
+        const { surveyId, optionId } = action.payload;
+        
+        // Optimistic update to reflect the vote immediately on the UI
+        const updateSurveyData = (itemsList) => {
+          if (!Array.isArray(itemsList)) return;
+          const index = itemsList.findIndex(item => 
+            (item.data && item.data._id === surveyId) || (item.id === surveyId)
+          );
+          
+          if (index !== -1) {
+            let targetSurvey = itemsList[index].data || itemsList[index];
+            targetSurvey.user_voted = true;
+            targetSurvey.voted_option_id = optionId;
+            targetSurvey.total_votes = (targetSurvey.total_votes || 0) + 1;
+            
+            // Optionally increment the specific option's count if your data structure supports it
+            if (Array.isArray(targetSurvey.options)) {
+              const optIndex = targetSurvey.options.findIndex(opt => opt._id === optionId);
+              if (optIndex !== -1) {
+                targetSurvey.options[optIndex].votes = (targetSurvey.options[optIndex].votes || 0) + 1;
+              }
+            }
+          }
+        };
+
+        if (state.articles?.items) {
+          updateSurveyData(state.articles.items);
+        } else if (Array.isArray(state.articles)) {
+          updateSurveyData(state.articles);
+        }
       });
   },
 });
