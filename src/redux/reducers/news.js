@@ -90,7 +90,7 @@ export const fetchNews = createAsyncThunk(
         state_id: location.state_id,
         lang: 'te',
         page: page,
-        limit: 5,
+        limit: 10,
         category_id: category !== 'all' ? category : undefined,
       };
 
@@ -334,9 +334,12 @@ export const submitSurveyVote = createAsyncThunk(
   'news/submitSurveyVote',
   async ({ surveyId, optionId }, { rejectWithValue }) => {
     try {
+      const deviceId = await getUniqueId();
       // Replace this URL with your actual survey voting endpoint if different
       const payload = { option_id: optionId };
-      const response = await api.post(`/survey/${surveyId}/vote`, payload); 
+      const response = await api.post(`/surveys/${surveyId}/vote`, payload,{headers: {
+          'x-device-id': deviceId
+        }}); 
       
       return { surveyId, optionId, data: response.data };
     } catch (error) {

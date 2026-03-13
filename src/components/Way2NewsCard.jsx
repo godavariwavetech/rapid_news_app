@@ -12,13 +12,11 @@ import {
   Linking,
   ActivityIndicator,
   Pressable,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import {
-  TouchableWithoutFeedback,
-  TouchableOpacity,
-  FlatList 
-} from 'react-native-gesture-handler';
+import { FlatList } from 'react-native-gesture-handler'; // Kept FlatList here to prevent swipe gesture conflicts
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
@@ -98,7 +96,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   const youtubeId = useMemo(() => {
     if (hasVideos) return getYoutubeId(videoUrls[0]);
-    // Fallback to external links if no native video
     if (news.external_links && news.external_links.length > 0) {
        return getYoutubeId(news.external_links[0]);
     }
@@ -203,7 +200,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
   
-  // Kept as cover so it fills the gap perfectly without stretching
   const imageResizeMode = FastImage.resizeMode.cover;
 
   const onVideoReady = useCallback(() => {
@@ -313,7 +309,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   return (
     <View style={styles.card}>
-      {/* REMOVED: The forced paddingTop array that was causing the huge black gap! */}
       <View style={styles.imageSection}>
         {(hasVideos || activeYoutubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
@@ -437,7 +432,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
       {/* Main Bottom Container */}
       <View style={styles.bottomContainer}>
-        <TouchableWithoutFeedback onPress={handleDoubleTap} containerStyle={{flex: 1}} style={{flex: 1}}>
+        <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
             <Text style={styles.title}>{news.title}</Text>
             <ScrollView style={styles.bodyContainer} showsVerticalScrollIndicator={false} nestedScrollEnabled={true}>
@@ -445,8 +440,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                 {news.body || news.description}
                 {news.fullContent && (<Text style={styles.body}>{'\n\n' + news.fullContent}</Text>)}
               </Text>
-              
-              {/* REMOVED: The static Youtube linking block that was here */}
             </ScrollView>
 
             <View style={styles.timestampContainer}>
@@ -503,10 +496,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                   <Text style={[styles.menuText, { color: theme.text }]}>Report</Text>
                 </TouchableOpacity>
                 <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
-                <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('download')}>
+                {/* <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('download')}>
                   <Icon name="download-outline" size={24} color={theme.text} />
                   <Text style={[styles.menuText, { color: theme.text }]}>Download Image</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
             </TouchableWithoutFeedback>
           </View>
