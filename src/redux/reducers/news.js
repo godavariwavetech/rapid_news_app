@@ -106,8 +106,6 @@ export const fetchNews = createAsyncThunk(
         }
       });
 
-      console.log(response.data,">>>>>>>>>>>>>>>>>>>>>>response.data");
-
       return { data: response.data, page }; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -122,7 +120,6 @@ export const fetchArticleById = createAsyncThunk(
     try {
       const deviceId = await getUniqueId();
       const url = endpoints.GET_ARTICLE.replace(':id', id);
-      console.log(url,">>>>>>>>>>UELLLL>>>>>>>>>");
       const response = await api.get(url,{},{
          headers: {
           'x-device-id': deviceId
@@ -167,7 +164,6 @@ export const updateNews = createAsyncThunk(
   async ({ id, payload }, { rejectWithValue }) => {
     try {
       const url = endpoints.UPDATE_NEWS.replace(':id', id);
-      console.log(url,">>>>>>>>>>>>>>URLLL",payload);
       const response = await api.patch(url, payload); 
       return response.data;
     } catch (error) {
@@ -275,7 +271,6 @@ export const reportNews = createAsyncThunk(
       });
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>ERRRRR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -329,19 +324,35 @@ export const fetchUnreadNews = createAsyncThunk(
   }
 );
 
-
 export const submitSurveyVote = createAsyncThunk(
   'news/submitSurveyVote',
   async ({ surveyId, optionId }, { rejectWithValue }) => {
     try {
       const deviceId = await getUniqueId();
-      // Replace this URL with your actual survey voting endpoint if different
       const payload = { option_id: optionId };
       const response = await api.post(`/surveys/${surveyId}/vote`, payload,{headers: {
           'x-device-id': deviceId
         }}); 
       
       return { surveyId, optionId, data: response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// --- ADDED: Mark Feed as Read ---
+export const markUnreadNewsAsRead = createAsyncThunk(
+  'news/markUnreadNewsAsRead',
+  async (_, { rejectWithValue }) => {
+    try {
+      const deviceId = await getUniqueId();
+      const response = await api.post('/news/feed/read', {}, {
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -462,6 +473,58 @@ const newsSlice = createSlice({
         state.error = action.payload || 'Failed to fetch article';
       })
 
+      // --- React To News (ADDED: Optimistic Update Across All Lists) ---
+      .addCase(reactToNews.pending, (state, action) => {
+        const { newsId, type } = action.meta.arg;
+        
+        const updateReactionCount = (itemsList) => {
+          if (!Array.isArray(itemsList)) return;
+          
+          const index = itemsList.findIndex(item => (item.data ? item.data._id === newsId : item._id === newsId));
+          
+          if (index !== -1) {
+            let target = itemsList[index].data || itemsList[index];
+            
+            // Ensure reactions object exists
+            if (!target.reactions) {
+              target.reactions = { likes: 0, dislikes: 0, my_reaction: null };
+            }
+            
+            const prevReaction = target.reactions.my_reaction;
+            
+            // Step 1: Remove old reaction numbers
+            if (prevReaction === 'LIKE') {
+              target.reactions.likes = Math.max(0, (target.reactions.likes || 0) - 1);
+            } else if (prevReaction === 'DISLIKE') {
+              target.reactions.dislikes = Math.max(0, (target.reactions.dislikes || 0) - 1);
+            }
+            
+            // Step 2: Add new reaction numbers
+            if (type === 'LIKE') {
+              target.reactions.likes = (target.reactions.likes || 0) + 1;
+            } else if (type === 'DISLIKE') {
+              target.reactions.dislikes = (target.reactions.dislikes || 0) + 1;
+            }
+            
+            // Step 3: Update my_reaction
+            target.reactions.my_reaction = type === 'NONE' ? null : type;
+          }
+        };
+
+        // Apply update to Main Feed
+        if (state.articles?.items) updateReactionCount(state.articles.items);
+        else if (Array.isArray(state.articles)) updateReactionCount(state.articles);
+        
+        // Apply update to Unread News Feed
+        updateReactionCount(state.unreadArticles);
+        
+        // Apply update to Reporter News Feed
+        updateReactionCount(state.reporterNews);
+        
+        // Apply update to active Notification Article
+        if (state.notificationArticle) updateReactionCount([state.notificationArticle]);
+      })
+
       // --- Get Categories ---
       .addCase(getCategories.pending, (state) => {
         state.loadingCategories = true;
@@ -471,54 +534,6 @@ const newsSlice = createSlice({
         state.categories = Array.isArray(action.payload) 
           ? action.payload 
           : (action.payload.items || []);
-      })
-      .addCase(getCategories.rejected, (state, action) => {
-        state.loadingCategories = false;
-        console.log("Error fetching categories:", action.payload);
-      })
-
-      // --- Create News ---
-      .addCase(createNews.pending, (state) => {
-        state.isCreatingNews = true;
-        state.createNewsSuccess = false;
-        state.createNewsError = null;
-      })
-      .addCase(createNews.fulfilled, (state) => {
-        state.isCreatingNews = false;
-        state.createNewsSuccess = true;
-      })
-      .addCase(createNews.rejected, (state, action) => {
-        state.isCreatingNews = false;
-        state.createNewsError = action.payload;
-      })
-
-      // --- Update News ---
-      .addCase(updateNews.pending, (state) => {
-        state.isUpdatingNews = true;
-        state.updateNewsSuccess = false;
-        state.updateNewsError = null;
-      })
-      .addCase(updateNews.fulfilled, (state) => {
-        state.isUpdatingNews = false;
-        state.updateNewsSuccess = true;
-      })
-      .addCase(updateNews.rejected, (state, action) => {
-        state.isUpdatingNews = false;
-        state.updateNewsError = action.payload;
-      })
-
-      // --- Get Comments ---
-      .addCase(getComments.pending, (state) => {
-        state.isLoadingComments = true;
-        state.interactionError = null;
-      })
-      .addCase(getComments.fulfilled, (state, action) => {
-        state.isLoadingComments = false;
-        state.currentComments = action.payload.items || []; 
-      })
-      .addCase(getComments.rejected, (state, action) => {
-        state.isLoadingComments = false;
-        state.interactionError = action.payload;
       })
 
       // --- Post Comment ---
@@ -552,39 +567,6 @@ const newsSlice = createSlice({
         state.interactionError = action.payload;
       })
 
-      // --- Get Reporter News ---
-      .addCase(getReporterNews.pending, (state) => {
-        state.isLoadingReporterNews = true;
-      })
-      .addCase(getReporterNews.fulfilled, (state, action) => {
-        state.isLoadingReporterNews = false;
-        state.reporterNews = Array.isArray(action.payload) ? action.payload : (action.payload.items || []);
-      })
-      .addCase(getReporterNews.rejected, (state, action) => {
-        state.isLoadingReporterNews = false;
-        console.log("Error fetching reporter news:", action.payload);
-      })
-
-      // --- Track Ad Click ---
-      .addCase(trackAdClick.rejected, (state, action) => {
-        console.log("Ad click tracking failed", action.payload);
-      })
-
-      // --- Post Feedback ---
-      .addCase(postFeedback.pending, (state) => {
-        state.isSubmittingFeedback = true;
-        state.feedbackSuccess = false;
-        state.feedbackError = null;
-      })
-      .addCase(postFeedback.fulfilled, (state) => {
-        state.isSubmittingFeedback = false;
-        state.feedbackSuccess = true;
-      })
-      .addCase(postFeedback.rejected, (state, action) => {
-        state.isSubmittingFeedback = false;
-        state.feedbackError = action.payload;
-      })
-      
       // --- Fetch Unread News ---
       .addCase(fetchUnreadNews.pending, (state) => {
         state.isLoadingUnread = true;
@@ -594,6 +576,7 @@ const newsSlice = createSlice({
         state.isLoadingUnread = false;
         
         const data = action.payload;
+        console.log(data,">>>>>>>>>>>>>>>>UNREAD NEWS");
         let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
         
         state.unreadArticles = incomingItems;
@@ -602,10 +585,10 @@ const newsSlice = createSlice({
         state.isLoadingUnread = false;
         state.unreadError = action.payload || 'Failed to fetch unread news';
       })
+      
       .addCase(submitSurveyVote.fulfilled, (state, action) => {
         const { surveyId, optionId } = action.payload;
         
-        // Optimistic update to reflect the vote immediately on the UI
         const updateSurveyData = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
           const index = itemsList.findIndex(item => 
@@ -618,7 +601,6 @@ const newsSlice = createSlice({
             targetSurvey.voted_option_id = optionId;
             targetSurvey.total_votes = (targetSurvey.total_votes || 0) + 1;
             
-            // Optionally increment the specific option's count if your data structure supports it
             if (Array.isArray(targetSurvey.options)) {
               const optIndex = targetSurvey.options.findIndex(opt => opt._id === optionId);
               if (optIndex !== -1) {

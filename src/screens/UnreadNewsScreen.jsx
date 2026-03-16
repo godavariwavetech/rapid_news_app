@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { fetchUnreadNews } from '../redux/reducers/news';
-import FlipNewsScreen from './FlipNewsScreen'; // Import the newly updated FlipNewsScreen
+import { fetchUnreadNews, markUnreadNewsAsRead } from '../redux/reducers/news';
+import FlipNewsScreen from './FlipNewsScreen'; 
+import CommentsBottomSheet from '../components/CommentsBottomSheet'; 
 
 const UnreadNewsScreen = () => {
   const navigation = useNavigation();
@@ -13,10 +14,18 @@ const UnreadNewsScreen = () => {
   const dispatch = useDispatch();
   const flipScreenRef = useRef(null);
 
+  // --- 1. Use state instead of refs for the bottom sheet (Mimicking HomeScreen) ---
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedNews, setSelectedNews] = useState(null);
+
   useEffect(() => {
-    // Pass the last seen date here (or pull from settings if needed)
+    // 1. Fetch unread news
     const lastSeenDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     dispatch(fetchUnreadNews(lastSeenDate));
+
+    // 2. Dispatch the thunk to mark feed as read
+    dispatch(markUnreadNewsAsRead());
+    
   }, [dispatch]);
 
   const handleRefresh = () => {
@@ -35,14 +44,30 @@ const UnreadNewsScreen = () => {
         <Icon name="arrow-left" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Render the Flip Screen exactly like the main feed, but pass feedType="unread" */}
       <FlipNewsScreen 
         ref={flipScreenRef}
         feedType="unread" 
-        hideUI={() => {}} // Empty function since there's no UI tabs to hide on this screen
-        toggleUI={() => {}} // Empty function
+        hideUI={() => {}} 
+        toggleUI={() => {}} 
         onRefresh={handleRefresh}
+        // --- 2. Pass the handler exactly like HomeScreen ---
+        onCommentsPress={(item) => { 
+          setSelectedNews(item); 
+          setCommentsVisible(true); 
+        }} 
       />
+
+      {/* --- 3. Render the Comments Modal with conditional visibility --- */}
+      {commentsVisible && (
+        <View style={styles.commentContainer}>
+          <CommentsBottomSheet
+            visible={commentsVisible}
+            onClose={() => setCommentsVisible(false)}
+            newsId={selectedNews?.id}
+            newsTitle={selectedNews?.title}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -61,6 +86,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+  },
+  // Add this container style from HomeScreen to ensure it mounts properly over the UI
+  commentContainer: { 
+    ...StyleSheet.absoluteFillObject, 
+    zIndex: 200 
   }
 });
 

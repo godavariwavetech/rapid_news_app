@@ -43,10 +43,12 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
   const [activeSection, setActiveSection] = useState('news');
   const [feedback, setFeedback] = useState('');
+  const [feedbackValidationError, setFeedbackValidationError] = useState(''); // <--- ADDED: Validation error state
 
   const handleSubmitFeedback = async () => {
-    if (!feedback.trim()) {
-      Alert.alert('Error', 'Please enter your feedback');
+    // <--- ADDED: Minimum character validation --->
+    if (feedback.trim().length < 10) {
+      setFeedbackValidationError('దయచేసి కనీసం 10 అక్షరాలు నమోదు చేయండి.'); // "Please enter at least 10 characters."
       return;
     }
 
@@ -55,6 +57,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
     if (postFeedback.fulfilled.match(resultAction)) {
       Alert.alert('Success', 'Thank you for your feedback!');
       setFeedback('');
+      setFeedbackValidationError(''); // Clear error on success
       dispatch(resetFeedbackStatus());
     } else {
       Alert.alert('Error', feedbackError || 'Failed to submit feedback. Please try again.');
@@ -365,14 +368,30 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
               <Text style={[styles.menuTitle, { color: theme.text }]}>Feedback</Text>
               <View style={[styles.feedbackCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F8F9FA' }]}>
                 <TextInput
-                  style={[styles.feedbackInput, { backgroundColor: isDarkMode ? '#222' : '#FFF', color: theme.text, borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}
+                  style={[
+                    styles.feedbackInput, 
+                    { 
+                      backgroundColor: isDarkMode ? '#222' : '#FFF', 
+                      color: theme.text, 
+                      borderColor: feedbackValidationError ? '#FF3B30' : (isDarkMode ? '#333' : '#F0F0F0') 
+                    }
+                  ]}
                   placeholder="Share your feedback..."
                   placeholderTextColor={isDarkMode ? '#666' : '#A0A0A0'}
                   multiline
                   numberOfLines={4}
                   value={feedback}
-                  onChangeText={setFeedback}
+                  onChangeText={(text) => {
+                    setFeedback(text);
+                    if (feedbackValidationError) setFeedbackValidationError(''); // Clear error while typing
+                  }}
                 />
+                
+                {/* <--- ADDED: Validation Error Text UI ---> */}
+                {feedbackValidationError ? (
+                  <Text style={styles.errorText}>{feedbackValidationError}</Text>
+                ) : null}
+
                 <TouchableOpacity
                   style={[styles.feedbackButton, isSubmittingFeedback && styles.feedbackButtonDisabled]}
                   onPress={handleSubmitFeedback}
@@ -445,7 +464,11 @@ const styles = StyleSheet.create({
   menuSubText: { fontSize: 13, color: '#636E72', marginTop: 3, fontWeight: '500' },
   feedbackSection: { paddingHorizontal: 18, marginTop: 30 },
   feedbackCard: { borderRadius: 24, padding: 18, marginBottom: 20 },
-  feedbackInput: { borderRadius: 16, padding: 16, fontSize: 15, height: 120, textAlignVertical: 'top', borderWidth: 1, marginBottom: 16 },
+  feedbackInput: { borderRadius: 16, padding: 16, fontSize: 15, height: 120, textAlignVertical: 'top', borderWidth: 1, marginBottom: 8 },
+  
+  // <--- ADDED: Validation text styling --->
+  errorText: { color: '#FF3B30', fontSize: 13, marginBottom: 12, fontWeight: '500' },
+  
   feedbackButton: { backgroundColor: '#FF6B35', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   feedbackButtonDisabled: { backgroundColor: '#FFB899' },
   feedbackButtonText: { fontSize: 16, fontWeight: '800', color: '#FFF' },

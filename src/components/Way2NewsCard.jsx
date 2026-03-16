@@ -14,9 +14,10 @@ import {
   Pressable,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  AppState,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import { FlatList } from 'react-native-gesture-handler'; // Kept FlatList here to prevent swipe gesture conflicts
+import { FlatList } from 'react-native-gesture-handler'; 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
@@ -67,7 +68,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const isManuallyPaused = useRef(false);
   const controlsTimeout = useRef(null);
 
-  // EXPOSE PLAY/PAUSE VIA REF
   useImperativeHandle(ref, () => ({
     play: () => {
       setIsVideoPaused(false);
@@ -82,9 +82,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     }
   }));
 
-  // =========================================================
-  // --- VIDEO LOGIC ---
-  // =========================================================
   const videoUrls = useMemo(() => 
     (news.videos && news.videos.length > 0) 
       ? news.videos 
@@ -107,8 +104,66 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     return null;
   }, [videoUrls, hasVideos, youtubeId]);
 
-  const [liked, setLiked] = useState(false);
-  const [disliked, setDisliked] = useState(false);
+  const thumbnailUri = useMemo(() => {
+    if (news.image) return news.image;
+    if (news.images && news.images.length > 0) return news.images[0];
+    if (youtubeId) return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    return null;
+  }, [news.image, news.images, youtubeId]);
+
+  // =========================================================
+  // --- LIKES & DISLIKES STATE LOGIC FIX ---
+  // =========================================================
+  const isOriginallyLiked = news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE';
+  const isOriginallyDisliked = news.isDisliked || news.myreaction === 'DISLIKE' || news.reactions?.my_reaction === 'DISLIKE';
+
+  const [liked, setLiked] = useState(isOriginallyLiked);
+  const [disliked, setDisliked] = useState(isOriginallyDisliked);
+  const [likeCount, setLikeCount] = useState(parseInt(news?.likes || 0));
+  const [dislikeCount, setDislikeCount] = useState(parseInt(news?.dislikes || 0));
+
+  useEffect(() => {
+    setLiked(isOriginallyLiked);
+    setDisliked(isOriginallyDisliked);
+    setLikeCount(parseInt(news?.likes || 0));
+    setDislikeCount(parseInt(news?.dislikes || 0));
+  }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes]);
+
+  const handleLike = () => {
+    if (liked) {
+      setLiked(false);
+      setLikeCount(prev => Math.max(0, prev - 1));
+      // Assuming your backend supports a toggle or 'NONE' type to remove a reaction. 
+      // If it only accepts 'LIKE'/'DISLIKE', you might need a different endpoint to remove a like.
+      dispatch(reactToNews({ newsId: news.id, type: 'NONE' })); 
+    } else {
+      setLiked(true);
+      setLikeCount(prev => prev + 1);
+      if (disliked) {
+        setDisliked(false);
+        setDislikeCount(prev => Math.max(0, prev - 1));
+      }
+      dispatch(reactToNews({ newsId: news.id, type: 'LIKE' }));
+    }
+  };
+
+  const handleDislike = () => {
+    if (disliked) {
+      setDisliked(false);
+      setDislikeCount(prev => Math.max(0, prev - 1));
+      dispatch(reactToNews({ newsId: news.id, type: 'NONE' }));
+    } else {
+      setDisliked(true);
+      setDislikeCount(prev => prev + 1);
+      if (liked) {
+        setLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
+      }
+      dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' }));
+    }
+  };
+  // =========================================================
+
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [lastTap, setLastTap] = useState(0);
@@ -117,7 +172,21 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const [playCount, setPlayCount] = useState(0);
   const [activeYoutubeId, setActiveYoutubeId] = useState(null);
 
-  // Combined Playback & Reset Logic
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState.match(/inactive|background/)) {
+        setIsVideoPaused(true);
+      } else if (nextAppState === 'active' && isActive && !isBottomHalf && !isManuallyPaused.current) {
+        setIsVideoPaused(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isActive, isBottomHalf]);
+
+
   useEffect(() => {
     isManuallyPaused.current = false;
     setIsBuffering(true);
@@ -178,18 +247,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   useEffect(() => {
     setActiveSlide(0);
-    
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
-    
-    setLiked(news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE');
-    setDisliked(news.isDisliked || news.myreaction === 'DISLIKE' || news.reactions?.my_reaction === 'DISLIKE');
-    
     return () => {
       if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     };
-  }, [news.id, news.isLiked, news.isDisliked, news.myreaction, news.reactions?.my_reaction]);
+  }, [news.id]);
 
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
   const onViewRef = useRef(({ viewableItems }) => {
@@ -199,7 +263,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const images = news.images && news.images.length > 0 ? news.images : (news.image ? [news.image] : []);
   const hasMultipleImages = images.length > 1;
   const hasImage = images.length > 0;
-  
   const imageResizeMode = FastImage.resizeMode.cover;
 
   const onVideoReady = useCallback(() => {
@@ -247,26 +310,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     if (onCommentsPress) onCommentsPress(news);
   };
 
-  const handleLike = () => {
-    if (liked) setLiked(false);
-    else {
-      setLiked(true);
-      setDisliked(false);
-      dispatch(reactToNews({ newsId: news.id, type: 'LIKE' }));
-    }
-  };
-
-  const handleDislike = () => {
-    if (disliked) setDisliked(false);
-    else {
-      setDisliked(true);
-      setLiked(false);
-      dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' }));
-    }
-  };
-
   const handleShareNews = () => handleShare(news.title, news.short || news.body);
-
   const handleMenuPress = () => setMenuVisible(true);
 
   const handleMenuAction = (action) => {
@@ -291,6 +335,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
         <View style={styles.card}>
           <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} />
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
+          
+          {news.itemIndex && news.totalNews ? (
+            <View style={styles.adNewsCountContainer}>
+              <Text style={styles.adBadgeText}>{news.itemIndex} of {news.totalNews}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.adBadgeContainer}><Text style={styles.adBadgeText}>{news.label || 'Sponsored'}</Text></View>
         </View>
       </TouchableWithoutFeedback>
@@ -310,91 +361,102 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   return (
     <View style={styles.card}>
       <View style={styles.imageSection}>
+
         {(hasVideos || activeYoutubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             
             <View style={{ width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 9) / 16 }}>
-              {/* --- 1. PLAYER LAYER --- */}
               <View style={StyleSheet.absoluteFillObject}>
-                {activeYoutubeId ? (
-                  <YoutubePlayer
-                    ref={playerRef}
-                    key={activeYoutubeId} 
-                    height={Math.floor((SCREEN_WIDTH * 9) / 16)}
-                    width={SCREEN_WIDTH}
-                    play={!isVideoPaused && isActive && !isBottomHalf} 
-                    videoId={activeYoutubeId}
-                    onChangeState={onYoutubeStateChange}
-                    onReady={onVideoReady} 
-                    onError={onPlayerError}
-                    initialPlayerParams={{
-                      autoplay: 0, 
-                      controls: 0,        
-                      modestbranding: 1,  
-                      rel: 0,             
-                      iv_load_policy: 3,  
-                      cc_load_policy: 0,
-                    }}
-                    webViewProps={{
-                      allowsInlineMediaPlayback: true,
-                      androidLayerType: 'hardware',
-                      mediaPlaybackRequiresUserAction: false,
-                      javaScriptEnabled: true,
-                      domStorageEnabled: true,
-                      origin: 'https://www.youtube-nocookie.com'
-                    }}
-                    forceAndroidAutoplay={true}
-                  />
+                {isActive && !isBottomHalf ? (
+                  activeYoutubeId ? (
+                    <YoutubePlayer
+                      ref={playerRef}
+                      key={activeYoutubeId} 
+                      height={Math.floor((SCREEN_WIDTH * 9) / 16)}
+                      width={SCREEN_WIDTH}
+                      play={!isVideoPaused} 
+                      videoId={activeYoutubeId}
+                      onChangeState={onYoutubeStateChange}
+                      onReady={onVideoReady} 
+                      onError={onPlayerError}
+                      initialPlayerParams={{
+                        autoplay: 1, 
+                        controls: 0,        
+                        modestbranding: 1,  
+                        rel: 0,             
+                        iv_load_policy: 3,  
+                        cc_load_policy: 0,
+                      }}
+                      webViewProps={{
+                        allowsInlineMediaPlayback: true,
+                        androidLayerType: 'hardware',
+                        mediaPlaybackRequiresUserAction: false,
+                        javaScriptEnabled: true,
+                        domStorageEnabled: true,
+                        origin: 'https://www.youtube-nocookie.com'
+                      }}
+                    />
+                  ) : (
+                    <Video
+                      key={videoUrls[0]} 
+                      ref={videoRef}
+                      source={videoSource}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="contain"
+                      repeat={true}
+                      paused={isVideoPaused}
+                      muted={false}
+                      volume={1.0}
+                      playInBackground={false}
+                      playWhenInactive={false}
+                      useTextureView={true}
+                      bufferConfig={{
+                        minBufferMs: 15000,
+                        maxBufferMs: 50000,
+                        bufferForPlaybackMs: 2500,
+                        bufferForPlaybackAfterRebufferMs: 5000,
+                      }}
+                      onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
+                      onError={() => setIsBuffering(false)}
+                      onReadyForDisplay={onVideoReady}
+                      onLoad={onVideoReady} 
+                      controls={false} 
+                    />
+                  )
                 ) : (
-                  /* NATIVE MP4 PLAYER */
-                  <Video
-                    key={videoUrls[0]} 
-                    ref={videoRef}
-                    source={videoSource}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="contain"
-                    repeat={true}
-                    paused={isVideoPaused || !isActive || isBottomHalf}
-                    muted={false}
-                    volume={1.0}
-                    playInBackground={false}
-                    playWhenInactive={false}
-                    useTextureView={true}
-                    bufferConfig={{
-                      minBufferMs: 15000,
-                      maxBufferMs: 50000,
-                      bufferForPlaybackMs: 2500,
-                      bufferForPlaybackAfterRebufferMs: 5000,
-                    }}
-                    onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
-                    onError={() => setIsBuffering(false)}
-                    onReadyForDisplay={onVideoReady}
-                    onLoad={onVideoReady} 
-                    controls={false} 
+                  <FastImage 
+                    source={thumbnailUri ? {uri: thumbnailUri} : applogo} 
+                    style={{width: '100%', height: '100%'}} 
+                    resizeMode={FastImage.resizeMode.cover} 
                   />
                 )}
               </View>
             </View>
 
-            {/* --- 2. TOUCH OVERLAY LAYER --- */}
             <Pressable 
               onPress={handlePlayPauseToggle}
               style={styles.videoTouchOverlay}
             >
               <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                {isBuffering && (
+                {isBuffering && isActive && !isBottomHalf && (
                   <View style={styles.loaderOverlay}>
                     <ActivityIndicator size="large" color="#FFFFFF" />
                   </View>
                 )}
                 
-                {(isVideoPaused || showControls) && !isBuffering && (
+                {((isVideoPaused || showControls) && !isBuffering && isActive && !isBottomHalf) && (
                   <View style={styles.playPauseIconContainer}>
                     <Icon 
                       name={isVideoPaused ? "play" : "pause"} 
                       size={50} 
                       color="#FFFFFF" 
                     />
+                  </View>
+                )}
+
+                {(!isActive || isBottomHalf) && (
+                  <View style={styles.playPauseIconContainer}>
+                    <Icon name="play" size={50} color="#FFFFFF" />
                   </View>
                 )}
               </View>
@@ -430,7 +492,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
         <Image source={applogo} style={styles.watermarkLogo} />
       </View>
 
-      {/* Main Bottom Container */}
       <View style={styles.bottomContainer}>
         <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
@@ -442,23 +503,33 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
               </Text>
             </ScrollView>
 
-            <View style={styles.timestampContainer}>
-              <Icon name="clock-outline" size={14} color="#999" />
-              <Text style={styles.timestamp}>{news.timeAgo}</Text>
+            <View style={styles.timestampRow}>
+              <View style={styles.timestampContainer}>
+                <Icon name="clock-outline" size={14} color="#999" />
+                <Text style={styles.timestamp}>{news.timeAgo}</Text>
+              </View>
+
+              {news.itemIndex && news.totalNews ? (
+                <View style={styles.timestampContainer}>
+                  <Text style={styles.timestamp}>{news.itemIndex} of {news.totalNews}</Text>
+                </View>
+              ) : null}
             </View>
+            
           </View>
         </TouchableWithoutFeedback>
 
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
           <View style={styles.actionLeft}>
+            {/* --- UPDATED: Using explicit state for counts --- */}
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
               <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={22} color={liked ? '#4dabf5' : '#E0E0E0'} />
-              <Text style={[styles.actionText, liked && { color: '#4dabf5' }]}>{liked ? parseInt(news?.likes || 0) + 1 : news?.likes || 0}</Text>
+              <Text style={[styles.actionText, liked && { color: '#4dabf5' }]}>{likeCount}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton} onPress={handleDislike}>
               <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={22} color={disliked ? '#F44336' : '#E0E0E0'} />
-              <Text style={[styles.actionText, disliked && { color: '#F44336' }]}>{disliked ? parseInt(news?.dislikes || 0) + 1 : news?.dislikes || 0}</Text>
+              <Text style={[styles.actionText, disliked && { color: '#F44336' }]}>{dislikeCount}</Text>
             </TouchableOpacity>
           </View>
 
@@ -496,10 +567,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                   <Text style={[styles.menuText, { color: theme.text }]}>Report</Text>
                 </TouchableOpacity>
                 <View style={[styles.menuDivider, { backgroundColor: isDarkMode ? '#333' : '#F0F0F0' }]} />
-                {/* <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('download')}>
-                  <Icon name="download-outline" size={24} color={theme.text} />
-                  <Text style={[styles.menuText, { color: theme.text }]}>Download Image</Text>
-                </TouchableOpacity> */}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -541,17 +608,21 @@ const styles = StyleSheet.create({
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   watermarkLogo: { position: 'absolute', bottom: 15, right: 15, width: 45, height: 45, resizeMode: 'contain', zIndex: 10, opacity: 0.9, borderRadius:12 },
+  
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  adNewsCountContainer: { position: 'absolute', bottom: 40, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 },
   title: { fontSize: responsiveFontSize(2.6), color: '#000000', lineHeight: responsiveFontSize(3.8), marginBottom: 10, fontWeight: '700' },
   bodyContainer: { flex: 1 },
   body: { fontSize: responsiveFontSize(2.4), color: '#666666', lineHeight: responsiveFontSize(3.8), fontWeight: '400', paddingBottom: 10 },
-  linkContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 15, paddingBottom: 15 },
-  linkText: { color: '#1A73E8', fontSize: responsiveFontSize(2), fontWeight: '600', textDecorationLine: 'underline' },
-  timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 6, justifyContent: 'flex-start' },
+  
+  timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
+  timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
+  
   actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#2C2C2C', width: '100%', paddingTop: 8, paddingHorizontal: 16 },
   actionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   actionRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -568,25 +639,12 @@ const styles = StyleSheet.create({
   fullScreenImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
   imageInfo: { position: 'absolute', bottom: 40, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.7)', padding: 16, borderRadius: 12 },
   imageTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 22 },
-  centerOverlay: { justifyContent: 'center', alignItems: 'center' },
   loaderOverlay: { 
     ...StyleSheet.absoluteFillObject, 
     zIndex: 10, 
     justifyContent: 'center', 
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)'
-  },
-  videoWrapper: { 
-    flex: 1, 
-    backgroundColor: '#000', 
-    width: '100%', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    position: 'relative' 
-  },
-  playerContainer: { 
-    width: SCREEN_WIDTH, 
-    height: Math.floor((SCREEN_WIDTH * 9) / 16) 
   },
   videoTouchOverlay: {
     ...StyleSheet.absoluteFillObject,

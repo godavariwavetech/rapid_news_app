@@ -110,7 +110,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const dispatch = useDispatch();
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
-  const { articles, unreadArticles, loading, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  // <--- ADDED: Extract totalNews from Redux
+  const { articles, totalNews, unreadArticles, loading, isLoadingUnread, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -136,7 +137,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
-    return rawItems.map(item => {
+    
+    // <--- ADDED: index parameter in map
+    return rawItems.map((item, index) => {
       if (item.type === 'AD') {
         return {
           id: item.data._id,
@@ -150,6 +153,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           comments: 0,
           commentsEnabled: false,
           images: [], 
+          itemIndex: index + 1, // <--- ADDED: Current index
+          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
         };
       } 
       else if (item.type === 'SURVEY') {
@@ -162,6 +167,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         voted_option_id: item.data.voted_option_id,
         user_voted: item.data.user_voted,
         isAd: false,
+        itemIndex: index + 1, // <--- ADDED: Current index
+        totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
       };
     }
       else {
@@ -190,10 +197,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           isLiked:data?.reactions?.my_reaction=="LIKE",
           isDisliked:data?.reactions?.my_reaction=="DISLIKE",
           isBookmarked: bookmarkedIds.includes(data._id),
+          itemIndex: index + 1, // <--- ADDED: Current index
+          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
         };
       }
     });
-  }, [activeArticles, bookmarkedIds]);
+  }, [activeArticles, bookmarkedIds, totalNews]); // <--- ADDED: totalNews in dependencies
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);

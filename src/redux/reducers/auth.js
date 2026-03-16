@@ -6,14 +6,14 @@ import { Platform } from 'react-native';
 
 const initialState = {
   isOnboardingComplete: false,
-  user:null,
+  user: null,
   reporter: null,
   isAuthenticated: false,
-  reporterToken:null,
-  userToken:null,
+  reporterToken: null,
+  userToken: null,
   isActive: true,
+  guestLastActiveDate: null, // <--- ADDED: Store the last active date for guests
 };
-
 
 export const requestOTP = createAsyncThunk(
   'auth/requestOTP',
@@ -142,8 +142,6 @@ export const endActivity = createAsyncThunk(
   },
 );
 
-
-
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -155,48 +153,53 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.isAuthenticated = true;
     },
-   logout: (state) => {
+    logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       state.isActive = null;
       state.reporter = null;
-      state.reporterToken=null
+      state.reporterToken = null;
     },
-    clearReporter:(state)=>{
-      state.reporter=null,
-      state.reporterToken=null
+    clearReporter:(state) => {
+      state.reporter = null;
+      state.reporterToken = null;
+    },
+    // <--- ADDED: Reducer to update guest's last active date
+    updateGuestLastActiveDate: (state, action) => {
+      // If a specific date string is passed, use it. Otherwise, default to current time.
+      state.guestLastActiveDate = action.payload || new Date().toISOString();
     }
   },
-    extraReducers: builder => {
-      builder
-        .addCase(verifyOTP.pending, state => {
-          state.loading = true;
-          state.error = null;
-        })
-        .addCase(verifyOTP.fulfilled, (state, action) => {
-          state.loading = false;
-          if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
-            state.reporter = action.payload?.user?.reporter_profile;
-             state.reporterToken = action.payload?.token;
-          }
-        })
-        .addCase(verifyOTP.rejected, (state, action) => {
-          state.loading = false;
-          state.error = action.error.message || 'Failed to fetch news';
-        })
-        .addCase(getProfile.fulfilled, (state, action) => {
-          state.loading = false;
-          state.isActive = action.payload?.is_active;
-          state.reporter=action.payload
-        })
-        .addCase(userLogin.fulfilled, (state, action) => {
-          state.loading = false;
-          state.user=action.payload.user
-          state.userToken=action.payload.token
-        })
-    },
+  extraReducers: builder => {
+    builder
+      .addCase(verifyOTP.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyOTP.fulfilled, (state, action) => {
+        state.loading = false;
+        if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
+          state.reporter = action.payload?.user?.reporter_profile;
+          state.reporterToken = action.payload?.token;
+        }
+      })
+      .addCase(verifyOTP.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch news';
+      })
+      .addCase(getProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isActive = action.payload?.is_active;
+        state.reporter = action.payload;
+      })
+      .addCase(userLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.userToken = action.payload.token;
+      });
+  },
 });
 
-export const {completeOnboarding, setUser, logout, clearReporter} = authSlice.actions;
+export const { completeOnboarding, setUser, logout, clearReporter, updateGuestLastActiveDate } = authSlice.actions; // <--- ADDED EXPORT
 export default authSlice.reducer;

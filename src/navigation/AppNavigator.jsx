@@ -6,6 +6,9 @@ import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
 import { AppState, Linking } from 'react-native';
 
+// Import Store to check fresh state inside event listeners
+import { store } from '../redux/store'; 
+
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -34,9 +37,10 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
-import { endActivity, startActivity } from '../redux/reducers/auth';
-import { fetchArticleById } from '../redux/reducers/news';
 import UnreadNewsScreen from '../screens/UnreadNewsScreen';
+
+import { endActivity, startActivity, updateGuestLastActiveDate } from '../redux/reducers/auth';
+import { fetchArticleById } from '../redux/reducers/news';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,8 +79,6 @@ function AppNavigator() {
     }
   }
 
-  
-
   useEffect(() => {
     districtIdRef.current = currentLocation?.district?._id;
   }, [currentLocation]);
@@ -90,18 +92,30 @@ function AppNavigator() {
     return () => clearTimeout(timer);
   }, [navigationRef]);
 
+  // Handle App State Changes (Background/Foreground)
   useEffect(() => {
     serviceHandler()
     const subscription = AppState.addEventListener('change', nextAppState => {
+      // App comes to Foreground
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
        serviceHandler()
-      } else if (
+      } 
+      // App goes to Background
+      else if (
         appState.current === 'active' &&
         nextAppState.match(/inactive|background/)
       ) {
+        // --- 1. Track Guest Last Active Date ---
+        // Using store.getState() prevents stale closure issues in the event listener
+        const currentAuthState = store.getState().auth;
+        if (!currentAuthState.userToken && !currentAuthState.reporterToken) {
+           dispatch(updateGuestLastActiveDate());
+        }
+
+        // --- 2. End Tracking Session ---
         if (sessionIdRef.current) {
           dispatch(endActivity({ session_id: sessionIdRef.current }));
           sessionIdRef.current = null;
@@ -115,17 +129,16 @@ function AppNavigator() {
     };
   }, [dispatch]);
 
+  // Deep Linking & Notification Handling
   useEffect(() => {
     const handleNotificationClick = async (url) => {
       if (url && url.startsWith('rapidnews://news/')) {
         const newsId = url.replace('rapidnews://news/', '');
-
-        console.log(newsId,">>>>>>>>>>>>>>>>>>>newsId");
+        console.log(newsId, ">>>>>>>>>>>>>>>>>>>newsId");
         
-        // 1. Fetch the news data
-       const resp = await dispatch(fetchArticleById("69983a46dfd2ebf3f26169e3"));
-
-       console.log(resp,">>>>>>>>GGGGGGGGGGLLLLL");
+        // Fetch the news data using the extracted ID
+        const resp = await dispatch(fetchArticleById(newsId));
+        console.log(resp, ">>>>>>>>News Fetched from Link");
         
         const navigateToNews = () => {
           if (navigationRef.isReady()) {
@@ -316,17 +329,17 @@ function AppNavigator() {
           component={BookmarksScreen}
           options={{headerShown: false}}
         />
-             <Stack.Screen
+        <Stack.Screen
           name="NewsDetail"
           component={NewsDetailScreen}
           options={{headerShown: false}}
         />
 
         <Stack.Screen 
-  name="UnreadNewsScreen" 
-  component={UnreadNewsScreen} 
-  options={{ headerShown: false }} 
-/>
+          name="UnreadNewsScreen" 
+          component={UnreadNewsScreen} 
+          options={{ headerShown: false }} 
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

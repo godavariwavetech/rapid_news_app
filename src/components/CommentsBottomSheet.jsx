@@ -34,7 +34,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   );
 
   // Selectors for authentication status
-  const { isAuthenticated, userToken, reporterToken, reporter,user } = useSelector(
+  const { isAuthenticated, userToken, reporterToken, reporter, user } = useSelector(
     state => state.auth
   );
 
@@ -42,7 +42,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   const [modalVisible, setModalVisible] = useState(visible);
   
   // Logic to determine if the user is logged in
-  const hasToken = userToken || reporterToken || isAuthenticated;
+  const hasToken = !!(userToken || reporterToken || isAuthenticated);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const opacity = useRef(new Animated.Value(0)).current; 
@@ -92,16 +92,8 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   };
 
   const handleSendComment = () => {
-    // Stop the user if no token is found
-    if (!hasToken) {
-      Alert.alert(
-        'Login Required',
-        'Please login to post a comment.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    // Stop the user if no token is found (Fallback safeguard)
+    if (!hasToken) return;
     if (!commentText.trim()) return;
 
     dispatch(postComment({ newsId, text: commentText }))
@@ -172,7 +164,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                   
                   {currentComments && currentComments.length > 0 ? (
                     currentComments.map((comment, index) => {
-                      const isSame= comment?.user?._id ==reporter?._id
+                      const isSame = comment?.user?._id === reporter?._id;
                       const userName = comment.user?.name || 'User';
                       const userInitial = userName.charAt(0).toUpperCase();
                       const timeString = comment.createdAt 
@@ -190,7 +182,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
                           <View style={styles.commentRight}>
                             <View style={[styles.commentBubble, {backgroundColor: isDarkMode ? '#222' : '#F5F6F8'}]}>
                               <View style={styles.commentHeader}>
-                                <Text style={[styles.username, { color: theme.text }]}>{userName} {isSame&& '(You)'}</Text>
+                                <Text style={[styles.username, { color: theme.text }]}>{userName} {isSame && '(You)'}</Text>
                               </View>
                               <Text style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</Text>
                             </View>
@@ -211,31 +203,39 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
               )}
 
               {/* Guarded Input Container */}
-              <View style={[styles.inputContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', marginBottom: insets.bottom }]}>
-                <TextInput
-                  style={[styles.input, { backgroundColor: isDarkMode ? '#222' : '#F5F6F8', color: theme.text }, !hasToken && { backgroundColor: isDarkMode ? '#111' : '#f0f0f0' }]}
-                  placeholder={hasToken ? "Write a comment..." : "Login to comment"}
-                  placeholderTextColor={isDarkMode ? '#666' : '#999'}
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  multiline
-                  editable={hasToken!= null} // Disable typing if not authenticated
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton, 
-                    (!commentText.trim() || !hasToken) && { backgroundColor: '#ccc' }
-                  ]}
-                  onPress={handleSendComment}
-                  disabled={isPostingComment || !commentText.trim() || !hasToken}
-                  activeOpacity={0.8}>
-                  {isPostingComment ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Icon name="send" size={24} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
-              </View>
+              {!hasToken ? (
+                <View style={[styles.loginPromptContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 16) }]}>
+                  <Icon name="lock-outline" size={22} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.loginPromptText, { color: theme.textSecondary }]}>
+                    Please login to post a comment
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 12) }]}>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: isDarkMode ? '#222' : '#F5F6F8', color: theme.text }]}
+                    placeholder="Write a comment..."
+                    placeholderTextColor={isDarkMode ? '#666' : '#999'}
+                    value={commentText}
+                    onChangeText={setCommentText}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.sendButton, 
+                      (!commentText.trim()) && { backgroundColor: '#ccc' }
+                    ]}
+                    onPress={handleSendComment}
+                    disabled={isPostingComment || (hasToken && !commentText.trim())}
+                    activeOpacity={0.8}>
+                    {isPostingComment ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Icon name="send" size={24} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -365,11 +365,27 @@ const styles = StyleSheet.create({
   commentTime: {
     fontSize: 12,
   },
+  
+  // Login Prompt Styles
+  loginPromptContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  loginPromptText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     gap: 12,
   },
