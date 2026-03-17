@@ -150,6 +150,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
           likes: 0,
+          dislikes: 0,
           comments: 0,
           commentsEnabled: false,
           images: [], 
@@ -187,6 +188,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
+          dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
           reporter: data.reporter || {

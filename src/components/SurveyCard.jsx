@@ -18,34 +18,6 @@ import { submitSurveyVote } from '../redux/reducers/news';
 
 const { width } = Dimensions.get('window');
 
-// --- Animated Progress Bar Component ---
-const AnimatedProgressBar = ({ percentage, isSelected }) => {
-  const widthAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(widthAnim, {
-      toValue: percentage,
-      duration: 800, 
-      useNativeDriver: false,
-    }).start();
-  }, [percentage]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.progressFill,
-        isSelected ? styles.progressFillSelected : styles.progressFillUnselected,
-        {
-          width: widthAnim.interpolate({
-            inputRange: [0, 100],
-            outputRange: ['0%', '100%'],
-          }),
-        },
-      ]}
-    />
-  );
-};
-
 // --- Main Survey Component ---
 const SurveyCard = ({ survey, onAutoNext }) => {
   const dispatch = useDispatch();
@@ -60,10 +32,25 @@ const SurveyCard = ({ survey, onAutoNext }) => {
   
   // Flag to hide results if the API only returns a "Vote recorded" message without stats
   const [hideResults, setHideResults] = useState(false);
+  
+  // State to hold results from API response
+  const [apiResults, setApiResults] = useState(null);
 
   // Check both 'has_voted' (new API) and 'user_voted' (fallback)
   const hasVoted = surveyData.has_voted || surveyData.user_voted || selectedOptionIndex !== null;
-  const totalVotes = surveyData.total_votes || surveyData.totalVotes || 0;
+  
+  // Use apiResults if available, otherwise surveyData
+  const activeData = apiResults || surveyData;
+  
+  // Consolidate total votes calculation
+  const baseTotalVotes = Number(activeData.total_votes || activeData.totalVotes || 0);
+
+  // Optimistic total votes: increment if user just voted but surveyData hasn't updated yet and no apiResults
+  const displayTotalVotes = apiResults 
+    ? baseTotalVotes 
+    : (selectedOptionIndex !== null && !surveyData.has_voted && !surveyData.user_voted)
+      ? baseTotalVotes + 1
+      : baseTotalVotes;
 
   const handleVote = async (index) => {
     if (hasVoted || loadingOptionIndex !== null) return;
@@ -77,11 +64,18 @@ const SurveyCard = ({ survey, onAutoNext }) => {
 
       setSelectedOptionIndex(index);
       
-      // Check if the API ONLY returned a message (no options array, no total_votes)
-      const isMessageOnly = resp.data?.message === "Vote recorded" && !resp.data?.options && typeof resp.data?.total_votes === 'undefined';
+      // Access from resp.data because the thunk returns { surveyId, optionId, data }
+      const surveyResponse = resp.data;
+      const shouldShowResults = surveyResponse?.show_results && surveyResponse?.results;
 
-      if (isMessageOnly) {
-        setHideResults(true); // Suppress the progress bar animations
+      if (shouldShowResults) {
+        setApiResults(surveyResponse.results);
+        // Let the user admire the stats for 2 seconds.
+        setTimeout(() => {
+          if (onAutoNext) onAutoNext();
+        }, 2000); 
+      } else {
+        setHideResults(true); 
 
         // Show Toast/Alert
         if (Platform.OS === 'android') {
@@ -94,12 +88,6 @@ const SurveyCard = ({ survey, onAutoNext }) => {
         setTimeout(() => {
           if (onAutoNext) onAutoNext();
         }, 500); 
-
-      } else {
-        // API returned results. Let the user admire the stats for 2 seconds.
-        setTimeout(() => {
-          if (onAutoNext) onAutoNext();
-        }, 2000); 
       }
 
     } catch (error) {
@@ -127,29 +115,26 @@ const SurveyCard = ({ survey, onAutoNext }) => {
         </View>
 
         {/* Question Text */}
-        <Text style={styles.questionText}>{surveyData.question}</Text>
+        <Text style={styles.questionText}>{activeData.question}</Text>
         
         {/* Options */}
         <View style={styles.optionsContainer}>
-          {surveyData.options?.map((option, index) => {
+          {activeData.options?.map((option, index) => {
             const isSelected = selectedOptionIndex === index || surveyData.voted_option_id === index;
             const isVoting = loadingOptionIndex === index;
             
-            // Should we show the results/bars?
-            const showBars = hasVoted && !hideResults;
+            // Should we show the results?
+            const showResults = hasVoted && !hideResults;
 
-            // Optimistic Calculation (Will be overridden by Redux if the API returned exact numbers)
-            let currentOptionVotes = option.votes || 0;
-            let currentTotalVotes = totalVotes;
+            // Optimistic Calculation
+            let currentOptionVotes = Number(option.votes || 0);
             
-            // Increment local state if they just voted and hasn't synced fully yet
-            if (selectedOptionIndex === index && !surveyData.has_voted && !surveyData.user_voted) {
+            if (!apiResults && selectedOptionIndex === index && !surveyData.has_voted && !surveyData.user_voted) {
               currentOptionVotes += 1;
-              currentTotalVotes += 1;
             }
 
-            const percentage = currentTotalVotes > 0 
-              ? Math.round((currentOptionVotes / currentTotalVotes) * 100) 
+            const percentage = displayTotalVotes > 0 
+              ? Math.round((currentOptionVotes / displayTotalVotes) * 100) 
               : 0;
 
             return (
@@ -158,29 +143,22 @@ const SurveyCard = ({ survey, onAutoNext }) => {
                 style={[
                   styles.optionWrapper,
                   !hasVoted && styles.optionWrapperUnvoted,
-                  hasVoted && styles.optionWrapperVoted
+                  hasVoted && styles.optionWrapperVoted,
+                  isSelected && styles.optionWrapperSelected
                 ]}
                 onPress={() => handleVote(index)}
                 disabled={hasVoted || loadingOptionIndex !== null}
                 activeOpacity={0.6}
               >
-                {/* Background Fill Animation */}
-                {showBars && (
-                  <AnimatedProgressBar 
-                    percentage={percentage} 
-                    isSelected={isSelected} 
-                  />
-                )}
-
-                {/* Foreground Content */}
+                {/* Content */}
                 <View style={styles.optionContent}>
                   <View style={styles.optionTextRow}>
                     {isVoting && (
                       <ActivityIndicator size="small" color="#1DA1F2" style={{marginRight: 8}} />
                     )}
                     
-                    {/* Checkmark next to text for Message-Only success */}
-                    {!showBars && hasVoted && isSelected && (
+                    {/* Checkmark for Voted Item */}
+                    {hasVoted && isSelected && (
                        <Icon name="check-circle" size={18} color="#1DA1F2" style={styles.checkIconInline} />
                     )}
 
@@ -192,8 +170,8 @@ const SurveyCard = ({ survey, onAutoNext }) => {
                     </Text>
                   </View>
 
-                  {/* Percentage & Checkmark (Only shown if results exist) */}
-                  {showBars && (
+                  {/* Percentage (Only shown if results exist) */}
+                  {showResults && (
                     <View style={styles.resultGroup}>
                       <Text style={[
                         styles.percentageText,
@@ -201,9 +179,6 @@ const SurveyCard = ({ survey, onAutoNext }) => {
                       ]}>
                         {percentage}%
                       </Text>
-                      {isSelected && (
-                        <Icon name="check-circle" size={18} color="#1DA1F2" style={styles.checkIcon} />
-                      )}
                     </View>
                   )}
                 </View>
@@ -215,7 +190,7 @@ const SurveyCard = ({ survey, onAutoNext }) => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.totalVotesText}>
-            {!hasVoted ? 'Tap an option to vote' : (hideResults ? 'Thanks for voting!' : `${currentTotalVotes || totalVotes} votes`)}
+            {!hasVoted ? 'Tap an option to vote' : (hideResults ? 'Thanks for voting!' : `${displayTotalVotes} votes`)}
           </Text>
         </View>
 
@@ -277,7 +252,6 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 52,
     borderRadius: 14,
-    overflow: 'hidden',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
@@ -286,18 +260,13 @@ const styles = StyleSheet.create({
     borderColor: '#C4CFD6', 
   },
   optionWrapperVoted: {
-    borderWidth: 0,
+    borderWidth: 1.5,
+    borderColor: '#EFF3F4',
     backgroundColor: '#F7F9FA',
   },
-  progressFill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 14,
-  },
-  progressFillSelected: {
-    backgroundColor: 'rgba(29, 161, 242, 0.15)', 
-  },
-  progressFillUnselected: {
-    backgroundColor: '#EBEFF2', 
+  optionWrapperSelected: {
+    borderColor: '#1DA1F2',
+    backgroundColor: 'rgba(29, 161, 242, 0.05)',
   },
   optionContent: {
     flexDirection: 'row',
@@ -305,7 +274,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    zIndex: 1,
   },
   optionTextRow: {
     flexDirection: 'row',
@@ -319,12 +287,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   optionTextSelected: {
+    color: '#1DA1F2',
     fontWeight: '800',
   },
   resultGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   percentageText: {
     fontSize: 15,
@@ -334,9 +302,6 @@ const styles = StyleSheet.create({
   percentageTextSelected: {
     color: '#1DA1F2',
     fontWeight: '800',
-  },
-  checkIcon: {
-    marginLeft: 4,
   },
   checkIconInline: {
     marginRight: 8,

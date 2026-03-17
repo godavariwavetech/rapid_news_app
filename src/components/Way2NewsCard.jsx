@@ -69,6 +69,15 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const isManuallyPaused = useRef(false);
   const controlsTimeout = useRef(null);
 
+
+  
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(false);
+  const [lastTap, setLastTap] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [playCount, setPlayCount] = useState(0);
+
   useImperativeHandle(ref, () => ({
     play: () => {
       setIsVideoPaused(false);
@@ -121,15 +130,15 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   const [liked, setLiked] = useState(isOriginallyLiked);
   const [disliked, setDisliked] = useState(isOriginallyDisliked);
-  const [likeCount, setLikeCount] = useState(parseInt(news?.likes || 0));
-  const [dislikeCount, setDislikeCount] = useState(parseInt(news?.dislikes || 0));
+  const [likeCount, setLikeCount] = useState(parseInt(news?.reactions?.likes || news?.likes || 0));
+  const [dislikeCount, setDislikeCount] = useState(parseInt(news?.reactions?.dislikes || news?.dislikes || 0));
 
   useEffect(() => {
     setLiked(isOriginallyLiked);
     setDisliked(isOriginallyDisliked);
-    setLikeCount(parseInt(news?.likes || 0));
-    setDislikeCount(parseInt(news?.dislikes || 0));
-  }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes]);
+    setLikeCount(parseInt(news?.reactions?.likes || news?.likes || 0));
+    setDislikeCount(parseInt(news?.reactions?.dislikes || news?.dislikes || 0));
+  }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes, news.reactions]);
 
   const handleLike = () => {
     if (liked) {
@@ -164,12 +173,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   };
   // =========================================================
 
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [fullScreenImage, setFullScreenImage] = useState(false);
-  const [lastTap, setLastTap] = useState(0);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [playCount, setPlayCount] = useState(0);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
