@@ -80,8 +80,8 @@ const ProfileScreen = ({navigation}) => {
 
   const handleGoogleLogin =  async () =>{
  try {
-     await GoogleSignin.hasPlayServices();
      await GoogleSignin.signOut();
+     await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
      
      const userInfo = response.data;

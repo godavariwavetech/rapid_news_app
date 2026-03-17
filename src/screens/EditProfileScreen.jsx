@@ -16,7 +16,8 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { launchImageLibrary } from 'react-native-image-picker'; // Required for image selection
+import { launchImageLibrary } from 'react-native-image-picker'; 
+import { CommonActions } from '@react-navigation/native'; // <-- Added CommonActions import
 import { updateProfile } from '../redux/reducers/auth';
 
 // 1. DEFINED OUTSIDE TO PREVENT KEYBOARD CLOSING
@@ -86,16 +87,26 @@ const EditProfileScreen = ({ navigation }) => {
       }
     };
 
-    console.log(payload,">>>>>>>>>>>>PAYLOADDDD");
-    // return
+    console.log(payload, ">>>>>>>>>>>>PAYLOADDDD");
 
     try {
       await dispatch(updateProfile(payload)).unwrap();
       Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { 
+          text: 'OK', 
+          onPress: () => {
+            // <-- Reset the navigation stack and navigate to the Main tab
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'ReporterDashboard' }],
+              })
+            );
+          } 
+        }
       ]);
     } catch (error) {
-        console.log(error,">>>>>>>>>ERROR RESPONSEE");
+        console.log(error, ">>>>>>>>>ERROR RESPONSEE");
       Alert.alert('Update Failed', error?.message || 'Something went wrong');
     }
   };

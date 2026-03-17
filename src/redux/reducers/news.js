@@ -52,6 +52,7 @@ const initialState = {
   unreadArticles: [],
   isLoadingUnread: false,
   unreadError: null,
+  unreadCount: 0,
 };
 
 // --- ASYNC THUNKS ---
@@ -64,8 +65,8 @@ export const fetchNews = createAsyncThunk(
     let page = 1;
     let location = {
       village_id: "697d8135322a103bdabf0fc7",
-        district_id: "697d8135322a103bdabf0fc5",
-        state_id: "697d8135322a103bdabf0fc3",
+      district_id: "697d8135322a103bdabf0fc5",
+      state_id: "697d8135322a103bdabf0fc3",
     };
     let isLocationMode = false;
 
@@ -73,10 +74,12 @@ export const fetchNews = createAsyncThunk(
       category = arg.category || 'all';
       page = arg.page || 1;
       isLocationMode = arg.isLocationMode || false; 
+      
+      // --- ADDED FALLBACKS TO PREVENT EMPTY IDs ---
       location = {
-        village_id: arg.currentLocation?.village?._id,
-        district_id: arg.currentLocation?.district?._id,
-        state_id: arg.currentLocation?.state?._id,
+        village_id: arg.currentLocation?.village?._id || location.village_id,
+        district_id: arg.currentLocation?.district?._id || location.district_id,
+        state_id: arg.currentLocation?.state?._id || location.state_id,
       };
     }
 
@@ -98,13 +101,14 @@ export const fetchNews = createAsyncThunk(
         queryParams['feed_mode'] = "village";
       }
 
-
       const response = await api.get(endpoints.GET_NEWS_FEED, {
         params: queryParams,
         headers: {
           'x-device-id': deviceId
         }
       });
+
+      console.log(response.data,">>>>>>>>>>>>>>>.response.data");
 
       return { data: response.data, page }; 
     } catch (error) {
@@ -254,8 +258,10 @@ export const getReporterNews = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.GET_REPORTER_NEWS);
+      console.log(response,">>>>>>>>>>>>>>>RESPONSEEEE");
       return response.data; 
     } catch (error) {
+      console.log(error,">>>>>>>>>>..vss");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -307,7 +313,7 @@ export const fetchUnreadNews = createAsyncThunk(
         village_id: location.village?._id || "697d8135322a103bdabf0fc7",
         district_id: location.district?._id || "697d8135322a103bdabf0fc5",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
-        last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        last_seen_at:"2026-03-11T10:28:46.000Z",
       };
 
       const response = await api.get('/news/unread', {
@@ -326,13 +332,31 @@ export const fetchUnreadNews = createAsyncThunk(
 
 export const submitSurveyVote = createAsyncThunk(
   'news/submitSurveyVote',
-  async ({ surveyId, optionId }, { rejectWithValue }) => {
+  async ({ surveyId, optionId }, { getState, rejectWithValue }) => {
     try {
-      const deviceId = await getUniqueId();
-      const payload = { option_id: optionId };
-      const response = await api.post(`/surveys/${surveyId}/vote`, payload,{headers: {
-          'x-device-id': deviceId
-        }}); 
+      const state = getState();
+      // Check if the user has an ACTUAL token in Redux
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+      
+      const payload = { option_index : optionId };
+      let config = {};
+
+      // If they don't have a real token, act as a guest
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config = {
+          headers: {
+            'x-device-id': deviceId
+          },
+          skipAuth: true
+        };
+      }
+
+      console.log(payload,">>>>>>>>PAYLOADDDD",optionId);
+
+      const response = await api.post(`/surveys/${surveyId}/vote`, payload, config); 
+
+      console.log(response,">>>>>>>>>>>>Responseeeeeee>>>>>>>VOTESSS");
       
       return { surveyId, optionId, data: response.data };
     } catch (error) {
@@ -352,6 +376,43 @@ export const markUnreadNewsAsRead = createAsyncThunk(
           'x-device-id': deviceId
         }
       });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+
+// Fetch Unread News Count (For Guests & Users)
+export const fetchUnreadNewsCount = createAsyncThunk(
+  'news/fetchUnreadNewsCount',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const { userToken, reporterToken, guestLastActiveDate } = state.auth;
+      const location = state.location?.currentLocation || {};
+      const deviceId = await getUniqueId();
+
+      // Determine the last_seen_at date
+      // Fallback to 24 hours ago if guestLastActiveDate is null
+      let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const queryParams = {
+        last_seen_at: lastSeenAt,
+        // Optional: you can pass location if your API counts by region
+        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
+      };
+
+      const response = await api.get('/news/unread/count', {
+        params: queryParams,
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -473,7 +534,7 @@ const newsSlice = createSlice({
         state.error = action.payload || 'Failed to fetch article';
       })
 
-      // --- React To News (ADDED: Optimistic Update Across All Lists) ---
+      // --- React To News (Optimistic Update Across All Lists) ---
       .addCase(reactToNews.pending, (state, action) => {
         const { newsId, type } = action.meta.arg;
         
@@ -584,6 +645,12 @@ const newsSlice = createSlice({
       .addCase(fetchUnreadNews.rejected, (state, action) => {
         state.isLoadingUnread = false;
         state.unreadError = action.payload || 'Failed to fetch unread news';
+      })
+
+      .addCase(fetchUnreadNewsCount.fulfilled, (state, action) => {
+        // Adjust this depending on your API response structure 
+        // (e.g., if it returns { count: 5 } vs just a number)
+        state.unreadCount = action.payload?.count || action.payload?.data?.count || (typeof action.payload === 'number' ? action.payload : 0);
       })
       
       .addCase(submitSurveyVote.fulfilled, (state, action) => {

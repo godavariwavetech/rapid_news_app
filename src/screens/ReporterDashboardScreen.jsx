@@ -58,7 +58,8 @@ const ReporterDashboardScreen = ({navigation}) => {
         dispatch(getReporterNews()).unwrap(),
         dispatch(getProfile()).unwrap()
       ]);
-      await dispatch(getReporterStats())
+     const resp = await dispatch(getReporterStats())
+     console.log(resp,">>>>>>>>>>>resp>>>");
     } catch (error) {
       console.error("Refresh Error:", error);
     } finally {

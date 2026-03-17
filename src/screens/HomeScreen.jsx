@@ -4,7 +4,6 @@ import {
   StyleSheet,
   StatusBar,
   Animated,
-  Dimensions,
   Platform,
   ToastAndroid,
   Alert,
@@ -22,13 +21,13 @@ import { getBookmarks } from '../redux/reducers/bookmarks';
 import { postToken } from '../redux/reducers/auth';
 import notifee from '@notifee/react-native';
 
-
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   
   const { articles, categories, selectedCategory, loading, hasMore, currentPage, isLoadingMore, error } = useSelector(state => state.news);
-  const {currentLocation} = useSelector(state => state.location);
-
+  
+  // --- ADDED loading: locationLoading HERE ---
+  const {currentLocation, loading: locationLoading} = useSelector(state => state.location);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -41,14 +40,15 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
 
-  const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
+  // --- ADDED !locationLoading CHECK HERE ---
+  const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && (error || !hasMore);
 
   const displayLocationName = useMemo(() => {
     return (
       currentLocation?.village?.name?.te || 
       currentLocation?.village?.name?.en  ||
       currentLocation?.district?.name?.te || 
-       currentLocation?.district?.name?.en ||
+      currentLocation?.district?.name?.en ||
       'రాజమండ్రి'
     );
   }, [currentLocation]);
@@ -64,20 +64,22 @@ function HomeScreen({navigation}) {
       }
     }
 
-    dispatch(clearNews());
-    dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+    // --- ADDED currentLocation CHECK HERE ---
+    // Only fetch news if we have resolved the location
+    if (currentLocation) {
+      dispatch(clearNews());
+      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+    }
+
     dispatch(getBookmarks())
     sendToken()
     notifee.requestPermission();
   }, [selectedCategory, currentLocation, dispatch]);
 
   const sendToken = async () =>{
-    
     const res = await dispatch(postToken())
     console.log(res,">>>>>>>>>>>>FCM RES");
   }
-
-
 
   useEffect(() => {
     if (!loading && articles && articles?.items?.length === 0 && selectedCategory !== 'all' && !error) {
@@ -90,7 +92,6 @@ function HomeScreen({navigation}) {
       dispatch(setSelectedCategory('all'));
     }
   }, [articles, loading, selectedCategory, error]);
-
 
   useEffect(() => {
     const handleBack = () => {
@@ -166,7 +167,7 @@ function HomeScreen({navigation}) {
           <Header 
             title={headerTitle} 
             onProfilePress={() => navigation.navigate("Profile")}
-            onTogglePress={() => navigation.navigate("UnreadNewsScreen")} // <-- ADD THIS LINE
+            onTogglePress={() => navigation.navigate("UnreadNewsScreen")} 
           />
         </Animated.View>
       )}

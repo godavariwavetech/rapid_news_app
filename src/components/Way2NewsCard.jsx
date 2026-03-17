@@ -45,7 +45,8 @@ const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
 
 const getYoutubeId = (url) => {
   if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  // UPDATED REGEX: Now supports /live/ and /shorts/ formats
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|live\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
 };
@@ -91,6 +92,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   
   const hasVideos = videoUrls.length > 0 && !isBottomHalf;
 
+  // Derive youtubeId directly using useMemo instead of managing local state
   const youtubeId = useMemo(() => {
     if (hasVideos) return getYoutubeId(videoUrls[0]);
     if (news.external_links && news.external_links.length > 0) {
@@ -133,8 +135,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     if (liked) {
       setLiked(false);
       setLikeCount(prev => Math.max(0, prev - 1));
-      // Assuming your backend supports a toggle or 'NONE' type to remove a reaction. 
-      // If it only accepts 'LIKE'/'DISLIKE', you might need a different endpoint to remove a like.
       dispatch(reactToNews({ newsId: news.id, type: 'NONE' })); 
     } else {
       setLiked(true);
@@ -170,7 +170,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [playCount, setPlayCount] = useState(0);
-  const [activeYoutubeId, setActiveYoutubeId] = useState(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
@@ -186,20 +185,11 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     };
   }, [isActive, isBottomHalf]);
 
-
   useEffect(() => {
     isManuallyPaused.current = false;
     setIsBuffering(true);
     setShowControls(false);
     setPlayCount(0);
-    
-    let id = null;
-    if (hasVideos) {
-      id = getYoutubeId(videoUrls[0]);
-    } else if (news.external_links && news.external_links.length > 0) {
-      id = getYoutubeId(news.external_links[0]);
-    }
-    setActiveYoutubeId(id);
     
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
 
@@ -209,14 +199,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       setIsVideoPaused(true);
     }
   }, [news.id, isActive, isBottomHalf]);
-
-  useEffect(() => {
-    if (!isActive || isBottomHalf) {
-      setIsVideoPaused(true);
-    } else if (!isManuallyPaused.current) {
-      setIsVideoPaused(false);
-    }
-  }, [isActive, isBottomHalf]);
 
   useEffect(() => {
     let timer;
@@ -310,7 +292,11 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     if (onCommentsPress) onCommentsPress(news);
   };
 
-  const handleShareNews = () => handleShare(news.title, news.short || news.body);
+  // Safe fallback to prevent crashes if content is nested
+  const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
+  const displayBody = news.body || news.description || news.content?.te?.body || news.content?.body || '';
+
+  const handleShareNews = () => handleShare(displayTitle, news.short || displayBody);
   const handleMenuPress = () => setMenuVisible(true);
 
   const handleMenuAction = (action) => {
@@ -362,20 +348,20 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     <View style={styles.card}>
       <View style={styles.imageSection}>
 
-        {(hasVideos || activeYoutubeId) ? (
+        {(hasVideos || youtubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             
             <View style={{ width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 9) / 16 }}>
               <View style={StyleSheet.absoluteFillObject}>
                 {isActive && !isBottomHalf ? (
-                  activeYoutubeId ? (
+                  youtubeId ? (
                     <YoutubePlayer
                       ref={playerRef}
-                      key={activeYoutubeId} 
+                      key={youtubeId} 
                       height={Math.floor((SCREEN_WIDTH * 9) / 16)}
                       width={SCREEN_WIDTH}
                       play={!isVideoPaused} 
-                      videoId={activeYoutubeId}
+                      videoId={youtubeId}
                       onChangeState={onYoutubeStateChange}
                       onReady={onVideoReady} 
                       onError={onPlayerError}
@@ -495,10 +481,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       <View style={styles.bottomContainer}>
         <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
-            <Text style={styles.title}>{news.title}</Text>
+            <Text style={styles.title}>{displayTitle}</Text>
             <ScrollView style={styles.bodyContainer} showsVerticalScrollIndicator={false} nestedScrollEnabled={true}>
               <Text style={styles.body}>
-                {news.body || news.description}
+                {displayBody}
                 {news.fullContent && (<Text style={styles.body}>{'\n\n' + news.fullContent}</Text>)}
               </Text>
             </ScrollView>
@@ -521,7 +507,6 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
           <View style={styles.actionLeft}>
-            {/* --- UPDATED: Using explicit state for counts --- */}
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
               <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={22} color={liked ? '#4dabf5' : '#E0E0E0'} />
               <Text style={[styles.actionText, liked && { color: '#4dabf5' }]}>{likeCount}</Text>
@@ -537,13 +522,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
             {news.commentsEnabled !== false && (
               <TouchableOpacity style={styles.actionButton} onPress={handleCommentsPress}>
                 <Icon name="comment-outline" size={22} color="#E0E0E0" />
-                <Text style={styles.actionText}>{news?.comments || 0}</Text>
+                <Text style={styles.actionText}>{news?.comments?.count || news?.comments || 0}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.actionIconButton} onPress={handleMenuPress}>
               <Icon name="dots-vertical" size={24} color="#E0E0E0" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIconButton} onPress={() => handleShareNews(news.title, news.short, news.id)}>
+            <TouchableOpacity style={styles.actionIconButton} onPress={() => handleShareNews(displayTitle, news.short || displayBody, news.id)}>
               <Icon name="share" size={24} color="#2196F3" /> 
             </TouchableOpacity>
           </View>
@@ -581,7 +566,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           <TouchableWithoutFeedback onPress={() => setFullScreenImage(false)}>
             <FastImage source={hasImage ? {uri: images[activeSlide] || images[0]} : applogo} style={styles.fullScreenImage} resizeMode={FastImage.resizeMode.contain} />
           </TouchableWithoutFeedback>
-          <View style={styles.imageInfo}><Text style={styles.imageTitle}>{news.title}</Text></View>
+          <View style={styles.imageInfo}><Text style={styles.imageTitle}>{displayTitle}</Text></View>
         </View>
       </Modal>
     </View>

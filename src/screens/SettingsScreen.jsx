@@ -10,12 +10,16 @@ import {
   Switch,
   Linking,
   AppState,
+  Alert,
+  ToastAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux'; // <-- Added useSelector
 import { setDarkMode } from '../redux/reducers/settings';
+import { clearNews, fetchNews } from '../redux/reducers/news'; // <-- Added fetchNews
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
+import DeviceInfo from 'react-native-device-info'; 
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -23,8 +27,19 @@ const SettingsScreen = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme();
   const dispatch = useDispatch();
   
-  const [nightModeEnabled, setNightModeEnabled] = useState(false);
+  // Grab current location and category to fetch the correct news after clearing cache
+  const { currentLocation } = useSelector(state => state.location);
+  const { selectedCategory } = useSelector(state => state.news);
+
+  const [nightModeEnabled, setNightModeEnabled] = useState(isDarkMode);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
+  const [appVersion, setAppVersion] = useState('');
+
+  // Fetch App Version dynamically
+  useEffect(() => {
+    const version = DeviceInfo.getVersion();
+    setAppVersion(version);
+  }, []);
 
   // Check notification permission status
   const checkNotificationPermission = async () => {
@@ -44,10 +59,8 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    // Initial check on component mount
     checkNotificationPermission();
 
-    // Re-check when the app comes back to the foreground (e.g., returning from settings)
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active') {
         checkNotificationPermission();
@@ -59,9 +72,43 @@ const SettingsScreen = ({ navigation }) => {
     };
   }, []);
 
-  // Open device settings for this app
   const handleOpenSettings = () => {
     Linking.openSettings();
+  };
+
+  // --- Clear Cache Functionality ---
+  const handleClearCache = () => {
+    Alert.alert(
+      "క్లియర్ క్యాచ్",
+      "మీరు క్యాచ్‌ని క్లియర్ చేయాలనుకుంటున్నారా?", 
+      [
+        { text: "కాదు (No)", style: "cancel" },
+        { 
+          text: "అవును (Yes)", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. Clear News Cache from Redux Memory
+              dispatch(clearNews());
+              
+              // 2. IMMEDIATELY trigger a fresh fetch so the Home Screen isn't empty when returning
+              dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+              
+              if (Platform.OS === 'android') {
+                ToastAndroid.show("క్యాచ్ విజయవంతంగా క్లియర్ చేయబడింది", ToastAndroid.SHORT);
+              } else {
+                Alert.alert("Success", "Cache cleared successfully");
+              }
+            } catch (error) {
+              console.error("Error clearing cache:", error);
+              if (Platform.OS === 'android') {
+                ToastAndroid.show("క్యాచ్ క్లియర్ చేయడంలో లోపం", ToastAndroid.SHORT);
+              }
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -76,12 +123,12 @@ const SettingsScreen = ({ navigation }) => {
           <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>సెట్టింగ్స్</Text>
-        <Text style={[styles.versionText, { color: theme.textSecondary }]}>App Version 9.24</Text>
+        <Text style={[styles.versionText, { color: theme.textSecondary }]}>App Version {appVersion}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Notification Alert - Only shown if permissions are NOT granted */}
+        {/* Notification Alert */}
         {!hasNotificationPermission && (
           <View style={[styles.alertBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFBEE' }]}>
             <View style={styles.alertHeader}>
@@ -124,7 +171,7 @@ const SettingsScreen = ({ navigation }) => {
             <Text style={[styles.actionButtonText, { color: theme.text }]}>బుక్మార్క్స్</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+          <TouchableOpacity onPress={handleClearCache} style={[styles.actionButton, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#E8EAED' }]}>
             <Icon name="history" size={20} color={theme.primary} />
             <Text style={[styles.actionButtonText, { color: theme.text }]}>క్లియర్ క్యాచ్</Text>
           </TouchableOpacity>

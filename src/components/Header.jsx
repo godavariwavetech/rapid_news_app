@@ -1,28 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import api from '../utils/api'; 
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUnreadNewsCount } from '../redux/reducers/news'; 
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 function Header({ onProfilePress, onTogglePress, title }) {
-  const [unreadCount, setUnreadCount] = useState(0);
+  const dispatch = useDispatch();
+  
+  // Grab the global unread count from Redux
+  const unreadCount = useSelector(state => state.news.unreadCount) || 0;
 
-  // Fetch the unread count when the component mounts
+  // Fetch the unread count when the component mounts using the new Thunk
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await api.get('/news/unread/count');
-        if (response.data && response.data.unread_news !== undefined) {
-          setUnreadCount(response.data.unread_news);
-        }
-      } catch (error) {
-        console.error('Error fetching unread count:', error);
-      }
-    };
-
-    fetchUnreadCount();
-  }, []);
+    dispatch(fetchUnreadNewsCount());
+  }, [dispatch]);
 
   return (
     <View style={styles.container}>
