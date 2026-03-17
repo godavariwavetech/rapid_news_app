@@ -50,16 +50,20 @@ const AnimatedProgressBar = ({ percentage, isSelected }) => {
 const SurveyCard = ({ survey, onAutoNext }) => {
   const dispatch = useDispatch();
   
+  // Extract nested data if it exists (handles both flat and nested { data: {...} } structures)
+  const surveyData = survey.data || survey;
+  
   const [loadingOptionIndex, setLoadingOptionIndex] = useState(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(
-    survey.voted_option_id !== undefined ? survey.voted_option_id : null
+    surveyData.voted_option_id !== undefined ? surveyData.voted_option_id : null
   );
   
   // Flag to hide results if the API only returns a "Vote recorded" message without stats
   const [hideResults, setHideResults] = useState(false);
 
-  const hasVoted = survey.user_voted || selectedOptionIndex !== null;
-  const totalVotes = survey.total_votes || survey.totalVotes || 0;
+  // Check both 'has_voted' (new API) and 'user_voted' (fallback)
+  const hasVoted = surveyData.has_voted || surveyData.user_voted || selectedOptionIndex !== null;
+  const totalVotes = surveyData.total_votes || surveyData.totalVotes || 0;
 
   const handleVote = async (index) => {
     if (hasVoted || loadingOptionIndex !== null) return;
@@ -67,7 +71,7 @@ const SurveyCard = ({ survey, onAutoNext }) => {
 
     try {
       const resp = await dispatch(submitSurveyVote({ 
-        surveyId: survey.id || survey._id, 
+        surveyId: surveyData._id || surveyData.id, 
         optionId: index 
       })).unwrap();
 
@@ -123,12 +127,12 @@ const SurveyCard = ({ survey, onAutoNext }) => {
         </View>
 
         {/* Question Text */}
-        <Text style={styles.questionText}>{survey.question}</Text>
+        <Text style={styles.questionText}>{surveyData.question}</Text>
         
         {/* Options */}
         <View style={styles.optionsContainer}>
-          {survey.options?.map((option, index) => {
-            const isSelected = selectedOptionIndex === index || survey.voted_option_id === index;
+          {surveyData.options?.map((option, index) => {
+            const isSelected = selectedOptionIndex === index || surveyData.voted_option_id === index;
             const isVoting = loadingOptionIndex === index;
             
             // Should we show the results/bars?
@@ -138,7 +142,8 @@ const SurveyCard = ({ survey, onAutoNext }) => {
             let currentOptionVotes = option.votes || 0;
             let currentTotalVotes = totalVotes;
             
-            if (selectedOptionIndex === index && !survey.user_voted) {
+            // Increment local state if they just voted and hasn't synced fully yet
+            if (selectedOptionIndex === index && !surveyData.has_voted && !surveyData.user_voted) {
               currentOptionVotes += 1;
               currentTotalVotes += 1;
             }

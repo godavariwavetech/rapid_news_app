@@ -369,7 +369,7 @@ export const submitSurveyVote = createAsyncThunk(
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
       
-      const payload = { option_id: optionId };
+      const payload = { option_index: optionId };
       let config = {};
 
       if (!hasToken) {
@@ -383,6 +383,8 @@ export const submitSurveyVote = createAsyncThunk(
       }
 
       const response = await api.post(`/surveys/${surveyId}/vote`, payload, config); 
+
+      console.log(response,">>>>>>>>>>>>>>SURVEY>>>>>>>>>>>>>>>>>>>");
       
       return { surveyId, optionId, data: response.data };
     } catch (error) {
