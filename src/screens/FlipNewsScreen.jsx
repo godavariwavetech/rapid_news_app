@@ -41,7 +41,7 @@ const formatTimeAgo = (dateString) => {
 
 // --- SKELETON LOADING COMPONENT ---
 const NewsSkeleton = ({ height, theme }) => {
-  const imageHeight = height * 0.45;
+  const imageHeight = height * 0.40;
   return (
     <View style={[styles.skeletonContainer, { height, backgroundColor: theme?.background || '#FFF' }]}>
       <ShimmerLoader height={imageHeight} borderRadius={0} />

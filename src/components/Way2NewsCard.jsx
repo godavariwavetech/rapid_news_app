@@ -40,8 +40,8 @@ import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe'; 
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-const ACTUAL_HEIGHT = SCREEN_HEIGHT + (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0); 
-const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.45;
+const ACTUAL_HEIGHT = SCREEN_HEIGHT; 
+const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.40;
 
 const getYoutubeId = (url) => {
   if (!url) return null;
