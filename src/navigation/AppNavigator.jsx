@@ -38,6 +38,8 @@ import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
 import UnreadNewsScreen from '../screens/UnreadNewsScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
+import AboutUsScreen from '../screens/AboutUsScreen';
 
 import { endActivity, startActivity, updateGuestLastActiveDate } from '../redux/reducers/auth';
 import { fetchArticleById } from '../redux/reducers/news';
@@ -338,6 +340,17 @@ function AppNavigator() {
         <Stack.Screen 
           name="UnreadNewsScreen" 
           component={UnreadNewsScreen} 
+          options={{ headerShown: false }} 
+        />
+        
+        <Stack.Screen 
+          name="PrivacyPolicy" 
+          component={PrivacyPolicyScreen} 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="AboutUs" 
+          component={AboutUsScreen} 
           options={{ headerShown: false }} 
         />
       </Stack.Navigator>

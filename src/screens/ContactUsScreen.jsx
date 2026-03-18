@@ -1,261 +1,211 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  StatusBar,
-  SafeAreaView,
-  Linking,
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  StatusBar, 
+  Platform,
+  Linking 
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 
-const ContactUsScreen = ({navigation}) => {
-  const insets = useSafeAreaInsets();
+const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+
+const ContactUsScreen = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme();
-  
-  const handleEmailPress = (email) => {
-    Linking.openURL(`mailto:${email}`);
+
+  const handleSupportEmailPress = () => {
+    Linking.openURL('mailto:support@rapidnews.in');
+  };
+
+  const handleGrievanceEmailPress = () => {
+    Linking.openURL('mailto:grievance@rapidnewsnetwork.in');
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: isDarkMode ? theme.background : '#808080' }]}>
-      <StatusBar barStyle="light-content" backgroundColor={isDarkMode ? theme.background : "#808080"} />
-
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
+      
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDarkMode ? theme.background : '#808080', paddingTop: insets.top }]}>
-        <TouchableOpacity
-          style={styles.backButton}
+      <View style={[styles.header, { paddingTop: STATUS_BAR_HEIGHT + 8, backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+        <TouchableOpacity 
+          style={styles.backButton} 
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={26} color="#FFFFFF" />
+          <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>సంప్రదించండి</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Contact Us</Text>
       </View>
 
-      {/* Hero Section */}
-      <View style={[styles.heroSection, { backgroundColor: isDarkMode ? '#1A1A1A' : '#333333' }]}>
-        <Text style={styles.heroTitle}>Contact Us</Text>
-      </View>
-
-      {/* Content - Scrollable */}
-      <View style={[styles.whiteContent, { backgroundColor: theme.background }]}>
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          
-          {/* Contact Details Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Icon name="arrow-right" size={24} color={theme.primary} />
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact Details</Text>
-            </View>
-
-            <Text style={[styles.sectionDescription, { color: theme.textSecondary }]}>
-              For any support / any other queries write to
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.emailRow, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}
-              onPress={() => handleEmailPress('support@sitinews.com')}
-              activeOpacity={0.7}>
-              <Icon name="email-outline" size={22} color={theme.textSecondary} />
-              <View style={styles.emailContent}>
-                <Text style={[styles.emailLabel, { color: theme.text }]}>E-mail:</Text>
-                <Text style={[styles.emailAddress, { color: theme.accentBlue }]}>support@sitinews.com</Text>
-              </View>
-            </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        
+        {/* Contact Details Section */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact Details</Text>
+        <Text style={[styles.paragraph, { color: theme.textSecondary }]}>
+          For any assistance, feedback, or general queries, you can reach us at:
+        </Text>
+        
+        <TouchableOpacity 
+          activeOpacity={0.7} 
+          onPress={handleSupportEmailPress} 
+          style={[styles.contactBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#F5F8FA' }]}
+        >
+          <View style={[styles.iconWrapper, { backgroundColor: 'rgba(29, 161, 242, 0.1)' }]}>
+            <Icon name="email" size={24} color="#1DA1F2" />
           </View>
+          <Text style={[styles.contactText, { color: theme.text }]}>support@rapidnews.in</Text>
+        </TouchableOpacity>
 
-          {/* Grievance Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Icon name="arrow-right" size={24} color={theme.primary} />
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Grievance</Text>
-            </View>
+        <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
 
-            <Text style={[styles.sectionDescription, { color: theme.textSecondary }]}>
-              For any complaint, queries or grievance, you can reach out to us
-              on the email address provided below.
-            </Text>
+        {/* Grievance Section */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Grievance</Text>
+        <Text style={[styles.paragraph, { color: theme.textSecondary }]}>
+          If you have any complaints, concerns, or issues related to content or services, please contact us through the email provided below. We are committed to addressing your concerns in a timely manner.
+        </Text>
+        
+        <View style={styles.grievanceInfo}>
+          <Text style={[styles.grievanceLabel, { color: theme.textSecondary }]}>Grievance Officer Contact:</Text>
+          <Text style={[styles.grievanceName, { color: theme.text }]}>Mr Lakshman K</Text>
+        </View>
 
-            <Text style={[styles.grievanceSubtitle, { color: theme.text }]}>
-              The contact details of the Grievance officer:
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.grievanceCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}
-              onPress={() => handleEmailPress('grievance@sitinews.com')}
-              activeOpacity={0.7}>
-              <Icon name="email-outline" size={22} color={theme.textSecondary} />
-              <View style={styles.grievanceContent}>
-                <Text style={[styles.grievanceName, { color: theme.text }]}>Mr. S. Raghavendra</Text>
-                <Text style={[styles.grievanceEmail, { color: theme.accentBlue }]}>
-                  grievance@sitinews.com
-                </Text>
-              </View>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          activeOpacity={0.7} 
+          onPress={handleGrievanceEmailPress} 
+          style={[styles.contactBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF0F0' }]}
+        >
+          <View style={[styles.iconWrapper, { backgroundColor: 'rgba(255, 59, 48, 0.1)' }]}>
+            <Icon name="alert-circle-outline" size={24} color="#FF3B30" />
           </View>
+          <Text style={[styles.contactText, { color: theme.text }]}>grievance@rapidnewsnetwork.in</Text>
+        </TouchableOpacity>
 
-          {/* Address Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Icon name="arrow-right" size={24} color={theme.primary} />
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Address</Text>
-            </View>
+        <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
 
-            <View style={[styles.addressCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
-              <Icon
-                name="map-marker-outline"
-                size={22}
-                color={theme.textSecondary}
-                style={styles.addressIcon}
-              />
-              <View style={styles.addressContent}>
-                <Text style={[styles.addressLine, { color: theme.text }]}>SITI News Office</Text>
-                <Text style={[styles.addressLine, { color: theme.text }]}>H.No. 5-4-221, 2nd Floor,</Text>
-                <Text style={[styles.addressLine, { color: theme.text }]}>Metro Plaza Building,</Text>
-                <Text style={[styles.addressLine, { color: theme.text }]}>Abids Main Road,</Text>
-                <Text style={[styles.addressLine, { color: theme.text }]}>
-                  Hyderabad, Telangana – 500001.
-                </Text>
-              </View>
-            </View>
+        {/* Address Section */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Address</Text>
+        
+        <View style={[styles.addressCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+          <View style={styles.addressIconWrapper}>
+            <Icon name="map-marker-radius" size={28} color="#FF9500" />
           </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+          <View style={styles.addressTextContainer}>
+            <Text style={[styles.addressTitle, { color: theme.text }]}>Rapid News Network</Text>
+            <Text style={[styles.addressLine, { color: theme.textSecondary }]}>
+              40-1-70, 3rd Floor, Opp Eenadu,{'\n'}
+              Bandar Road, Benz Circle,{'\n'}
+              Vijayawada, NTR District,{'\n'}
+              Andhra Pradesh - 520010
+            </Text>
+          </View>
+        </View>
+
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    elevation: 3,
   },
   backButton: {
     padding: 4,
-    marginRight: 12,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
     flex: 1,
+    marginLeft: 12,
   },
-  heroSection: {
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    alignItems: 'flex-start',
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  whiteContent: {
-    flex: 1,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    marginTop: -16,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 6,
+  content: {
+    padding: 24,
+    paddingBottom: 40,
   },
   sectionTitle: {
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
   },
-  sectionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+  paragraph: {
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  contactBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 14,
+  },
+  iconWrapper: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  contactText: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  grievanceInfo: {
     marginBottom: 12,
   },
-  emailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    gap: 10,
-  },
-  emailContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  emailLabel: {
+  grievanceLabel: {
     fontSize: 14,
-    fontWeight: '600',
-  },
-  emailAddress: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  grievanceSubtitle: {
-    fontSize: 14,
-    marginBottom: 10,
-    lineHeight: 20,
-  },
-  grievanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    gap: 10,
-  },
-  grievanceContent: {
-    flex: 1,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   grievanceName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 3,
   },
-  grievanceEmail: {
-    fontSize: 14,
-    fontWeight: '600',
+  divider: {
+    height: 1,
+    marginVertical: 24,
   },
   addressCard: {
     flexDirection: 'row',
-    padding: 14,
-    borderRadius: 10,
-    gap: 10,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    gap: 16,
   },
-  addressIcon: {
-    marginTop: 2,
+  addressIconWrapper: {
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addressContent: {
+  addressTextContainer: {
     flex: 1,
   },
-  addressLine: {
-    fontSize: 14,
-    lineHeight: 21,
+  addressTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
   },
+  addressLine: {
+    fontSize: 15,
+    lineHeight: 24,
+  }
 });
-
 
 export default ContactUsScreen;

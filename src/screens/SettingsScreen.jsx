@@ -112,36 +112,61 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
-      
+    <View style={[styles.container, {backgroundColor: theme.background}]}>
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.background}
+      />
+
       {/* Header */}
-      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8, backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: STATUS_BAR_HEIGHT + 8,
+            backgroundColor: theme.background,
+            borderBottomColor: isDarkMode ? '#333' : '#E8EAED',
+          },
+        ]}>
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>సెట్టింగ్స్</Text>
-        <Text style={[styles.versionText, { color: theme.textSecondary }]}>App Version {appVersion}</Text>
+        <Text style={[styles.headerTitle, {color: theme.text}]}>
+          సెట్టింగ్స్
+        </Text>
+        <Text style={[styles.versionText, {color: theme.textSecondary}]}>
+          App Version {appVersion}
+        </Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        
         {/* Notification Alert */}
         {!hasNotificationPermission && (
-          <View style={[styles.alertBox, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFBEE' }]}>
+          <View
+            style={[
+              styles.alertBox,
+              {backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFBEE'},
+            ]}>
             <View style={styles.alertHeader}>
               <Icon name="bell" size={20} color={theme.primary} />
               <View style={styles.alertHeaderText}>
-                <Text style={[styles.alertTitle, { color: theme.text }]}>Missing notifications?</Text>
+                <Text style={[styles.alertTitle, {color: theme.text}]}>
+                  Missing notifications?
+                </Text>
                 <TouchableOpacity onPress={handleOpenSettings}>
-                  <Text style={[styles.clickHere, { color: theme.accentBlue }]}>Click here</Text>
+                  <Text style={[styles.clickHere, {color: theme.accentBlue}]}>
+                    Click here
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={[styles.alertText, { color: theme.textSecondary }]}>
-              If you're not receiving notifications, please check your device settings and ensure notifications are enabled for this app. You may also need to disable battery optimization for uninterrupted alerts.
+            <Text style={[styles.alertText, {color: theme.textSecondary}]}>
+              If you're not receiving notifications, please check your device
+              settings and ensure notifications are enabled for this app. You
+              may also need to disable battery optimization for uninterrupted
+              alerts.
             </Text>
           </View>
         )}
@@ -154,9 +179,9 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.toggleLabel}>నైట్ మోడ్</Text>
           <Switch
             value={nightModeEnabled}
-            onValueChange={(value)=>{
-              setNightModeEnabled(value)
-              dispatch(setDarkMode(value))
+            onValueChange={value => {
+              setNightModeEnabled(value);
+              dispatch(setDarkMode(value));
             }}
             trackColor={{false: '#CCCCCC', true: '#FF3B30'}}
             thumbColor="#FFFFFF"
@@ -166,68 +191,156 @@ const SettingsScreen = ({ navigation }) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity onPress={()=>navigation.navigate("Bookmarks")} style={[styles.actionButton, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Bookmarks')}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+                borderColor: isDarkMode ? '#333' : '#E8EAED',
+              },
+            ]}>
             <Icon name="bookmark-outline" size={20} color={theme.primary} />
-            <Text style={[styles.actionButtonText, { color: theme.text }]}>బుక్మార్క్స్</Text>
+            <Text style={[styles.actionButtonText, {color: theme.text}]}>
+              బుక్మార్క్స్
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleClearCache} style={[styles.actionButton, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+          <TouchableOpacity
+            onPress={handleClearCache}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+                borderColor: isDarkMode ? '#333' : '#E8EAED',
+              },
+            ]}>
             <Icon name="history" size={20} color={theme.primary} />
-            <Text style={[styles.actionButtonText, { color: theme.text }]}>క్లియర్ క్యాచ్</Text>
+            <Text style={[styles.actionButtonText, {color: theme.text}]}>
+              క్లియర్ క్యాచ్
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Contact Us Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>కాంటాక్ట్ అస్</Text>
-          
-          <View style={[styles.menuCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}>
-            <TouchableOpacity style={styles.menuItem}>
+          <Text style={[styles.sectionTitle, {color: theme.text}]}>
+            కాంటాక్ట్ అస్
+          </Text>
+
+          <View
+            style={[
+              styles.menuCard,
+              {backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF'},
+            ]}>
+            <TouchableOpacity style={styles.menuItem}
+              onPress={() => navigation.navigate('AboutUs')}>
               <View style={styles.menuLeft}>
                 <Icon name="information" size={22} color={theme.accentBlue} />
-                <Text style={[styles.menuText, { color: theme.text }]}>మా గురించి</Text>
+                <Text style={[styles.menuText, {color: theme.text}]}>
+                  మా గురించి
+                </Text>
               </View>
-              <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              <Icon
+                name="chevron-right"
+                size={22}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
+            <View
+              style={[
+                styles.divider,
+                {backgroundColor: isDarkMode ? '#333' : '#E8EAED'},
+              ]}
+            />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem}
+            onPress={() => navigation.navigate('ContactUs')}>
               <View style={styles.menuLeft}>
                 <Icon name="phone" size={22} color={theme.success} />
-                <Text style={[styles.menuText, { color: theme.text }]}>సంప్రదింపండి</Text>
+                <Text style={[styles.menuText, {color: theme.text}]}>
+                  సంప్రదింపండి
+                </Text>
               </View>
-              <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              <Icon
+                name="chevron-right"
+                size={22}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
+            <View
+              style={[
+                styles.divider,
+                {backgroundColor: isDarkMode ? '#333' : '#E8EAED'},
+              ]}
+            />
 
-            <TouchableOpacity style={styles.menuItem}>
+            {/* <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuLeft}>
                 <Icon name="star-outline" size={22} color={theme.warning} />
-                <Text style={[styles.menuText, { color: theme.text }]}>మీ సందేశ</Text>
+                <Text style={[styles.menuText, {color: theme.text}]}>
+                  మీ సందేశ
+                </Text>
               </View>
-              <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              <Icon
+                name="chevron-right"
+                size={22}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
+            <View
+              style={[
+                styles.divider,
+                {backgroundColor: isDarkMode ? '#333' : '#E8EAED'},
+              ]}
+            /> */}
 
             <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuLeft}>
-                <Icon name="file-document-outline" size={22} color={theme.secondary} />
-                <Text style={[styles.menuText, { color: theme.text }]}>నిబంధనలు & షరతులు</Text>
+                <Icon
+                  name="file-document-outline"
+                  size={22}
+                  color={theme.secondary}
+                />
+                <Text style={[styles.menuText, {color: theme.text}]}>
+                  నిబంధనలు & షరతులు
+                </Text>
               </View>
-              <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              <Icon
+                name="chevron-right"
+                size={22}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#E8EAED' }]} />
+            <View
+              style={[
+                styles.divider,
+                {backgroundColor: isDarkMode ? '#333' : '#E8EAED'},
+              ]}
+            />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('PrivacyPolicy')}>
               <View style={styles.menuLeft}>
-                <Icon name="message-text-outline" size={22} color={theme.primary} />
-                <Text style={[styles.menuText, { color: theme.text }]}>ప్రైవసీ పాలసీ</Text>
+                <Icon
+                  name="message-text-outline"
+                  size={22}
+                  color={theme.primary}
+                />
+                <Text style={[styles.menuText, {color: theme.text}]}>
+                  ప్రైవసీ పాలసీ
+                </Text>
               </View>
-              <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+              <Icon
+                name="chevron-right"
+                size={22}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
           </View>
         </View>

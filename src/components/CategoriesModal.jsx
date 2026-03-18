@@ -269,12 +269,12 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             
             {/* SECTION: news */}
             <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={styles.section}>
-              <View style={styles.searchRow}>
+              {/* <View style={styles.searchRow}>
                 <TouchableOpacity style={[styles.premiumSearch, { backgroundColor: isDarkMode ? '#222' : '#F1F3F5' }]} onPress={handleSearchNavigation} activeOpacity={0.9}>
                   <Icon name="magnify" size={22} color={isDarkMode ? '#888' : '#666'} />
                   <Text style={[styles.searchPlaceholder, { color: isDarkMode ? '#666' : '#868E96' }]}>Discover anything...</Text>
                 </TouchableOpacity>
-              </View>
+              </View> */}
 
               <TouchableOpacity style={styles.bentoMainCard} onPress={() => handleSelection('all')} activeOpacity={0.9}>
                 <LinearGradient

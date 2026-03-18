@@ -276,11 +276,31 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
         {/* Category */}
         <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Category</Text>
-        <TouchableOpacity style={[styles.categorySelector, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]} onPress={() => setShowCategoryModal(true)}>
+        <TouchableOpacity 
+          style={[
+            styles.categorySelector, 
+            { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' },
+            !!existingNews && { opacity: 0.6 } // Add opacity to make it look disabled
+          ]} 
+          // Only show modal if NOT editing
+          onPress={() => {
+            if (!existingNews) {
+              setShowCategoryModal(true);
+            } else {
+              Alert.alert("Category Locked", "You cannot change the category of an existing article.");
+            }
+          }}
+          activeOpacity={!!existingNews ? 1 : 0.7} // Prevent click animation if disabled
+        >
           <Text style={[styles.categoryText, { color: theme.text }, !selectedCategoryObj && styles.placeholderText]}>
             {selectedCategoryObj ? selectedCategoryObj.name.en : 'Select Category'}
           </Text>
-          <Icon name="chevron-down" size={24} color={theme.textSecondary} />
+          {/* Hide the chevron icon if editing, or change it to a lock */}
+          {!existingNews ? (
+            <Icon name="chevron-down" size={24} color={theme.textSecondary} />
+          ) : (
+            <Icon name="lock" size={20} color={theme.textSecondary} />
+          )}
         </TouchableOpacity>
 
         {/* Image */}

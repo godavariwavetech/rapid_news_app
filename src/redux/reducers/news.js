@@ -642,7 +642,7 @@ const newsSlice = createSlice({
       })
       .addCase(getComments.fulfilled, (state, action) => {
         state.isLoadingComments = false;
-        state.currentComments = action.payload?.data || action.payload || []; 
+        state.currentComments = action.payload?.items || action.payload || []; 
       })
       .addCase(getComments.rejected, (state, action) => {
         state.isLoadingComments = false;
