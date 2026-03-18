@@ -83,16 +83,21 @@ const ProfileScreen = ({navigation}) => {
      await GoogleSignin.signOut();
      await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
+
+     console.log(response,">>>>>>>>>>Responseee GOOGLE");
      
      const userInfo = response.data;
      const payload = {
       idToken:userInfo?.idToken
      }
 
-     await dispatch(userLogin(payload))
+     const resp = await dispatch(userLogin(payload))
+
+     console.log(resp,">>>>>>>>>>>>>>>>RESPP");
      
    } catch (error) {
-       console.error("Something went wrong:", error.message);
+    console.log(error,">>>>>>>>>>>>>>>>ERROR");
+      //  console.error("Something went wrong:", error.message);
    }
   }
 

@@ -82,7 +82,8 @@ function HomeScreen({navigation}) {
   }
 
   useEffect(() => {
-    if (!loading && articles && articles?.items?.length === 0 && selectedCategory !== 'all' && !error) {
+    const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;
+    if (!loading && articlesCount === 0 && selectedCategory !== 'all' && !error) {
       const msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
       if (Platform.OS === 'android') {
         ToastAndroid.show(msg, ToastAndroid.LONG);
@@ -91,7 +92,7 @@ function HomeScreen({navigation}) {
       }
       dispatch(setSelectedCategory('all'));
     }
-  }, [articles, loading, selectedCategory, error]);
+  }, [articles, loading, selectedCategory, error, dispatch]);
 
   useEffect(() => {
     const handleBack = () => {
