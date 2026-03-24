@@ -28,7 +28,8 @@ import Animated, {
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCategories, postFeedback, resetFeedbackStatus } from '../redux/reducers/news';
-import { lightTheme, darkTheme } from '../config/theme';
+import { lightTheme, darkTheme, fonts } from '../config/theme';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 
 const {width, height: SCREEN_HEIGHT} = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
   sidebarItem: { alignItems: 'center', marginBottom: 25, width: '100%' },
   sidebarIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, marginBottom: 6 },
   sidebarIconBoxActive: { backgroundColor: '#FF6B35', elevation: 6, shadowColor: '#FF6B35', shadowOpacity: 0.3, shadowRadius: 8 },
-  sidebarLabel: { fontSize: 10, fontWeight: '700', color: '#A0A0A0', textAlign: 'center' },
+  sidebarLabel: { fontSize: responsiveFontSize(2), color: '#A0A0A0', textAlign: 'center',fontFamily:fonts.bold },
   sidebarLabelActive: { color: '#FF6B35' },
   scrollView: { flex: 1 },
   scrollPadding: { paddingBottom: 100 },

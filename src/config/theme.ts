@@ -1,7 +1,8 @@
 export const fonts = {
-  bold: 'DMSansBold',
-  regular: 'DMSansRegular',
-  medium: "DMSansMedium",
+bold: 'Ramabhadra',
+  regular: 'Ramabhadra',
+  medium: 'Ramabhadra',
+  description: 'Abn',
 };
 
 export const lightTheme = {

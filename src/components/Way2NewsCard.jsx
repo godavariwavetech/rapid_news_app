@@ -603,9 +603,11 @@ const styles = StyleSheet.create({
   
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 },
-  title: { fontSize: responsiveFontSize(2.6), color: '#000000', lineHeight: responsiveFontSize(3.8), marginBottom: 10, fontWeight: '700' },
+  title: { 
+    fontFamily: fonts.bold,
+    fontSize: responsiveFontSize(3), color: '#000000', lineHeight: responsiveFontSize(3.8) },
   bodyContainer: { flex: 1 },
-  body: { fontSize: responsiveFontSize(2.4), color: '#666666', lineHeight: responsiveFontSize(3.8), fontWeight: '400', paddingBottom: 10 },
+  body: { fontFamily: fonts.description,fontSize: responsiveFontSize(4), color: '#666666', paddingBottom: 10 },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },

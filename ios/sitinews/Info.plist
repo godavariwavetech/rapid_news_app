@@ -47,9 +47,11 @@
 	<false/>
 	<key>UIAppFonts</key>
 	<array>
+		<string>Abn.ttf</string>
 		<string>DMSansBold.ttf</string>
 		<string>DMSansMedium.ttf</string>
 		<string>DMSansRegular.ttf</string>
+		<string>Ramabhadra.ttf</string>
 	</array>
 </dict>
 </plist>

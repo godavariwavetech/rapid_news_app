@@ -24,7 +24,7 @@ const ProfileDrawer = ({visible, onClose}) => {
   const categories = [
     {id: 'education', icon: 'school', label: 'మీ కోసం', color: '#4ECDC4'},
     {id: 'politics', icon: 'account-tie', label: 'రాజకీయాలు', color: '#9B59B6'},
-    {id: 'news', icon: 'newspaper-variant', label: 'స్వార్న్', color: '#E74C3C'},
+    {id: 'news', icon: 'newspaper-variant', label: 'న్యూస్', color: '#E74C3C'},
     {id: 'business', icon: 'chart-line', label: 'వ్యాపారం', color: '#F39C12'},
     {id: 'cinema', icon: 'movie-open', label: 'సినిమా', color: '#3498DB'},
   ];
@@ -48,7 +48,7 @@ const ProfileDrawer = ({visible, onClose}) => {
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
               <Icon name="arrow-left" size={24} color={theme.text} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>స్వార్న్</Text>
+            <Text style={[styles.headerTitle, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>న్యూస్</Text>
             <TouchableOpacity style={styles.settingsButton}>
               <Icon name="cog-outline" size={24} color={theme.textSecondary} />
             </TouchableOpacity>

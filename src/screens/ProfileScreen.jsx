@@ -114,7 +114,7 @@ const ProfileScreen = ({navigation}) => {
         </View>
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerRight}>
-          <Text style={[styles.headerTitle, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>స్వార్న్</Text>
+          <Text style={[styles.headerTitle, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>న్యూస్</Text>
           <Icon name="chevron-right" size={24} color={isDarkMode ? theme.primary : '#00BFFF'} />
         </TouchableOpacity>
       </View>

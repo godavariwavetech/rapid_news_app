@@ -4,7 +4,28 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
-import { AppState, Linking } from 'react-native';
+import { AppState, Linking, Text, TextInput } from 'react-native'; // <--- ADD Text, TextInput HERE
+
+// ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
+const customTextProps = {
+  style: {
+    fontFamily: 'Ramabhadra', // Your global default font
+  },
+};
+
+// Apply to all Text components
+if (Text.defaultProps) {
+  Text.defaultProps.style = { ...Text.defaultProps.style, ...customTextProps.style };
+} else {
+  Text.defaultProps = customTextProps;
+}
+
+// Apply to all TextInput components
+if (TextInput.defaultProps) {
+  TextInput.defaultProps.style = { ...TextInput.defaultProps.style, ...customTextProps.style };
+} else {
+  TextInput.defaultProps = customTextProps;
+}
 
 // Import Store to check fresh state inside event listeners
 import { store } from '../redux/store'; 

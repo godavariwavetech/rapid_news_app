@@ -3,6 +3,7 @@ import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { fonts } from '../config/theme';
 
 const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   const insets = useSafeAreaInsets();
@@ -11,7 +12,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
     {
       id: 'HomeTab',
       icon: 'newspaper-variant',
-      label: 'స్వార్న్',
+      label: 'న్యూస్',
     },
     {
       id: 'CategoriesTab',
@@ -99,10 +100,12 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: responsiveFontSize(1.2),
-    fontWeight: '600',
+    fontSize: responsiveFontSize(2),
+    // fontWeight: '700',
+    fontFamily:fonts.bold,
     textAlign: 'center',
-    letterSpacing: 0.2,
+    // letterSpacing: 0.2,
+
   },
 });
 
