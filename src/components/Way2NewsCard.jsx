@@ -597,10 +597,10 @@ const styles = StyleSheet.create({
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
 watermarkLogo: { 
     position: 'absolute', 
-    bottom: 0, 
+    bottom: -20, 
     left: 15,         // Changed from 'right: 15' to 'left: 15'
-    width: 140,        // Enlarged from 45
-    height:70,       // Enlarged from 45
+    width: 120,        // Enlarged from 45
+    height:60,       // Enlarged from 45
     resizeMode: 'contain', 
     zIndex: 10, 
     opacity: 0.9, 
@@ -611,12 +611,12 @@ watermarkLogo: {
   adNewsCountContainer: { position: 'absolute', bottom: 40, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
-  contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 },
+  contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
     fontFamily: fonts.bold,
-    fontSize: responsiveFontSize(3), color: '#000000', lineHeight: responsiveFontSize(3.8) },
+    fontSize: responsiveFontSize(3.2), color: '#000000' },
   bodyContainer: { flex: 1 },
-  body: { fontFamily: fonts.description,fontSize: responsiveFontSize(4), color: '#666666', paddingBottom: 10 },
+  body: { fontFamily: fonts.description,fontSize: responsiveFontSize(3.7), color: '#666666', paddingBottom: 10 },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },

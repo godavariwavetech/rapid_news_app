@@ -3,11 +3,13 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'r
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUnreadNewsCount } from '../redux/reducers/news'; 
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 function Header({ onProfilePress, onTogglePress, title }) {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   
   // Grab the global unread count from Redux
   const unreadCount = useSelector(state => state.news.unreadCount) || 0;
@@ -17,8 +19,12 @@ function Header({ onProfilePress, onTogglePress, title }) {
     dispatch(fetchUnreadNewsCount());
   }, [dispatch]);
 
+  const dynamicPaddingTop = Platform.OS === 'android' 
+    ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8 
+    : Math.max(insets.top, 44);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container,{ paddingTop: dynamicPaddingTop }]}>
       {/* Left - Profile Icon */}
       <TouchableOpacity
         style={styles.iconButton}

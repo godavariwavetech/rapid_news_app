@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Image,
+  Modal,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
@@ -24,6 +25,9 @@ const ProfileScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const { theme, isDarkMode } = useTheme();
   
+  // Coming Soon Modal State
+  const [comingSoonVisible, setComingSoonVisible] = useState(false);
+
   // Select data from Redux
   const {reporter,user} = useSelector(state => state.auth);
 
@@ -77,14 +81,11 @@ const ProfileScreen = ({navigation}) => {
     navigation.goBack();
   };
 
-
   const handleGoogleLogin =  async () =>{
  try {
      await GoogleSignin.signOut();
      await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
-
-     console.log(response,">>>>>>>>>>Responseee GOOGLE");
      
      const userInfo = response.data;
      const payload = {
@@ -92,12 +93,9 @@ const ProfileScreen = ({navigation}) => {
      }
 
      const resp = await dispatch(userLogin(payload))
-
-     console.log(resp,">>>>>>>>>>>>>>>>RESPP");
      
    } catch (error) {
     console.log(error,">>>>>>>>>>>>>>>>ERROR");
-      //  console.error("Something went wrong:", error.message);
    }
   }
 
@@ -135,7 +133,6 @@ const ProfileScreen = ({navigation}) => {
 
         {/* Language & Location Section */}
         <View style={[styles.settingsCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}>
-          {/* Actual Location displayed here */}
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('LocationSelection')}>
             <View style={styles.settingIconContainer}><Icon name="map-marker" size={22} color={theme.primary} /></View>
             <View style={styles.settingContent}>
@@ -157,7 +154,6 @@ const ProfileScreen = ({navigation}) => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesScroll}>
               
-              {/* Static 'All' option */}
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => handleCategoryPress('all')}
@@ -170,7 +166,6 @@ const ProfileScreen = ({navigation}) => {
                 </Text>
               </TouchableOpacity>
 
-              {/* Dynamic items from API */}
               {dynamicCategories.map((cat, index) => {
                 const isSelected = selectedCategory === cat._id;
                 const iconColor = getCategoryColor(index);
@@ -206,32 +201,74 @@ const ProfileScreen = ({navigation}) => {
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]} onPress={() => navigation.navigate('Bookmarks')}>
-            <View style={styles.menuIconContainer}><Icon name="bookmark-outline" size={18} color={theme.primary} /></View>
-            <Text style={[styles.menuText, { color: theme.text }]}>బుక్‌మార్క్ చేసినవి</Text>
-            <Icon name="chevron-right" size={18} color={theme.textSecondary} />
+          
+          <TouchableOpacity 
+            style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]} 
+            onPress={() => setComingSoonVisible(true)}>
+            <View style={styles.menuIconContainer}>
+              <Icon name="star-outline" size={22} color={theme.primary} />
+            </View>
+            <Text style={[styles.menuText, { color: theme.text }]}>రాపిడ్‌ న్యూస్‌ ఎక్స్‌క్లూసివ్‌</Text>
+            <Icon name="chevron-right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+          <TouchableOpacity 
+            style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]} 
+            onPress={() => setComingSoonVisible(true)}>
             <View style={styles.menuIconContainer}>
-              <Icon name="star" size={18} color={theme.primary} />
+              <Icon name="fire" size={22} color={theme.primary} />
             </View>
-            <Text style={[styles.menuText, { color: theme.text }]}>సిటీ న్యూస్ ఎక్స్క్లూసివ్</Text>
-            <Icon name="chevron-right" size={18} color={theme.textSecondary} />
+            <Text style={[styles.menuText, { color: theme.text }]}>వైరల్‌</Text>
+            <Icon name="chevron-right" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]} 
+            onPress={() => setComingSoonVisible(true)}>
+            <View style={styles.menuIconContainer}>
+              <Icon name="play-circle-outline" size={22} color={theme.primary} />
+            </View>
+            <Text style={[styles.menuText, { color: theme.text }]}>వీడియోలు</Text>
+            <Icon name="chevron-right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.menuItem, styles.lastMenuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}
             onPress={() => navigation.navigate('ContactUs')}>
             <View style={styles.menuIconContainer}>
-              <Icon name="help-circle" size={18} color={theme.primary} />
+              <Icon name="phone-outline" size={22} color={theme.primary} />
             </View>
-            <Text style={[styles.menuText, { color: theme.text }]}>సంప్రదింపండి</Text>
-            <Icon name="chevron-right" size={18} color={theme.textSecondary} />
+            <Text style={[styles.menuText, { color: theme.text }]}>సంప్రదించండి</Text>
+            <Icon name="chevron-right" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
+
         </View>
-        <View style={{height: 16}} />
+        <View style={{height: 30}} />
       </ScrollView>
+
+      {/* Coming Soon Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={comingSoonVisible}
+        onRequestClose={() => setComingSoonVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>త్వరలో రానుంది!</Text>
+            <Text style={[styles.modalMessage, { color: theme.textSecondary }]}>
+              త్వరలో మీకు అందుబాటులోకి వస్తుంది.
+            </Text>
+            <TouchableOpacity 
+              style={[styles.closeButton, { backgroundColor: theme.primary }]} 
+              onPress={() => setComingSoonVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>సరే</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -252,30 +289,80 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerTitle: { fontSize: 20, fontWeight: '700' },
   content: { flex: 1 },
-  pageTitle: { fontSize: 26, fontWeight: '700', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 16, marginBottom: 8, borderRadius: 12, borderWidth: 2 },
-  avatarContainer: { marginRight: 10 },
+  pageTitle: { fontSize: 26, fontWeight: '700', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
+  
+  // Added more bottom margin for spacing
+  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 12, marginHorizontal: 16, marginBottom: 20, borderRadius: 12, borderWidth: 2 },
+  avatarContainer: { marginRight: 12 },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
+  profileName: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
   profileLink: { fontSize: 13, fontWeight: '500' },
-  settingsCard: { marginHorizontal: 16, marginBottom: 8, borderRadius: 12, padding: 8 },
+  
+  // Added more bottom margin for spacing
+  settingsCard: { marginHorizontal: 16, marginBottom: 24, borderRadius: 12, padding: 10 },
   settingItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
-  settingIconContainer: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+  settingIconContainer: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   settingContent: { flex: 1 },
-  settingLabel: { fontSize: 11, marginBottom: 2 },
-  settingValue: { fontSize: 14, fontWeight: '600' },
+  settingLabel: { fontSize: 12, marginBottom: 2 },
+  settingValue: { fontSize: 15, fontWeight: '600' },
   settingArrow: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, marginVertical: 3 },
-  categoriesSection: { marginBottom: 12 },
-  sectionTitle: { fontSize: 19, fontWeight: '700', paddingHorizontal: 16, marginBottom: 12 },
-  categoriesScroll: { paddingHorizontal: 16, gap: 10 },
-  categoryCard: { alignItems: 'center', width: 62 },
-  categoryIconBg: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  categoryLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', lineHeight: 14 },
-  menuSection: { paddingHorizontal: 16 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
-  menuIconContainer: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
-  menuText: { fontSize: 15, fontWeight: '600', flex: 1 },
+  
+  // Added more bottom margin for spacing
+  categoriesSection: { marginBottom: 24 },
+  sectionTitle: { fontSize: 19, fontWeight: '700', paddingHorizontal: 16, marginBottom: 16 },
+  categoriesScroll: { paddingHorizontal: 16, gap: 12 },
+  categoryCard: { alignItems: 'center', width: 66 },
+  categoryIconBg: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  categoryLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
+  
+  menuSection: { paddingHorizontal: 16, marginTop: 10 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1 },
+  lastMenuItem: { borderBottomWidth: 0 },
+  menuIconContainer: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  menuText: { fontSize: 16, fontWeight: '600', flex: 1 },
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  closeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default ProfileScreen;

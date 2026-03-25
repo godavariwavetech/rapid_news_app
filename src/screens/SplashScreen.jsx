@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     borderRadius: 100, // Perfectly round
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 30, // Padding keeps the logo away from the blue edge
+    padding: 10, // Padding keeps the logo away from the blue edge
   },
   logoImage: {
     width: '100%',

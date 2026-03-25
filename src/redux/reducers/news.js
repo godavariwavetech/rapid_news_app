@@ -270,12 +270,30 @@ export const getReporterNews = createAsyncThunk(
 
 export const reportNews = createAsyncThunk(
   'news/reportNews',
-  async ({ newsId, reason, message }, { rejectWithValue }) => {
+  async ({ newsId, reason, message }, { getState, rejectWithValue }) => {
     try {
+      // 1. Check if the user is logged in by looking for a token in the auth state
+      const state = getState();
+      const hasToken = state.auth?.userToken || state.auth?.reporterToken;
+      
+      // 2. Prepare custom headers
+      const headers = {};
+      
+      if (!hasToken) {
+        // If there is NO token, send the device ID and strip the Authorization header
+        const deviceId = await getUniqueId();
+        headers['x-device-id'] = deviceId;
+        headers['Authorization'] = ''; // Overrides any default Authorization header
+      }
+
+      // 3. Make the API call with dynamic headers
       const response = await api.post(`${endpoints.REPORT_NEWS}/${newsId}`, {
         reason,
         message
+      }, {
+        headers
       });
+      
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
