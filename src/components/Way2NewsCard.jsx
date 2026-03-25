@@ -595,8 +595,17 @@ const styles = StyleSheet.create({
   },
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
-  watermarkLogo: { position: 'absolute', bottom: 15, right: 15, width: 45, height: 45, resizeMode: 'contain', zIndex: 10, opacity: 0.9, borderRadius:12 },
-  
+watermarkLogo: { 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 15,         // Changed from 'right: 15' to 'left: 15'
+    width: 140,        // Enlarged from 45
+    height:70,       // Enlarged from 45
+    resizeMode: 'contain', 
+    zIndex: 10, 
+    opacity: 0.9, 
+    borderRadius: 16  // Slightly increased border radius for the larger size
+  },  
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   adNewsCountContainer: { position: 'absolute', bottom: 40, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },

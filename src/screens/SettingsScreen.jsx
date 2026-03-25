@@ -15,9 +15,9 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
-import { useDispatch, useSelector } from 'react-redux'; // <-- Added useSelector
+import { useDispatch, useSelector } from 'react-redux';
 import { setDarkMode } from '../redux/reducers/settings';
-import { clearNews, fetchNews } from '../redux/reducers/news'; // <-- Added fetchNews
+import { clearNews, fetchNews } from '../redux/reducers/news'; 
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info'; 
 
@@ -79,8 +79,8 @@ const SettingsScreen = ({ navigation }) => {
   // --- Clear Cache Functionality ---
   const handleClearCache = () => {
     Alert.alert(
-      "క్లియర్ క్యాచ్",
-      "మీరు క్యాచ్‌ని క్లియర్ చేయాలనుకుంటున్నారా?", 
+      "క్లియర్‌ క్యాచె",
+      "మీరు క్యాచెని క్లియర్ చేయాలనుకుంటున్నారా?", 
       [
         { text: "కాదు (No)", style: "cancel" },
         { 
@@ -95,14 +95,14 @@ const SettingsScreen = ({ navigation }) => {
               dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
               
               if (Platform.OS === 'android') {
-                ToastAndroid.show("క్యాచ్ విజయవంతంగా క్లియర్ చేయబడింది", ToastAndroid.SHORT);
+                ToastAndroid.show("క్యాచె విజయవంతంగా క్లియర్ చేయబడింది", ToastAndroid.SHORT);
               } else {
                 Alert.alert("Success", "Cache cleared successfully");
               }
             } catch (error) {
               console.error("Error clearing cache:", error);
               if (Platform.OS === 'android') {
-                ToastAndroid.show("క్యాచ్ క్లియర్ చేయడంలో లోపం", ToastAndroid.SHORT);
+                ToastAndroid.show("క్యాచె క్లియర్ చేయడంలో లోపం", ToastAndroid.SHORT);
               }
             }
           }
@@ -202,7 +202,7 @@ const SettingsScreen = ({ navigation }) => {
             ]}>
             <Icon name="bookmark-outline" size={20} color={theme.primary} />
             <Text style={[styles.actionButtonText, {color: theme.text}]}>
-              బుక్మార్క్స్
+              బుక్‌మార్క్‌
             </Text>
           </TouchableOpacity>
 
@@ -217,7 +217,7 @@ const SettingsScreen = ({ navigation }) => {
             ]}>
             <Icon name="history" size={20} color={theme.primary} />
             <Text style={[styles.actionButtonText, {color: theme.text}]}>
-              క్లియర్ క్యాచ్
+              క్లియర్‌ క్యాచె
             </Text>
           </TouchableOpacity>
         </View>
@@ -260,7 +260,7 @@ const SettingsScreen = ({ navigation }) => {
               <View style={styles.menuLeft}>
                 <Icon name="phone" size={22} color={theme.success} />
                 <Text style={[styles.menuText, {color: theme.text}]}>
-                  సంప్రదింపండి
+                  సంప్రదించండి
                 </Text>
               </View>
               <Icon
@@ -281,7 +281,7 @@ const SettingsScreen = ({ navigation }) => {
               <View style={styles.menuLeft}>
                 <Icon name="star-outline" size={22} color={theme.warning} />
                 <Text style={[styles.menuText, {color: theme.text}]}>
-                  మీ సందేశ
+                  మీ స్పందన
                 </Text>
               </View>
               <Icon
