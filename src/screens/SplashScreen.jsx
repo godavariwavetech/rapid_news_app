@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { applogo } from '../assets';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
+import { fetchNews } from '../redux/reducers/news'; // <-- Added import
 
 const SplashScreen = ({ navigation }) => {
   const dispatch = useDispatch()
@@ -21,30 +22,25 @@ const SplashScreen = ({ navigation }) => {
   const opacity = useSharedValue(0);
   const watchIdRef = useRef(null);
 
-
   const handleNavigation = () => {
     navigation.replace('Main');
-    // if (!isOnboardingComplete) {
-    //   navigation.replace('LanguageSelection');
-    // } else if (isAuthenticated) {
-    //   navigation.replace('Main');
-    // } else {
-    //   navigation.replace('Main');
-    // }
   };
 
-  
-      const fetchLocationAreas = async () => {
-        try {
-          const position = await LocationService.getLocation();
-          dispatch(
-            resolveLocation({
-              latitude: position.coords?.latitude,
-              longitude: position.coords?.longitude,
-            }),
-          );
-        } catch (error) {}
-      };
+  const fetchLocationAreas = async () => {
+    try {
+      const position = await LocationService.getLocation();
+      dispatch(
+        resolveLocation({
+          latitude: position.coords?.latitude,
+          longitude: position.coords?.longitude,
+        }),
+      );
+    } catch (error) {
+      console.log('Location permission denied or failed:', error);
+      // Hit the API with the static default IDs when location is denied
+      dispatch(fetchNews());
+    }
+  };
 
   useEffect(() => {
     // Logo Animation: Bounce in
@@ -70,37 +66,6 @@ const SplashScreen = ({ navigation }) => {
     opacity: opacity.value,
   }));
 
-
-
-// useEffect(() => {
-//   const startLocationTracking = async () => {
-//     watchIdRef.current = await LocationService.startWatching(
-//       (position) => {
-//         console.log('New position:', position);
-//          dispatch(
-//             resolveLocation({
-//               latitude: position.coords?.latitude,
-//               longitude: position.coords?.longitude,
-//             }),
-//           );
-//         // Update state with new coordinates here
-//       },
-//       (error) => {
-//         console.error('Watch error:', error);
-//       }
-//     );
-//   };
-
-//   startLocationTracking();
-
-//   // Cleanup function to clear the watch when the component unmounts
-//   // return () => {
-//   //   if (watchIdRef.current !== null) {
-//   //     LocationService.stopWatching(watchIdRef.current);
-//   //   }
-//   // };
-// }, []);
-
   return (
     <View style={styles.container}>
       {/* Light content status bar looks best on Blue */}
@@ -116,11 +81,6 @@ const SplashScreen = ({ navigation }) => {
 
       {/* Logo Section */}
       <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
-        
-        {/* FIX: White Background Circle
-            This ensures the logo sits on White, preventing it 
-            from mixing with the Blue background. 
-        */}
         <View style={styles.logoCircle}>
           <Image 
             source={applogo} 
@@ -128,7 +88,6 @@ const SplashScreen = ({ navigation }) => {
             resizeMode="contain" 
           />
         </View>
-
       </Animated.View>
 
       {/* Footer Text */}
@@ -144,7 +103,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1e3c72', // Fallback color
+    backgroundColor: '#1e3c72',
   },
   logoContainer: {
     marginBottom: 0,
@@ -157,16 +116,15 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 200, 
     height: 200,
-    // Pure White Background to protect the logo
     backgroundColor: '#FFFFFF', 
-    borderRadius: 100, // Perfectly round
+    borderRadius: 100, 
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10, // Padding keeps the logo away from the blue edge
+    padding: 10, // Adjusted padding so logo is bigger
   },
   logoImage: {
-    width: '100%',
-    height: '100%',
+    width: '90%',
+    height: '90%',
   },
   footer: {
     position: 'absolute',

@@ -325,13 +325,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} />
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
           
-          {news.itemIndex && news.totalNews ? (
+          {/* {news.itemIndex && news.totalNews ? (
             <View style={styles.adNewsCountContainer}>
               <Text style={styles.adBadgeText}>{news.itemIndex} of {news.totalNews}</Text>
             </View>
           ) : null}
 
-          <View style={styles.adBadgeContainer}><Text style={styles.adBadgeText}>{news.label || 'Sponsored'}</Text></View>
+          <View style={styles.adBadgeContainer}><Text style={styles.adBadgeText}>{news.label || 'Sponsored'}</Text></View> */}
         </View>
       </TouchableWithoutFeedback>
     );
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
 watermarkLogo: { 
     position: 'absolute', 
-    bottom: -20, 
+    bottom: -10, 
     left: 15,         // Changed from 'right: 15' to 'left: 15'
     width: 120,        // Enlarged from 45
     height:60,       // Enlarged from 45
@@ -613,8 +613,14 @@ watermarkLogo: {
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
-    fontFamily: fonts.bold,
-    fontSize: responsiveFontSize(3.2), color: '#000000' },
+   fontFamily: fonts.bold,
+    fontSize: responsiveFontSize(3.2), 
+    color: '#000000', 
+    lineHeight: responsiveFontSize(3.2), 
+    includeFontPadding: true,
+    paddingTop:15,
+    paddingBottom:3
+   },
   bodyContainer: { flex: 1 },
   body: { fontFamily: fonts.description,fontSize: responsiveFontSize(3.7), color: '#666666', paddingBottom: 10 },
   

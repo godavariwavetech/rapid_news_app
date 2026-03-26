@@ -50,11 +50,11 @@ class LocationService {
       const hasPermission = await this.requestPermission();
       
       if (!hasPermission) {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required. Please enable it in settings.',
-          [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-        );
+        // Alert.alert(
+        //   'Permission Denied',
+        //   'Location permission is required. Please enable it in settings.',
+        //   [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
+        // );
         return reject(new Error('PERMISSION_DENIED'));
       }
 
@@ -94,12 +94,12 @@ class LocationService {
     const hasPermission = await this.requestPermission();
 
     if (!hasPermission) {
-      Alert.alert(
-        'Permission Denied',
-        'Location permission is required. Please enable it in settings.',
-        [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-      );
-      if (onError) onError(new Error('PERMISSION_DENIED'));
+      // Alert.alert(
+      //   'Permission Denied',
+      //   'Location permission is required. Please enable it in settings.',
+      //   [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
+      // );
+      // if (onError) onError(new Error('PERMISSION_DENIED'));
       return null;
     }
 

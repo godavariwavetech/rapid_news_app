@@ -83,6 +83,7 @@ export const fetchNews = createAsyncThunk(
       };
     }
 
+
     try {
       const deviceId = await getUniqueId();
 
@@ -96,6 +97,11 @@ export const fetchNews = createAsyncThunk(
         limit: 10,
         category_id: category !== 'all' ? category : undefined,
       };
+
+
+
+
+      console.log(queryParams,">>>>>>>>>>>>>>QUERY PARAMSSSSSSSS");
 
       if (isLocationMode && location.village_id) {
         queryParams['feed_mode'] = "village";
