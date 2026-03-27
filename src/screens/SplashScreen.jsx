@@ -12,7 +12,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { applogo } from '../assets';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
-import { fetchNews } from '../redux/reducers/news'; // <-- Added import
+import { fetchNews } from '../redux/reducers/news'; 
 
 const SplashScreen = ({ navigation }) => {
   const dispatch = useDispatch()
@@ -28,16 +28,37 @@ const SplashScreen = ({ navigation }) => {
 
   const fetchLocationAreas = async () => {
     try {
+      // 1. Get the device location (Lat, Long)
       const position = await LocationService.getLocation();
-      dispatch(
+      
+      // 2. Resolve those coordinates to your backend location IDs (Village, District, State)
+      const resolvedLocation = await dispatch(
         resolveLocation({
           latitude: position.coords?.latitude,
           longitude: position.coords?.longitude,
         }),
-      );
+      ).unwrap(); 
+
+      // 3. Fetch news using the resolved current location
+      const newsResult = await dispatch(
+        fetchNews({ currentLocation: resolvedLocation, isLocationMode: true })
+      ).unwrap();
+
+      // 4. Extract the news items array and check if it's empty
+      const newsItems = Array.isArray(newsResult.data) 
+        ? newsResult.data 
+        : (newsResult.data?.items || []);
+
+      if (newsItems.length === 0) {
+        console.log('No news found for this location. Fetching with default/static location.');
+        // If the array is empty, call fetchNews without arguments.
+        // (This triggers the static fallback location defined in your Redux thunk)
+        dispatch(fetchNews());
+      }
+
     } catch (error) {
-      console.log('Location permission denied or failed:', error);
-      // Hit the API with the static default IDs when location is denied
+      console.log('Location permission denied or an error occurred:', error);
+      // If the user denied permission or GPS is off, fetch default news
       dispatch(fetchNews());
     }
   };
@@ -71,7 +92,7 @@ const SplashScreen = ({ navigation }) => {
       {/* Light content status bar looks best on Blue */}
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       
-      {/* BACKGROUND: The Royal Blue Gradient you liked */}
+      {/* BACKGROUND: The Royal Blue Gradient */}
       <LinearGradient
         colors={['#1e3c72', '#2a5298']} 
         style={StyleSheet.absoluteFill}
@@ -120,7 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: 100, 
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10, // Adjusted padding so logo is bigger
+    padding: 10, // Adjusted padding to 10 so logo is larger
   },
   logoImage: {
     width: '90%',
