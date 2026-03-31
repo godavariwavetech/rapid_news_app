@@ -5,7 +5,6 @@ import {
   Image,
   StyleSheet,
   Dimensions,
-  ScrollView,
   Platform,
   StatusBar,
   Modal,
@@ -144,7 +143,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     if (liked) {
       setLiked(false);
       setLikeCount(prev => Math.max(0, prev - 1));
-      dispatch(reactToNews({ newsId: news.id, type: 'NONE' })); 
+      dispatch(reactToNews({ newsId: news.id, type: 'LIKE' })); 
     } else {
       setLiked(true);
       setLikeCount(prev => prev + 1);
@@ -160,7 +159,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     if (disliked) {
       setDisliked(false);
       setDislikeCount(prev => Math.max(0, prev - 1));
-      dispatch(reactToNews({ newsId: news.id, type: 'NONE' }));
+      dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' }));
     } else {
       setDisliked(true);
       setDislikeCount(prev => prev + 1);
@@ -485,12 +484,12 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
         <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
             <Text style={styles.title}>{displayTitle}</Text>
-            <ScrollView style={styles.bodyContainer} showsVerticalScrollIndicator={false} nestedScrollEnabled={true}>
-              <Text style={styles.body}>
+            <View style={styles.bodyContainer}>
+              <Text style={styles.body} adjustsFontSizeToFit minimumFontScale={0.75}>
                 {displayBody}
-                {news.fullContent && (<Text style={styles.body}>{'\n\n' + news.fullContent}</Text>)}
+                {news.fullContent && (<Text>{'\n\n' + news.fullContent}</Text>)}
               </Text>
-            </ScrollView>
+            </View>
 
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
@@ -613,16 +612,16 @@ watermarkLogo: {
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
-   fontFamily: fonts.bold,
-    fontSize: responsiveFontSize(3.2), 
+    fontFamily: fonts.medium,
+    fontSize: responsiveFontSize(3.1), 
     color: '#000000', 
-    lineHeight: responsiveFontSize(3.2), 
-    includeFontPadding: true,
-    paddingTop:15,
-    paddingBottom:3
+    lineHeight: responsiveFontSize(4.3), 
+    includeFontPadding: false,
+    paddingTop: 12,
+    paddingBottom: 4,
    },
   bodyContainer: { flex: 1 },
-  body: { fontFamily: fonts.description,fontSize: responsiveFontSize(3.7), color: '#666666', paddingBottom: 10 },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(3.5), color: '#666666', flex: 1 },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },

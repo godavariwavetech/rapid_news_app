@@ -41,7 +41,7 @@ function HomeScreen({navigation}) {
   const flipScreenRef = useRef(null);
 
   // --- ADDED !locationLoading CHECK HERE ---
-  const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && (error || !hasMore);
+  const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && !!error;
 
   const displayLocationName = useMemo(() => {
     return (
@@ -83,16 +83,40 @@ function HomeScreen({navigation}) {
 
   useEffect(() => {
     const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;
-    if (!loading && articlesCount === 0 && selectedCategory !== 'all' && !error) {
-      const msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(msg, ToastAndroid.LONG);
-      } else {
-        Alert.alert("సమాచారం", msg);
+    if (!loading && articlesCount === 0 && !error) {
+      let shouldFallback = false;
+      let msg = "";
+
+      if (activeTab === 'LocationTab') {
+        msg = "ఈ ప్రాంతంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
+        shouldFallback = true;
+      } else if (selectedCategory !== 'all') {
+        msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
+        shouldFallback = true;
       }
-      dispatch(setSelectedCategory('all'));
+
+      if (shouldFallback) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(msg, ToastAndroid.SHORT);
+        } else {
+          Alert.alert("సమాచారం", msg);
+        }
+        
+        if (activeTab === 'LocationTab') {
+          setActiveTab('HomeTab');
+        }
+        
+        if (selectedCategory !== 'all') {
+          dispatch(setSelectedCategory('all'));
+        } else if (activeTab === 'LocationTab') {
+          setHeaderTitle('న్యూస్');
+          dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
+        }
+
+        if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+      }
     }
-  }, [articles, loading, selectedCategory, error, dispatch]);
+  }, [articles, loading, selectedCategory, activeTab, error, dispatch, currentLocation]);
 
   useEffect(() => {
     const handleBack = () => {

@@ -17,6 +17,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { clearReporter, requestOTP } from '../redux/reducers/auth';
 import { setReporterTempToken } from '../redux/reducers/location';
 import { useTheme } from '../context/ThemeContext';
+import { fonts } from '../config/theme';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -115,9 +117,7 @@ const MobileLoginScreen = ({navigation}) => {
 
           <View style={styles.descriptionSection}>
             <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>
-              ఇక్కడ ఫ్రాన్ సంబంధ ఇవ్వి వేణుస్తు నేటుప్ర్యబ్లో చేరండి. మీరు
-              సున్నాన్ మొత్తే వార్తలను చుటుప్పకళ్లతో పొటు.. మీరు సుర్వర్యంగా
-              వార్తలను పంపండి, ఆదాయన్ని పొందండి..
+              ఇక్కడ ఫోన్‌ నంబర్‌ ఇచ్చి రాపిడ్‌ న్యూస్‌ నెట్‌వర్క్‌లో చేరండి. మీరు నచ్చే, మెచ్చే వార్తలను చదవడంతో పాటు.. మీరూ స్వయంగా వార్తలను పంపండి.
             </Text>
           </View>
         </ScrollView>
@@ -139,14 +139,14 @@ const styles = StyleSheet.create({
   enterText: { fontSize: 16, marginBottom: 4 },
   mobileNumberTitle: { fontSize: 36, fontWeight: '700' },
   inputSection: { marginBottom: 20 },
-  label: { fontSize: 16, marginBottom: 12 },
+  label: { fontSize: responsiveFontSize(2.5), marginBottom: 12,fontFamily:fonts.bold },
   input: {
     fontSize: 18,
     borderBottomWidth: 1,
     paddingVertical: 12,
   },
   termsSection: { marginTop: 24, marginBottom: 32 },
-  termsText: { fontSize: 14, lineHeight: 20 },
+  termsText: { fontSize: responsiveFontSize(2.5), lineHeight: 20,fontFamily:fonts.bold },
   linkText: { fontWeight: '600' },
   proceedButton: {
     paddingVertical: 16,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
   },
   descriptionSection: { marginTop: 20 },
-  descriptionText: { fontSize: 14, lineHeight: 22 },
+  descriptionText: { fontSize: responsiveFontSize(2.5), lineHeight: 22,fontFamily:fonts.bold },
 });
 
 export default MobileLoginScreen;

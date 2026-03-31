@@ -251,6 +251,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
+  useEffect(() => {
+    if (currIndex >= formattedNews.length && formattedNews.length > 0) {
+      setCurrIndex(0);
+      scrollY.value = 0;
+      swipeDirection.value = 0;
+    }
+  }, [formattedNews.length, currIndex, scrollY, swipeDirection]);
+
   // Handle hiding the loader once Redux `loading` is finished
   useEffect(() => {
     if (!activeLoading && isRefreshing) {
