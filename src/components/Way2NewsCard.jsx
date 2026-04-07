@@ -321,16 +321,20 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     return (
       <TouchableWithoutFeedback onPress={handleAdPress}>
         <View style={styles.card}>
-          <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} />
-          <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
-          
-          {/* {news.itemIndex && news.totalNews ? (
-            <View style={styles.adNewsCountContainer}>
-              <Text style={styles.adBadgeText}>{news.itemIndex} of {news.totalNews}</Text>
+          <FastImage
+            source={imageSource}
+            style={[styles.image, { height: '100%', width: '100%' }]}
+            resizeMode={imageResizeMode}
+            onLoadStart={() => setIsBuffering(true)}
+            onLoad={() => setIsBuffering(false)}
+            onError={() => setIsBuffering(false)}
+          />
+          {isBuffering && (
+            <View style={styles.adPlaceholder}>
+              <ActivityIndicator size="large" color="#CCCCCC" />
             </View>
-          ) : null}
-
-          <View style={styles.adBadgeContainer}><Text style={styles.adBadgeText}>{news.label || 'Sponsored'}</Text></View> */}
+          )}
+          <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
         </View>
       </TouchableWithoutFeedback>
     );
@@ -485,7 +489,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           <View style={styles.contentSection}>
             <Text style={styles.title}>{displayTitle}</Text>
             <View style={styles.bodyContainer}>
-              <Text style={styles.body} adjustsFontSizeToFit minimumFontScale={0.75}>
+              <Text style={styles.body}>
                 {displayBody}
                 {news.fullContent && (<Text>{'\n\n' + news.fullContent}</Text>)}
               </Text>
@@ -608,20 +612,21 @@ watermarkLogo: {
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   adNewsCountContainer: { position: 'absolute', bottom: 40, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
     fontFamily: fonts.medium,
-    fontSize: responsiveFontSize(3.1), 
+    fontSize: responsiveFontSize(3.3), 
     color: '#000000', 
-    lineHeight: responsiveFontSize(4.3), 
+    lineHeight: responsiveFontSize(4.5), 
     includeFontPadding: false,
     paddingTop: 12,
     paddingBottom: 4,
    },
-  bodyContainer: { flex: 1 },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(3.5), color: '#666666', flex: 1 },
+  bodyContainer: { flex: 1, overflow: 'hidden' },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.7), lineHeight: responsiveFontSize(4.0), color: '#666666', flex: 1 },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },

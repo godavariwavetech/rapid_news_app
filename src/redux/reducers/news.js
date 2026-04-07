@@ -55,6 +55,7 @@ const initialState = {
   
   // --- Unread Count State (Added for Header Badge) ---
   unreadCount: 0,
+  totalNews: 0,
 };
 
 // --- ASYNC THUNKS ---
@@ -86,6 +87,8 @@ export const fetchNews = createAsyncThunk(
 
     try {
       const deviceId = await getUniqueId();
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
 
       // Prepare base parameters
       const queryParams = {
@@ -107,12 +110,13 @@ export const fetchNews = createAsyncThunk(
         queryParams['feed_mode'] = "village";
       }
 
-      const response = await api.get(endpoints.GET_NEWS_FEED, {
-        params: queryParams,
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const config = { params: queryParams };
+      if (!hasToken) {
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const response = await api.get(endpoints.GET_NEWS_FEED, config);
 
       console.log(response,">>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>response.data");
 
@@ -185,14 +189,21 @@ export const updateNews = createAsyncThunk(
 // 5. React to News (Like/Dislike)
 export const reactToNews = createAsyncThunk(
   'news/reactToNews',
-  async ({ newsId, type }, { rejectWithValue }) => {
+  async ({ newsId, type }, { getState, rejectWithValue }) => {
     try {
-      const deviceId = await getUniqueId();
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
       const payload = { news_id: newsId, type: type };
       console.log(payload,">>>>>>>>>>>>>>>>>>PAYLOADDDDDD><>>>>>>>>>>>>> React TO News");
-      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload,{
-        headers: { 'x-device-id': deviceId }
-      }); 
+
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config); 
 
       console.log(response,'>>>>>>>>>>>>>>>>>>>Responseeeeeeee Displain');
       return response.data;
@@ -481,6 +492,13 @@ const newsSlice = createSlice({
         state.loading = false;
         state.isLoadingMore = false;
         state.currentPage = page;
+
+        // Extract total_news from pagination object
+        if (data?.pagination?.total_news) {
+          state.totalNews = data.pagination.total_news;
+        } else if (data?.total_news) {
+          state.totalNews = data.total_news;
+        }
 
         let incomingItems = Array.isArray(data) ? data : (data.items || []);
         

@@ -14,6 +14,7 @@ import Animated, {
 import { useSelector, useDispatch } from 'react-redux';
 import { viewNews } from '../redux/reducers/news'; 
 import Way2NewsCard from '../components/Way2NewsCard';
+import FastImage from 'react-native-fast-image';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
@@ -205,6 +206,16 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       }
     });
   }, [activeArticles, bookmarkedIds, totalNews]); // <--- ADDED: totalNews in dependencies
+
+  // Preload all ad images as soon as the feed is ready
+  useEffect(() => {
+    const adImages = formattedNews
+      .filter(item => item.isAd && item.image)
+      .map(item => ({ uri: item.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
+    if (adImages.length > 0) {
+      FastImage.preload(adImages);
+    }
+  }, [formattedNews]);
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
