@@ -2,7 +2,7 @@ export const fonts = {
 bold: 'Ramabhadra',
   regular: 'Ramabhadra',
   medium: 'Ramabhadra',
-  description: 'Abn',
+  description: 'IphoneKeyboard',
 };
 
 export const lightTheme = {

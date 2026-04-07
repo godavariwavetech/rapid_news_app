@@ -11,11 +11,13 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		BDCE314490DB4C3C9ABB367F /* Abn.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7CE1BC5375E14535954A727B /* Abn.ttf */; };
-		B79D635576F94AFBB666766F /* DMSansBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 531A40FD47C0464FA72C4379 /* DMSansBold.ttf */; };
-		3D258CD9836846D08559DEC4 /* DMSansMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4DFA6DD34DB349CA9CCF6427 /* DMSansMedium.ttf */; };
-		ABA3F8EBEA0F4F97B1CB5D25 /* DMSansRegular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 04A142DED83B48AAAB7571C3 /* DMSansRegular.ttf */; };
-		7C8297CD99A84736B4547F4F /* Ramabhadra.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A0AF404237654272B20841F8 /* Ramabhadra.ttf */; };
+		0DEE5C0C93424976A4532709 /* Iphone_Keyboard.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */; };
+		E63067F8913D45FCB52A45D0 /* Abn.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DB8E58E6C8734F4191BB60EB /* Abn.ttf */; };
+		4E9DE2DB94D147EF87B80E04 /* DMSansBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8EA07FA5FAD5415FAC8BACD8 /* DMSansBold.ttf */; };
+		8909B650145E467CB8D9367E /* DMSansMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 66807889B22049478B10F624 /* DMSansMedium.ttf */; };
+		F7F1CDFB647544FC94D21D47 /* DMSansRegular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D5CFA56D5A904F85AB62873D /* DMSansRegular.ttf */; };
+		DB5E8245CF0C4890AE60D01F /* IphoneKeyboard.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1AD1544D99F8460C9E432AB1 /* IphoneKeyboard.ttf */; };
+		B8E6975E393C49ADA7C9858F /* Ramabhadra.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A48CD59F09254110BA3A7D5B /* Ramabhadra.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,11 +42,13 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = sitinews/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = sitinews/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		7CE1BC5375E14535954A727B /* Abn.ttf */ = {isa = PBXFileReference; name = "Abn.ttf"; path = "../src/config/fonts/Abn.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		531A40FD47C0464FA72C4379 /* DMSansBold.ttf */ = {isa = PBXFileReference; name = "DMSansBold.ttf"; path = "../src/config/fonts/DMSansBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		4DFA6DD34DB349CA9CCF6427 /* DMSansMedium.ttf */ = {isa = PBXFileReference; name = "DMSansMedium.ttf"; path = "../src/config/fonts/DMSansMedium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		04A142DED83B48AAAB7571C3 /* DMSansRegular.ttf */ = {isa = PBXFileReference; name = "DMSansRegular.ttf"; path = "../src/config/fonts/DMSansRegular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		A0AF404237654272B20841F8 /* Ramabhadra.ttf */ = {isa = PBXFileReference; name = "Ramabhadra.ttf"; path = "../src/config/fonts/Ramabhadra.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */ = {isa = PBXFileReference; name = "Iphone_Keyboard.ttf"; path = "../src/config/fonts/Iphone_Keyboard.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		DB8E58E6C8734F4191BB60EB /* Abn.ttf */ = {isa = PBXFileReference; name = "Abn.ttf"; path = "../src/config/fonts/Abn.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8EA07FA5FAD5415FAC8BACD8 /* DMSansBold.ttf */ = {isa = PBXFileReference; name = "DMSansBold.ttf"; path = "../src/config/fonts/DMSansBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		66807889B22049478B10F624 /* DMSansMedium.ttf */ = {isa = PBXFileReference; name = "DMSansMedium.ttf"; path = "../src/config/fonts/DMSansMedium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		D5CFA56D5A904F85AB62873D /* DMSansRegular.ttf */ = {isa = PBXFileReference; name = "DMSansRegular.ttf"; path = "../src/config/fonts/DMSansRegular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		1AD1544D99F8460C9E432AB1 /* IphoneKeyboard.ttf */ = {isa = PBXFileReference; name = "IphoneKeyboard.ttf"; path = "../src/config/fonts/IphoneKeyboard.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A48CD59F09254110BA3A7D5B /* Ramabhadra.ttf */ = {isa = PBXFileReference; name = "Ramabhadra.ttf"; path = "../src/config/fonts/Ramabhadra.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,11 +134,13 @@
 		F73D718FB0F3442790F299A1 /* Resources */ = {
 			isa = "PBXGroup";
 			children = (
-				7CE1BC5375E14535954A727B /* Abn.ttf */,
-				531A40FD47C0464FA72C4379 /* DMSansBold.ttf */,
-				4DFA6DD34DB349CA9CCF6427 /* DMSansMedium.ttf */,
-				04A142DED83B48AAAB7571C3 /* DMSansRegular.ttf */,
-				A0AF404237654272B20841F8 /* Ramabhadra.ttf */,
+				AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */,
+				DB8E58E6C8734F4191BB60EB /* Abn.ttf */,
+				8EA07FA5FAD5415FAC8BACD8 /* DMSansBold.ttf */,
+				66807889B22049478B10F624 /* DMSansMedium.ttf */,
+				D5CFA56D5A904F85AB62873D /* DMSansRegular.ttf */,
+				1AD1544D99F8460C9E432AB1 /* IphoneKeyboard.ttf */,
+				A48CD59F09254110BA3A7D5B /* Ramabhadra.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -209,11 +215,13 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				BDCE314490DB4C3C9ABB367F /* Abn.ttf in Resources */,
-				B79D635576F94AFBB666766F /* DMSansBold.ttf in Resources */,
-				3D258CD9836846D08559DEC4 /* DMSansMedium.ttf in Resources */,
-				ABA3F8EBEA0F4F97B1CB5D25 /* DMSansRegular.ttf in Resources */,
-				7C8297CD99A84736B4547F4F /* Ramabhadra.ttf in Resources */,
+				0DEE5C0C93424976A4532709 /* Iphone_Keyboard.ttf in Resources */,
+				E63067F8913D45FCB52A45D0 /* Abn.ttf in Resources */,
+				4E9DE2DB94D147EF87B80E04 /* DMSansBold.ttf in Resources */,
+				8909B650145E467CB8D9367E /* DMSansMedium.ttf in Resources */,
+				F7F1CDFB647544FC94D21D47 /* DMSansRegular.ttf in Resources */,
+				DB5E8245CF0C4890AE60D01F /* IphoneKeyboard.ttf in Resources */,
+				B8E6975E393C49ADA7C9858F /* Ramabhadra.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

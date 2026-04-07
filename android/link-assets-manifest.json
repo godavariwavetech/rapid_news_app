@@ -18,6 +18,10 @@
       "sha1": "ac9a042a40e49e8cdbfe0e64e84d9b1c5724e98d"
     },
     {
+      "path": "src/config/fonts/IphoneKeyboard.ttf",
+      "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
+    },
+    {
       "path": "src/config/fonts/Ramabhadra.ttf",
       "sha1": "28190e90f75413617718a96df42515daca5526c9"
     }
