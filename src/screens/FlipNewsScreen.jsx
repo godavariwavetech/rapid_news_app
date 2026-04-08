@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { View, Text, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator, AppState } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -12,7 +12,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSelector, useDispatch } from 'react-redux';
-import { viewNews } from '../redux/reducers/news'; 
+import { markNewsAsRead, fetchUnreadNewsCount } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
 import ShimmerLoader from '../components/ShimmerLoader';
@@ -278,12 +278,51 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     }
   }, [activeLoading, isRefreshing]);
 
-  // Trigger API Call on News Change
+  // --- Impression-based read tracking with batching ---
+  const readBatchRef = useRef(new Set());
+  const flushTimerRef = useRef(null);
+  const impressionTimerRef = useRef(null);
+
+  const flushReadBatch = useCallback(() => {
+    if (readBatchRef.current.size === 0) return;
+    const ids = Array.from(readBatchRef.current);
+    readBatchRef.current.clear();
+    dispatch(markNewsAsRead(ids));
+  }, [dispatch]);
+
+  // Flush on app background
   useEffect(() => {
-    if (currentNews && currentNews.id && !currentNews.isAd && feedType !== 'unread') {
-      dispatch(viewNews(currentNews.id));
-    }
-  }, [currentNews?.id, dispatch, feedType]);
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'background' || state === 'inactive') {
+        flushReadBatch();
+      }
+    });
+    return () => {
+      sub.remove();
+      flushReadBatch(); // flush on unmount too
+      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
+      if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
+    };
+  }, [flushReadBatch]);
+
+  // Flush every 2s
+  useEffect(() => {
+    flushTimerRef.current = setInterval(flushReadBatch, 2000);
+    return () => clearInterval(flushTimerRef.current);
+  }, [flushReadBatch]);
+
+  // Track impression: ≥1s visible → add to batch, flush at 10 ids
+  useEffect(() => {
+    if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
+    if (!currentNews?.id || currentNews.isAd || feedType === 'unread') return;
+
+    impressionTimerRef.current = setTimeout(() => {
+      readBatchRef.current.add(currentNews.id);
+      if (readBatchRef.current.size >= 10) flushReadBatch();
+    }, 1000);
+
+    return () => clearTimeout(impressionTimerRef.current);
+  }, [currentNews?.id, currentNews?.isAd, feedType, flushReadBatch]);
 
   useEffect(() => {
     if (isSwitching) {

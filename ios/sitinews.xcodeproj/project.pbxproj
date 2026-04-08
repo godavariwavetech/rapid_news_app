@@ -12,13 +12,15 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		0DEE5C0C93424976A4532709 /* Iphone_Keyboard.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */; };
-		F5BE4AF641634948BF743E99 /* Abn.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BAFEAF1DE968482A959F1BFD /* Abn.ttf */; };
-		DA9C8942B0ED4B9E8BEF3501 /* DMSansBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F5B59EAD64594F3D96BB1E7A /* DMSansBold.ttf */; };
-		D214B6AE68EB43F8B5D89821 /* DMSansMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DCEB0CDE3D9A4BC58B1C4F27 /* DMSansMedium.ttf */; };
-		A13FBC058B8A489EAF1A9432 /* DMSansRegular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 553BA63673E446F99CDFB2A7 /* DMSansRegular.ttf */; };
-		5ECC74E241EA42069AA8636B /* IphoneKeyboard.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BC754F156C7F4EB48FEA7555 /* IphoneKeyboard.ttf */; };
-		23BCCA861DF44D0B8C355B04 /* Ramabhadra.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3672E01A383D4B2385A0BC9C /* Ramabhadra.ttf */; };
-		5A5F607EB9F340B4A14EBD2A /* PRIYAANK.TTF in Resources */ = {isa = PBXBuildFile; fileRef = A28C8B188A1844A08133BA59 /* PRIYAANK.TTF */; };
+		4017789A3CC049828E40DA42 /* Abn.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0F5A2753268147ADA18C9B6A /* Abn.ttf */; };
+		ABE79A5AC2F54A1E8EB09396 /* DMSansBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A9C8C2C9514B4E1B8A113A36 /* DMSansBold.ttf */; };
+		09A05D147227442CBF5CF1D3 /* DMSansMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2804F974322C46C092BF0747 /* DMSansMedium.ttf */; };
+		66E781A93379467BBE210705 /* DMSansRegular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D223C20F070A4CF09AFE2B78 /* DMSansRegular.ttf */; };
+		BAF3A36426164E4880C6954B /* DvpPriyanka.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 586074CA46F04DB7846B8E5D /* DvpPriyanka.ttf */; };
+		CD518F4E187E40B999BEA7E7 /* IphoneKeyboard.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 5180E805D3114343AC35FB3E /* IphoneKeyboard.ttf */; };
+		CD50FEB8685C48D6B69309FA /* Priyaanka.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6B8902C9DAAD437883C8E3C3 /* Priyaanka.ttf */; };
+		E6CD5E935B4E42DC8A8C10F8 /* Ramabhadra.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 67B428A2EA894AED932DD9BA /* Ramabhadra.ttf */; };
+		03B2E288A9404158BC32CF77 /* PRIYAANK.TTF in Resources */ = {isa = PBXBuildFile; fileRef = 951CDC756F0043589F690B33 /* PRIYAANK.TTF */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,13 +46,15 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = sitinews/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */ = {isa = PBXFileReference; name = "Iphone_Keyboard.ttf"; path = "../src/config/fonts/Iphone_Keyboard.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		BAFEAF1DE968482A959F1BFD /* Abn.ttf */ = {isa = PBXFileReference; name = "Abn.ttf"; path = "../src/config/fonts/Abn.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		F5B59EAD64594F3D96BB1E7A /* DMSansBold.ttf */ = {isa = PBXFileReference; name = "DMSansBold.ttf"; path = "../src/config/fonts/DMSansBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		DCEB0CDE3D9A4BC58B1C4F27 /* DMSansMedium.ttf */ = {isa = PBXFileReference; name = "DMSansMedium.ttf"; path = "../src/config/fonts/DMSansMedium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		553BA63673E446F99CDFB2A7 /* DMSansRegular.ttf */ = {isa = PBXFileReference; name = "DMSansRegular.ttf"; path = "../src/config/fonts/DMSansRegular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		BC754F156C7F4EB48FEA7555 /* IphoneKeyboard.ttf */ = {isa = PBXFileReference; name = "IphoneKeyboard.ttf"; path = "../src/config/fonts/IphoneKeyboard.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		3672E01A383D4B2385A0BC9C /* Ramabhadra.ttf */ = {isa = PBXFileReference; name = "Ramabhadra.ttf"; path = "../src/config/fonts/Ramabhadra.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		A28C8B188A1844A08133BA59 /* PRIYAANK.TTF */ = {isa = PBXFileReference; name = "PRIYAANK.TTF"; path = "../src/config/fonts/PRIYAANK.TTF"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		0F5A2753268147ADA18C9B6A /* Abn.ttf */ = {isa = PBXFileReference; name = "Abn.ttf"; path = "../src/config/fonts/Abn.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A9C8C2C9514B4E1B8A113A36 /* DMSansBold.ttf */ = {isa = PBXFileReference; name = "DMSansBold.ttf"; path = "../src/config/fonts/DMSansBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		2804F974322C46C092BF0747 /* DMSansMedium.ttf */ = {isa = PBXFileReference; name = "DMSansMedium.ttf"; path = "../src/config/fonts/DMSansMedium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		D223C20F070A4CF09AFE2B78 /* DMSansRegular.ttf */ = {isa = PBXFileReference; name = "DMSansRegular.ttf"; path = "../src/config/fonts/DMSansRegular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		586074CA46F04DB7846B8E5D /* DvpPriyanka.ttf */ = {isa = PBXFileReference; name = "DvpPriyanka.ttf"; path = "../src/config/fonts/DvpPriyanka.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		5180E805D3114343AC35FB3E /* IphoneKeyboard.ttf */ = {isa = PBXFileReference; name = "IphoneKeyboard.ttf"; path = "../src/config/fonts/IphoneKeyboard.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		6B8902C9DAAD437883C8E3C3 /* Priyaanka.ttf */ = {isa = PBXFileReference; name = "Priyaanka.ttf"; path = "../src/config/fonts/Priyaanka.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		67B428A2EA894AED932DD9BA /* Ramabhadra.ttf */ = {isa = PBXFileReference; name = "Ramabhadra.ttf"; path = "../src/config/fonts/Ramabhadra.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		951CDC756F0043589F690B33 /* PRIYAANK.TTF */ = {isa = PBXFileReference; name = "PRIYAANK.TTF"; path = "../src/config/fonts/PRIYAANK.TTF"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,13 +141,15 @@
 			isa = "PBXGroup";
 			children = (
 				AF8CCBAA3E484EA9B1831E83 /* Iphone_Keyboard.ttf */,
-				BAFEAF1DE968482A959F1BFD /* Abn.ttf */,
-				F5B59EAD64594F3D96BB1E7A /* DMSansBold.ttf */,
-				DCEB0CDE3D9A4BC58B1C4F27 /* DMSansMedium.ttf */,
-				553BA63673E446F99CDFB2A7 /* DMSansRegular.ttf */,
-				BC754F156C7F4EB48FEA7555 /* IphoneKeyboard.ttf */,
-				3672E01A383D4B2385A0BC9C /* Ramabhadra.ttf */,
-				A28C8B188A1844A08133BA59 /* PRIYAANK.TTF */,
+				0F5A2753268147ADA18C9B6A /* Abn.ttf */,
+				A9C8C2C9514B4E1B8A113A36 /* DMSansBold.ttf */,
+				2804F974322C46C092BF0747 /* DMSansMedium.ttf */,
+				D223C20F070A4CF09AFE2B78 /* DMSansRegular.ttf */,
+				586074CA46F04DB7846B8E5D /* DvpPriyanka.ttf */,
+				5180E805D3114343AC35FB3E /* IphoneKeyboard.ttf */,
+				6B8902C9DAAD437883C8E3C3 /* Priyaanka.ttf */,
+				67B428A2EA894AED932DD9BA /* Ramabhadra.ttf */,
+				951CDC756F0043589F690B33 /* PRIYAANK.TTF */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -219,13 +225,15 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				0DEE5C0C93424976A4532709 /* Iphone_Keyboard.ttf in Resources */,
-				F5BE4AF641634948BF743E99 /* Abn.ttf in Resources */,
-				DA9C8942B0ED4B9E8BEF3501 /* DMSansBold.ttf in Resources */,
-				D214B6AE68EB43F8B5D89821 /* DMSansMedium.ttf in Resources */,
-				A13FBC058B8A489EAF1A9432 /* DMSansRegular.ttf in Resources */,
-				5ECC74E241EA42069AA8636B /* IphoneKeyboard.ttf in Resources */,
-				23BCCA861DF44D0B8C355B04 /* Ramabhadra.ttf in Resources */,
-				5A5F607EB9F340B4A14EBD2A /* PRIYAANK.TTF in Resources */,
+				4017789A3CC049828E40DA42 /* Abn.ttf in Resources */,
+				ABE79A5AC2F54A1E8EB09396 /* DMSansBold.ttf in Resources */,
+				09A05D147227442CBF5CF1D3 /* DMSansMedium.ttf in Resources */,
+				66E781A93379467BBE210705 /* DMSansRegular.ttf in Resources */,
+				BAF3A36426164E4880C6954B /* DvpPriyanka.ttf in Resources */,
+				CD518F4E187E40B999BEA7E7 /* IphoneKeyboard.ttf in Resources */,
+				CD50FEB8685C48D6B69309FA /* Priyaanka.ttf in Resources */,
+				E6CD5E935B4E42DC8A8C10F8 /* Ramabhadra.ttf in Resources */,
+				03B2E288A9404158BC32CF77 /* PRIYAANK.TTF in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

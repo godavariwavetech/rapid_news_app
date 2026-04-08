@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { fetchUnreadNews, markUnreadNewsAsRead } from '../redux/reducers/news';
+import { fetchUnreadNews } from '../redux/reducers/news';
 import FlipNewsScreen from './FlipNewsScreen'; 
 import CommentsBottomSheet from '../components/CommentsBottomSheet'; 
 
@@ -19,13 +19,8 @@ const UnreadNewsScreen = () => {
   const [selectedNews, setSelectedNews] = useState(null);
 
   useEffect(() => {
-    // 1. Fetch unread news
     const lastSeenDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     dispatch(fetchUnreadNews(lastSeenDate));
-
-    // 2. Dispatch the thunk to mark feed as read
-    dispatch(markUnreadNewsAsRead());
-    
   }, [dispatch]);
 
   const handleRefresh = () => {

@@ -18,11 +18,19 @@
       "sha1": "ac9a042a40e49e8cdbfe0e64e84d9b1c5724e98d"
     },
     {
+      "path": "src/config/fonts/DvpPriyanka.ttf",
+      "sha1": "5d8ef28b474c9fae23148e797ac8d714d6d2008e"
+    },
+    {
       "path": "src/config/fonts/IphoneKeyboard.ttf",
       "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
     },
     {
       "path": "src/config/fonts/PRIYAANK.TTF",
+      "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
+    },
+    {
+      "path": "src/config/fonts/Priyaanka.ttf",
       "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
     },
     {

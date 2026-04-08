@@ -428,17 +428,20 @@ export const submitSurveyVote = createAsyncThunk(
   }
 );
 
-// --- ADDED: Mark Feed as Read ---
-export const markUnreadNewsAsRead = createAsyncThunk(
-  'news/markUnreadNewsAsRead',
-  async (_, { rejectWithValue }) => {
+// --- Mark Articles as Read (batched) ---
+export const markNewsAsRead = createAsyncThunk(
+  'news/markNewsAsRead',
+  async (newsIds, { getState, rejectWithValue }) => {
     try {
-      const deviceId = await getUniqueId();
-      const response = await api.post('/news/feed/read', {}, {
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+      const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
