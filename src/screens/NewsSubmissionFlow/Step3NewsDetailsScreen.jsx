@@ -238,10 +238,10 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               placeholderTextColor={isDarkMode ? '#666' : '#999'}
               value={headline}
               onChangeText={handleHeadlineChange}
-              maxLength={100}
+              maxLength={75}
               multiline
             />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{headline.length} / 100</Text>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{headline.length} / 75</Text>
           </View>
         </View>
 
@@ -266,11 +266,11 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               placeholderTextColor={isDarkMode ? '#666' : '#999'}
               value={description}
               onChangeText={handleDescriptionChange}
-              maxLength={1000}
+              maxLength={450}
               multiline
               textAlignVertical="top"
             />
-            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{description.length} / 1000</Text>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{description.length} / 450</Text>
           </View>
         </View>
 

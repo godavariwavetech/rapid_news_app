@@ -66,12 +66,12 @@ const NewsSkeleton = ({ height, theme }) => {
 
 // --- PHYSICS CONFIGURATION ---
 const SPRING_CONFIG = {
-  mass: 1,
-  damping: 40,
-  stiffness: 300,
+  mass: 0.6,
+  damping: 28,
+  stiffness: 220,
   overshootClamping: true,
   restDisplacementThreshold: 0.01,
-  restSpeedThreshold: 2,
+  restSpeedThreshold: 1,
 };
 
 // 1. Memoized Card
@@ -378,7 +378,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
        
        scrollY.value = withTiming(
          1, 
-         { duration: 300, easing: Easing.out(Easing.cubic) }, 
+         { duration: 180, easing: Easing.out(Easing.quad) }, 
          (finished) => { 
            if (finished) runOnJS(finishFlip)('next'); 
          }
@@ -431,7 +431,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = 1;
            scrollY.value = withTiming(
              1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, 
+             { duration: 180, easing: Easing.out(Easing.quad) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('next'); }
            );
         }
@@ -448,7 +448,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = -1;
            scrollY.value = withTiming(
              -1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, 
+             { duration: 180, easing: Easing.out(Easing.quad) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
            );
         }

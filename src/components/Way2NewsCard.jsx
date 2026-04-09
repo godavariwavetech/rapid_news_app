@@ -58,8 +58,9 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const theme = isDarkMode ? darkTheme : lightTheme;
 
   // --- PLAYER STATES ---
-  const [isVideoPaused, setIsVideoPaused] = useState(!isActive || isBottomHalf); 
-  const [isBuffering, setIsBuffering] = useState(true);
+  const [isVideoPaused, setIsVideoPaused] = useState(true); // always start paused
+  const [isMuted, setIsMuted] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [showControls, setShowControls] = useState(false);
   
   const playerRef = useRef(null);
@@ -72,10 +73,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
+  const [isVideoFullScreen, setIsVideoFullScreen] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [playCount, setPlayCount] = useState(0);
 
   useImperativeHandle(ref, () => ({
     play: () => {
@@ -177,29 +178,18 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState.match(/inactive|background/)) {
         setIsVideoPaused(true);
-      } else if (nextAppState === 'active' && isActive && !isBottomHalf && !isManuallyPaused.current) {
-        setIsVideoPaused(false);
       }
+      // don't auto-resume — user must tap to play
     });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [isActive, isBottomHalf]);
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
-    isManuallyPaused.current = false;
-    setIsBuffering(true);
+    isManuallyPaused.current = true;
+    setIsVideoPaused(true); // always start paused — user must tap to play
+    setIsBuffering(false);
     setShowControls(false);
-    setPlayCount(0);
-    
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
-
-    if (isActive && !isBottomHalf) {
-      setIsVideoPaused(false);
-    } else {
-      setIsVideoPaused(true);
-    }
   }, [news.id, isActive, isBottomHalf]);
 
   useEffect(() => {
@@ -220,14 +210,11 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     setIsVideoPaused(prev => {
       const next = !prev;
       isManuallyPaused.current = next;
-      if (!next) {
-        setPlayCount(c => c + 1);
-      }
       return next;
     });
     showControlsTemporarily(); 
-    if (onPress) onPress();
-  }, [onPress]);
+    // intentionally NOT calling onPress — video tap should not toggle the UI
+  }, []);
 
   useEffect(() => {
     setActiveSlide(0);
@@ -397,17 +384,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                       resizeMode="contain"
                       repeat={true}
                       paused={isVideoPaused}
-                      muted={false}
+                      muted={isMuted}
                       volume={1.0}
                       playInBackground={false}
                       playWhenInactive={false}
-                      useTextureView={true}
-                      bufferConfig={{
-                        minBufferMs: 15000,
-                        maxBufferMs: 50000,
-                        bufferForPlaybackMs: 2500,
-                        bufferForPlaybackAfterRebufferMs: 5000,
-                      }}
                       onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
                       onError={() => setIsBuffering(false)}
                       onReadyForDisplay={onVideoReady}
@@ -425,7 +405,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
               </View>
             </View>
 
-            <Pressable 
+            <Pressable
               onPress={handlePlayPauseToggle}
               style={styles.videoTouchOverlay}
             >
@@ -435,14 +415,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                     <ActivityIndicator size="large" color="#FFFFFF" />
                   </View>
                 )}
-                
+
                 {((isVideoPaused || showControls) && !isBuffering && isActive && !isBottomHalf) && (
                   <View style={styles.playPauseIconContainer}>
-                    <Icon 
-                      name={isVideoPaused ? "play" : "pause"} 
-                      size={50} 
-                      color="#FFFFFF" 
-                    />
+                    <Icon name={isVideoPaused ? 'play' : 'pause'} size={50} color="#FFFFFF" />
                   </View>
                 )}
 
@@ -451,7 +427,26 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                     <Icon name="play" size={50} color="#FFFFFF" />
                   </View>
                 )}
-              </View>
+
+                {/* Mute + fullscreen buttons — only for native video, active, not bottom half */}
+                {isActive && !isBottomHalf && !youtubeId && (
+                  <View style={styles.videoControls}>
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation?.(); setIsMuted(m => !m); }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.videoControlBtn}
+                    >
+                      <Icon name={isMuted ? 'volume-off' : 'volume-high'} size={22} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation?.(); setIsVideoFullScreen(true); }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.videoControlBtn}
+                    >
+                      <Icon name="fullscreen" size={22} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                )}              </View>
             </Pressable>
           </View>
         ) : hasMultipleImages ? (
@@ -543,6 +538,36 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
       <ReportModal visible={reportModalVisible} onClose={() => setReportModalVisible(false)} newsId={news.id} />
 
+      {/* Fullscreen Video Modal */}
+      <Modal visible={isVideoFullScreen} transparent={false} animationType="fade" statusBarTranslucent={true} onRequestClose={() => setIsVideoFullScreen(false)}>
+        <View style={styles.fullScreenContainer}>
+          <TouchableOpacity style={[styles.closeButton, { top: Math.max(insets.top, 20) + 10 }]} onPress={() => setIsVideoFullScreen(false)}>
+            <Icon name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
+          {videoSource && (
+            <Video
+              source={videoSource}
+              style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+              resizeMode="contain"
+              repeat={true}
+              paused={isVideoPaused}
+              muted={isMuted}
+              volume={1.0}
+              playInBackground={false}
+              playWhenInactive={false}
+              onBuffer={({ isBuffering: b }) => setIsBuffering(b)}
+              onError={() => setIsBuffering(false)}
+              controls={true}
+            />
+          )}
+          <TouchableOpacity
+            style={[styles.videoControlBtn, { position: 'absolute', bottom: 30, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }]}
+            onPress={() => setIsMuted(m => !m)}
+          >
+            <Icon name={isMuted ? 'volume-off' : 'volume-high'} size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.menuOverlay}>
@@ -671,6 +696,20 @@ watermarkLogo: {
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
+  },
+  videoControls: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  videoControlBtn: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
 });
 
