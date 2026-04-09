@@ -496,11 +496,21 @@ const newsSlice = createSlice({
         state.isLoadingMore = false;
         state.currentPage = page;
 
-        // Extract total_news from pagination object
-        if (data?.pagination?.total_news) {
-          state.totalNews = data.pagination.total_news;
-        } else if (data?.total_news) {
-          state.totalNews = data.total_news;
+        const pagination = data?.pagination;
+
+        // Page 1: show today's count. Page 2+: show full total
+        if (pagination) {
+          if (page === 1 && pagination.today_total_news != null) {
+            state.totalNews = pagination.today_total_news;
+          } else if (pagination.total_news != null) {
+            state.totalNews = pagination.total_news;
+          }
+          // hasMore: there are still items beyond what we've loaded
+          state.hasMore = pagination.end != null && pagination.total_news != null
+            ? pagination.end < pagination.total_news
+            : false;
+        } else {
+          state.hasMore = false;
         }
 
         let incomingItems = Array.isArray(data) ? data : (data.items || []);
@@ -523,12 +533,15 @@ const newsSlice = createSlice({
           }
         } else {
           if (Array.isArray(state.articles)) {
-             state.articles = [...state.articles, ...incomingItems];
+            const existingIds = new Set(state.articles.map(i => i.data?._id || i._id));
+            const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            state.articles = [...state.articles, ...unique];
           } else if (state.articles?.items) {
-             state.articles.items = [...state.articles.items, ...incomingItems];
+            const existingIds = new Set(state.articles.items.map(i => i.data?._id || i._id));
+            const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            state.articles.items = [...state.articles.items, ...unique];
           }
         }
-        state.hasMore = incomingItems.length > 0;
       })
       .addCase(fetchNews.rejected, (state, action) => {
         state.loading = false;

@@ -112,7 +112,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
   // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, unreadArticles, loading, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  const { articles, totalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -358,10 +358,21 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
   
+  const isLoadingMoreRef = useRef(false);
+
   const triggerLoadMore = () => {
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
     if (onEndReached) onEndReached();
     scrollY.value = withSpring(0, SPRING_CONFIG); 
   };
+
+  // Reset the guard once loading finishes
+  useEffect(() => {
+    if (!isLoadingMore && !loading) {
+      isLoadingMoreRef.current = false;
+    }
+  }, [isLoadingMore, loading]);
 
   // --- AUTOMATIC SWIPE FUNCTION ---
   const autoSwipeNext = () => {
@@ -571,6 +582,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <ActivityIndicator size="large" color="#4dabf5" />
           </Animated.View>
 
+          {/* Bottom load-more indicator — shown when fetching next page from the last card */}
+          {isLoadingMore && !nextNews && (
+            <View style={styles.bottomLoaderContainer}>
+              <ActivityIndicator size="small" color="#4dabf5" />
+              <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>
+            </View>
+          )}
+
           {activeNextNews && (
              <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
                <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
@@ -632,6 +651,8 @@ const styles = StyleSheet.create({
   centerView: { justifyContent: 'center', alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '600' },
   refreshLoaderContainer: { position: 'absolute', top: 60, alignSelf: 'center', backgroundColor: '#2C2C2C', borderRadius: 25, padding: 8, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, zIndex: 9999 },
+  bottomLoaderContainer: { position: 'absolute', bottom: 90, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2C2C2C', borderRadius: 25, paddingVertical: 8, paddingHorizontal: 16, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, zIndex: 9999 },
+  bottomLoaderText: { color: '#4dabf5', fontSize: 13, fontWeight: '600' },
 });
 
 export default FlipNewsScreen;
