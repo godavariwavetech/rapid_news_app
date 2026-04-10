@@ -285,10 +285,10 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
   const displayBody = news.body || news.description || news.content?.te?.body || news.content?.body || '';
 
-  const handleShareNews = () => {
+  const handleShareNews = async () => {
     const imageUrl = news.images?.[0] || news.image || news.thumbnail;
     const articleId = news._id || news.id;
-    handleShare(displayTitle, articleId, imageUrl);
+    await handleShare(displayTitle, articleId, imageUrl);
   };
   const handleMenuPress = () => setMenuVisible(true);
 
