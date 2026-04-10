@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector } from 'react-redux';
@@ -50,11 +51,16 @@ const NewsDetailScreen = ({ route, navigation }) => {
     );
   }
 
-  const onShare = () => {
+  const [sharing, setSharing] = useState(false);
+
+  const onShare = async () => {
+    if (sharing) return;
+    setSharing(true);
     const articleId = newsId || news?._id;
     const newsTitle = news?.content?.title || news?.title || '';
     const imageUrl = news?.images?.[0] || news?.image;
-    handleShare(newsTitle, articleId, imageUrl);
+    await handleShare(newsTitle, articleId, imageUrl);
+    setSharing(false);
   };
 
   return (
@@ -104,8 +110,14 @@ const NewsDetailScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {/* Floating Share Button */}
-      <TouchableOpacity style={[styles.shareFab, { backgroundColor: theme.primary }]} onPress={onShare}>
-        <Icon name="share-variant" size={24} color="#FFF" />
+      <TouchableOpacity
+        style={[styles.shareFab, { backgroundColor: theme.primary, opacity: sharing ? 0.8 : 1 }]}
+        onPress={onShare}
+        disabled={sharing}>
+        {sharing
+          ? <ActivityIndicator size="small" color="#FFF" />
+          : <Icon name="share-variant" size={24} color="#FFF" />
+        }
       </TouchableOpacity>
     </View>
   );

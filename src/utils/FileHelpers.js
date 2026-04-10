@@ -1,4 +1,4 @@
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import RNShare from 'react-native-share';
 import RNFetchBlob from 'rn-fetch-blob';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
@@ -10,30 +10,46 @@ import { CameraRoll } from "@react-native-camera-roll/camera-roll";
  * @param {string} imageUrl - URL of the news image
  */
 export const handleShare = async (title, newsId, imageUrl) => {
-  const shareUrl = `https://godavariwave.in/news/${newsId}`;
-  const message = `${title}\n\n${shareUrl}`;
+  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const message = `${title}\n\n${appUrl}`;
 
-  try {
-    const tempPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_${Date.now()}.jpg`;
-    const testImageUrl = imageUrl || 'https://picsum.photos/seed/news/800/450';
-
-    await RNFetchBlob.config({ path: tempPath }).fetch('GET', testImageUrl);
-
-    await RNShare.open({
-      title,
-      message,
-      url: `file://${tempPath}`,
-      type: 'image/jpeg',
-      failOnCancel: false,
-    });
-
-    RNFetchBlob.fs.unlink(tempPath).catch(() => {});
-  } catch (error) {
-    console.log('Share error:', error);
-    // fallback: text only
+  if (imageUrl) {
+    let destPath = null;
     try {
-      await RNShare.open({ title, message, failOnCancel: false });
-    } catch (e) {}
+      // Use CacheDir — always available on all devices
+      const cacheDir = RNFetchBlob.fs.dirs.CacheDir;
+      destPath = `${cacheDir}/share_img_${Date.now()}.jpg`;
+
+      const res = await RNFetchBlob.config({ path: destPath, trusty: true }).fetch('GET', imageUrl);
+
+      // Verify file actually exists and has content
+      const stat = await RNFetchBlob.fs.stat(destPath);
+      if (!stat || stat.size === 0) throw new Error('Downloaded file is empty');
+
+      await RNShare.open({
+        title,
+        message,
+        url: `file://${destPath}`,
+        type: 'image/jpeg',
+        failOnCancel: false,
+      });
+    } catch (err) {
+      console.log('Share with image failed, using text fallback:', err);
+      // Fallback to text-only — never crash
+      try {
+        await RNShare.open({ title, message, failOnCancel: false });
+      } catch (_) {}
+    } finally {
+      if (destPath) RNFetchBlob.fs.unlink(destPath).catch(() => {});
+    }
+    return;
+  }
+
+  // No image — text only
+  try {
+    await RNShare.open({ title, message, failOnCancel: false });
+  } catch (err) {
+    console.log('Share error:', err);
   }
 };
 
