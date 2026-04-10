@@ -22,6 +22,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
 import { useTheme } from '../../context/ThemeContext';
 
+const MAX_IMAGES = 5;
+
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const Step3NewsDetailsScreen = ({navigation, route}) => {
@@ -41,7 +43,8 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const [headline, setHeadline] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]); // array of image assets
+  const [video, setVideo] = useState(null); // single video asset
 
   // Transliteration State
   const [headlineTranslitEnabled, setHeadlineTranslitEnabled] = useState(false);
@@ -52,7 +55,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   // UI State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showImageOptions, setShowImageOptions] = useState(false);
+  const [showMediaOptions, setShowMediaOptions] = useState(false);
 
   useEffect(() => {
     dispatch(getCategories());
@@ -76,7 +79,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       setHeadlineTranslitEnabled(isTeTitle);
       setDescriptionTranslitEnabled(isTeBody);
       
-      if (imgUrl) setImage({ uri: imgUrl });
+      if (imgUrl) setImages([{ uri: imgUrl }]);
 
       const categoryId = existingNews.category?._id || existingNews.category_id;
       
@@ -151,17 +154,48 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   };
 
   const handleCamera = () => {
-    setShowImageOptions(false);
+    setShowMediaOptions(false);
     launchCamera({ mediaType: 'photo', quality: 0.7, includeBase64: true }, response => {
-      if (response.assets && response.assets[0]) setImage(response.assets[0]);
+      if (response.assets && response.assets[0]) {
+        setImages(prev => {
+          if (prev.length >= MAX_IMAGES) {
+            Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+            return prev;
+          }
+          return [...prev, response.assets[0]];
+        });
+      }
     });
   };
 
   const handleGallery = () => {
-    setShowImageOptions(false);
-    launchImageLibrary({ mediaType: 'photo', quality: 0.7, includeBase64: true }, response => {
-      if (response.assets && response.assets[0]) setImage(response.assets[0]);
+    setShowMediaOptions(false);
+    launchImageLibrary(
+      { mediaType: 'photo', quality: 0.7, includeBase64: true, selectionLimit: MAX_IMAGES },
+      response => {
+        if (response.assets) {
+          setImages(prev => {
+            const combined = [...prev, ...response.assets];
+            if (combined.length > MAX_IMAGES) {
+              Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+              return combined.slice(0, MAX_IMAGES);
+            }
+            return combined;
+          });
+        }
+      },
+    );
+  };
+
+  const handleVideoGallery = () => {
+    setShowMediaOptions(false);
+    launchImageLibrary({ mediaType: 'video', videoQuality: 'medium' }, response => {
+      if (response.assets && response.assets[0]) setVideo(response.assets[0]);
     });
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleNext = async () => {
@@ -182,15 +216,17 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             "body": description
           }
         },
-        "images": image?.uri && !image?.base64 ? [image.uri] : [], 
-        "videos": []
+        "images": images.filter(img => img.uri && !img.base64).map(img => img.uri),
+        "videos": video?.uri ? [video.uri] : [],
       };
 
       navigation.navigate('NewsSubmissionStep4', {
         headline,
         description,
         category: selectedCategoryObj.name.en,
-        image: image,
+        image: images[0] || null,
+        images,
+        video,
         apiPayload: payload,
         location: locationData ? `${locationData.village?.name?.en}, ${locationData.district?.name?.en}` : "Current Location",
         isEditing: !!existingNews,
@@ -303,20 +339,54 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           )}
         </TouchableOpacity>
 
-        {/* Image */}
-        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Cover Image</Text>
-        {!image ? (
-          <TouchableOpacity style={[styles.uploadButton, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#E0E0E0' }]} onPress={() => setShowImageOptions(true)}>
-            <Icon name="image-outline" size={24} color={theme.textSecondary} />
-            <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Upload Image</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.imagePreviewContainer}>
-            <Image source={{uri: image.uri}} style={styles.imagePreview} />
-            <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
-              <Icon name="close-circle" size={28} color="#FF3B30" />
+        {/* Media Upload */}
+        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 4 }]}>Media</Text>
+        <Text style={[styles.mediaHint, { color: theme.textSecondary }]}>
+          Add up to {MAX_IMAGES} images OR one video (not both)
+        </Text>
+
+        {/* Images preview grid */}
+        {images.length > 0 && (
+          <View style={styles.imagesGrid}>
+            {images.map((img, index) => (
+              <View key={index} style={styles.imageThumbnailContainer}>
+                <Image source={{ uri: img.uri }} style={styles.imageThumbnail} />
+                <TouchableOpacity style={styles.removeThumbButton} onPress={() => removeImage(index)}>
+                  <Icon name="close-circle" size={22} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {images.length < MAX_IMAGES && !video && (
+              <TouchableOpacity
+                style={[styles.addMoreButton, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#E0E0E0' }]}
+                onPress={() => setShowMediaOptions(true)}>
+                <Icon name="plus" size={28} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Video preview */}
+        {video && (
+          <View style={[styles.videoPreview, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Icon name="video" size={32} color={theme.accentBlue} />
+            <Text style={[styles.videoName, { color: theme.text }]} numberOfLines={1}>
+              {video.fileName || 'video.mp4'}
+            </Text>
+            <TouchableOpacity onPress={() => setVideo(null)}>
+              <Icon name="close-circle" size={24} color="#FF3B30" />
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Upload button — shown when nothing selected yet */}
+        {images.length === 0 && !video && (
+          <TouchableOpacity
+            style={[styles.uploadButton, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#E0E0E0' }]}
+            onPress={() => setShowMediaOptions(true)}>
+            <Icon name="image-plus" size={24} color={theme.textSecondary} />
+            <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Add Images or Video</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
@@ -348,18 +418,33 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Image Options Modal */}
-      <Modal visible={showImageOptions} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
+      {/* Media Options Modal */}
+      <Modal visible={showMediaOptions} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowMediaOptions(false)}>
           <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
-            <TouchableOpacity style={styles.imageOptionButton} onPress={handleCamera}>
-              <Icon name="camera" size={24} color={theme.accentBlue} />
-              <Text style={[styles.imageOptionText, { color: theme.text }]}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.imageOptionButton} onPress={handleGallery}>
-              <Icon name="image" size={24} color={theme.secondary} />
-              <Text style={[styles.imageOptionText, { color: theme.text }]}>Gallery</Text>
-            </TouchableOpacity>
+            {/* Camera — only if no video selected and under image limit */}
+            {!video && images.length < MAX_IMAGES && (
+              <TouchableOpacity style={styles.imageOptionButton} onPress={handleCamera}>
+                <Icon name="camera" size={24} color={theme.accentBlue} />
+                <Text style={[styles.imageOptionText, { color: theme.text }]}>Take Photo</Text>
+              </TouchableOpacity>
+            )}
+            {/* Gallery images — only if no video selected */}
+            {!video && images.length < MAX_IMAGES && (
+              <TouchableOpacity style={styles.imageOptionButton} onPress={handleGallery}>
+                <Icon name="image-multiple" size={24} color={theme.secondary} />
+                <Text style={[styles.imageOptionText, { color: theme.text }]}>
+                  Choose Images {images.length > 0 ? `(${images.length}/${MAX_IMAGES})` : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* Video — only if no images selected */}
+            {images.length === 0 && (
+              <TouchableOpacity style={styles.imageOptionButton} onPress={handleVideoGallery}>
+                <Icon name="video" size={24} color="#FF6B35" />
+                <Text style={[styles.imageOptionText, { color: theme.text }]}>Choose Video</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -387,11 +472,16 @@ const styles = StyleSheet.create({
   categorySelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 12, padding: 16, marginBottom: 20 },
   categoryText: { fontSize: 16 },
   placeholderText: { color: '#999' },
-  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: 30, borderStyle: 'dashed', borderWidth: 1, gap: 10 },
+  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: 30, borderStyle: 'dashed', borderWidth: 1, gap: 10, marginBottom: 20 },
   uploadText: { fontSize: 16, fontWeight: '600' },
-  imagePreviewContainer: { position: 'relative', borderRadius: 12, overflow: 'hidden', marginBottom: 40 },
-  imagePreview: { width: '100%', height: 220, resizeMode: 'cover' },
-  removeImageButton: { position: 'absolute', top: 10, right: 10 },
+  mediaHint: { fontSize: 12, marginBottom: 10, marginLeft: 4 },
+  imagesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  imageThumbnailContainer: { position: 'relative', width: 90, height: 90 },
+  imageThumbnail: { width: 90, height: 90, borderRadius: 10, resizeMode: 'cover' },
+  removeThumbButton: { position: 'absolute', top: -6, right: -6 },
+  addMoreButton: { width: 90, height: 90, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  videoPreview: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, gap: 12, marginBottom: 16 },
+  videoName: { flex: 1, fontSize: 14 },
   footer: { padding: 20, borderTopWidth: 1 },
   submitButton: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   submitButtonActive: { },

@@ -18,7 +18,7 @@ import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
 import { getBookmarks } from '../redux/reducers/bookmarks';
-import { postToken } from '../redux/reducers/auth';
+import { postToken, registerGuestFCM } from '../redux/reducers/auth';
 import notifee from '@notifee/react-native';
 
 function HomeScreen({navigation}) {
@@ -79,6 +79,7 @@ function HomeScreen({navigation}) {
   const sendToken = async () =>{
     const res = await dispatch(postToken())
     console.log(res,">>>>>>>>>>>>FCM RES");
+    dispatch(registerGuestFCM());
   }
 
   useEffect(() => {

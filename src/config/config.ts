@@ -1,6 +1,6 @@
 // export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms'; 
-// export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
-export const baseURL="https://godavariwave.in:7777"
+export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
+// export const baseURL="https://godavariwave.in:7777"
 
 
 export const endpoints = {
@@ -44,5 +44,6 @@ export const endpoints = {
   POST_FCM_TOKEN:'users/register-fcm',
   FEEDBACK: 'feedback',
   START_ACTIVITY: 'activity/start',
-  END_ACTIVITY: 'activity/end'
+  END_ACTIVITY: 'activity/end',
+  REGISTER_GUEST: 'users/register-guest'
 };

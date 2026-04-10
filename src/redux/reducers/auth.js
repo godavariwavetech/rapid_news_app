@@ -114,6 +114,43 @@ export const postToken = createAsyncThunk(
   },
 );
 
+export const registerGuestFCM = createAsyncThunk(
+  'auth/registerGuestFCM',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      // Only proceed for guest users (no userToken and no reporterToken)
+      const { userToken, reporterToken } = state.auth;
+      if (userToken || reporterToken) return;
+
+      const fcm_token = await fetchFCMToken();
+      if (!fcm_token) return;
+
+      const currentLocation = state.location?.currentLocation;
+      const preferred_language = state.settings?.language || 'te';
+
+      const payload = {
+        fcm_token,
+        device_type: Platform.OS?.toUpperCase(),
+        location: {
+          state_id: currentLocation?.state?._id,
+          district_id: currentLocation?.district?._id,
+          village_id: currentLocation?.village?._id,
+        },
+        preferred_language,
+      };
+
+
+      console.log(payload,">>>>>>>>>>>>>>>GUUEST USER FCM");
+      const response = await api.post(endpoints.REGISTER_GUEST, payload, { skipAuth: true });
+      console.log(response,">>>>>>>>>>>>>>>>> GUEST FCM REST");
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
 export const startActivity = createAsyncThunk(
   'auth/startActivity',
   async (payload, { rejectWithValue }) => {
