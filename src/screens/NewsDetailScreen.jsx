@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-  Share,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector } from 'react-redux';
 import { lightTheme, darkTheme } from '../utils/colors';
+import { handleShare } from '../utils/FileHelpers';
 
 const { width } = Dimensions.get('window');
 
@@ -50,16 +50,11 @@ const NewsDetailScreen = ({ route, navigation }) => {
     );
   }
 
-  const onShare = async () => {
-try {
-      const shareUrl = `https://godavariwave.in/news/${newsId}`;
-      await Share.share({
-        message: `${newsTitle}\n\nRead full story: ${shareUrl}`,
-        url: shareUrl,
-      });
-    } catch (error) {
-      console.log(error);
-    }
+  const onShare = () => {
+    const articleId = newsId || news?._id;
+    const newsTitle = news?.content?.title || news?.title || '';
+    const imageUrl = news?.images?.[0] || news?.image;
+    handleShare(newsTitle, articleId, imageUrl);
   };
 
   return (

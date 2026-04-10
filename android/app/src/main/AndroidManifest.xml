@@ -42,6 +42,15 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="rapidnews" android:host="news" />
         </intent-filter>
+
+        <!-- HTTPS App Links: clicking shared article URL opens the app -->
+        <!-- If app is not installed, Android opens browser which can redirect to Play Store -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="godavariwave.in" android:pathPrefix="/news" />
+        </intent-filter>
         
       </activity>
     </application>

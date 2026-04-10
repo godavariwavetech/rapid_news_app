@@ -1,26 +1,40 @@
-import { Share, Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import RNShare from 'react-native-share';
 import RNFetchBlob from 'rn-fetch-blob';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
 
 /**
- * Formats and shares news content
+ * Formats and shares news content with image as temp file
  * @param {string} title - The news headline
- * @param {string} body - The short description or body
- * @param {string} newsId - Unique ID to generate the link
+ * @param {string} newsId - Unique ID to generate the deep link
+ * @param {string} imageUrl - URL of the news image
  */
-export const handleShare = async (title, body, newsId) => {
-// Use the ID from the news object
-      const shareUrl = `https://godavariwave.in/news/${newsId}`;
-      // const title = news.content?.title || news.title;
-      // const body = news.content?.short || news.description || '';
+export const handleShare = async (title, newsId, imageUrl) => {
+  const shareUrl = `https://godavariwave.in/news/${newsId}`;
+  const message = `${title}\n\n${shareUrl}`;
 
-      await Share.share({
-        message: `${title}\n\n${body}\n\nRead more here: ${shareUrl}`,
-        url: shareUrl, // For iOS
-        title: title   // For Android title
-      });
-  
-    
+  try {
+    const tempPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_${Date.now()}.jpg`;
+    const testImageUrl = imageUrl || 'https://picsum.photos/seed/news/800/450';
+
+    await RNFetchBlob.config({ path: tempPath }).fetch('GET', testImageUrl);
+
+    await RNShare.open({
+      title,
+      message,
+      url: `file://${tempPath}`,
+      type: 'image/jpeg',
+      failOnCancel: false,
+    });
+
+    RNFetchBlob.fs.unlink(tempPath).catch(() => {});
+  } catch (error) {
+    console.log('Share error:', error);
+    // fallback: text only
+    try {
+      await RNShare.open({ title, message, failOnCancel: false });
+    } catch (e) {}
+  }
 };
 
 /**

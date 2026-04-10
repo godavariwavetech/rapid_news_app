@@ -154,34 +154,48 @@ function AppNavigator() {
 
   // Deep Linking & Notification Handling
   useEffect(() => {
-    const handleNotificationClick = async (url) => {
-      if (url && url.startsWith('rapidnews://news/')) {
-        const newsId = url.replace('rapidnews://news/', '');
-        console.log(newsId, ">>>>>>>>>>>>>>>>>>>newsId");
-        
-        // Fetch the news data using the extracted ID
-        const resp = await dispatch(fetchArticleById(newsId));
-        console.log(resp, ">>>>>>>>News Fetched from Link");
-        
-        const navigateToNews = () => {
-          if (navigationRef.isReady()) {
-            navigationRef.current.navigate('Main');
-          } else {
-            setTimeout(navigateToNews, 300); // Retry if navigation isn't ready
-          }
-        };
-        navigateToNews();
+    const handleDeepLink = async (url) => {
+      if (!url) return;
+
+      let newsId = null;
+
+      // Handle custom scheme: rapidnews://news/<id>
+      if (url.startsWith('rapidnews://news/')) {
+        newsId = url.replace('rapidnews://news/', '');
       }
+      // Handle HTTPS app link: https://godavariwave.in/news/<id>
+      else if (url.startsWith('https://godavariwave.in/news/')) {
+        newsId = url.replace('https://godavariwave.in/news/', '');
+      }
+
+      if (!newsId) return;
+
+      console.log('Deep link newsId:', newsId);
+
+      const resp = await dispatch(fetchArticleById(newsId));
+      const article = resp?.payload;
+
+      const navigateToNews = () => {
+        if (navigationRef.isReady()) {
+          // Navigate to Main first so back button works, then to NewsDetail
+          navigationRef.current.navigate('Main');
+          navigationRef.current.navigate('NewsDetail', {
+            newsId,
+            news: article,
+          });
+        } else {
+          setTimeout(navigateToNews, 300);
+        }
+      };
+      navigateToNews();
     };
 
-    // Listen for notification click when app is killed/closed
-    Linking.getInitialURL().then((url) => {
-      handleNotificationClick(url);
-    });
+    // App opened from killed state via link
+    Linking.getInitialURL().then(handleDeepLink);
 
-    // Listen for notification click when app is already open in background
+    // App in background, link clicked
     const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      handleNotificationClick(url);
+      handleDeepLink(url);
     });
 
     return () => {
