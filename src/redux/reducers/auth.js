@@ -210,6 +210,17 @@ const authSlice = createSlice({
   },
   extraReducers: builder => {
     builder
+      .addCase(requestOTP.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(requestOTP.fulfilled, state => {
+        state.loading = false;
+      })
+      .addCase(requestOTP.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to send OTP';
+      })
       .addCase(verifyOTP.pending, state => {
         state.loading = true;
         state.error = null;

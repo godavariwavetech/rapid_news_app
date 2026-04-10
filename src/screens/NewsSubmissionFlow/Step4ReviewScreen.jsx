@@ -20,6 +20,7 @@ import {createNews, updateNews} from '../../redux/reducers/news';
 import { Buffer } from 'buffer';
 import api from '../../utils/api';
 import axios from 'axios';
+import RNFetchBlob from 'rn-fetch-blob';
 import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
@@ -33,33 +34,49 @@ const Step4ReviewScreen = ({navigation, route}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Destructure params
-  const {location, headline, description, category, image, isEditing, newsId, apiPayload} = route.params;
+  const {location, headline, description, category, image, images, video, isEditing, newsId, apiPayload} = route.params;
 
-  const uploadToS3 = async (imageAsset) => {
-    if (!imageAsset || !imageAsset.base64) return imageAsset?.uri || null;
+  const uploadToS3 = async (asset, mediaType = 'image') => {
+    if (!asset) return null;
+    // Already a remote URL (editing case), no upload needed
+    if (asset.uri?.startsWith('http')) return asset.uri;
+
+    const isVideo = mediaType === 'video';
+    const defaultExt = isVideo ? 'mp4' : 'jpg';
+    const defaultMime = isVideo ? 'video/mp4' : 'image/jpeg';
+    const mimeType = asset.type || defaultMime;
 
     try {
+      // 1. Get signed URL from server
       const response = await api.post('media/upload-url', {
-        filename: imageAsset.fileName || `news_${Date.now()}.jpg`,
-        type: imageAsset.type || 'image/jpeg',
+        filename: asset.fileName || `news_${Date.now()}.${defaultExt}`,
+        type: mimeType,
         reporterId: reporter?._id,
       });
-
       const { signedUrl } = response.data.data;
-      const binaryData = Uint8Array.from(Buffer.from(imageAsset.base64, 'base64'));
-      const uploadResult = await axios.put(signedUrl, binaryData, {
-          headers: { 
-            'Content-Type': imageAsset.type || 'image/jpeg',
-            'Content-Disposition': 'attachment'
-          },
-          transformRequest: [(data) => data], 
+
+      // 2. Upload — use base64 for images, RNFetchBlob file stream for videos
+      if (!isVideo && asset.base64) {
+        const binaryData = Uint8Array.from(Buffer.from(asset.base64, 'base64'));
+        const uploadResult = await axios.put(signedUrl, binaryData, {
+          headers: { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
+          transformRequest: [(data) => data],
           timeout: 120000,
         });
-
-      if (uploadResult.status === 200) {
-        return signedUrl.split('?')[0];
+        if (uploadResult.status !== 200) return null;
+      } else {
+        // For video (or image without base64): read from local file path and upload
+        const localPath = asset.uri.replace('file://', '');
+        const uploadResult = await RNFetchBlob.fetch(
+          'PUT',
+          signedUrl,
+          { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
+          RNFetchBlob.wrap(localPath),
+        );
+        if (uploadResult.respInfo.status !== 200) return null;
       }
-      return null;
+
+      return signedUrl.split('?')[0];
     } catch (error) {
       console.error('S3 Upload Error:', error);
       return null;
@@ -70,14 +87,28 @@ const Step4ReviewScreen = ({navigation, route}) => {
     setIsSubmitting(true);
     let finalPayload = { ...apiPayload };
 
-    if (image && image.base64) {
-      const s3Url = await uploadToS3(image);
-      if (!s3Url) {
+    // Upload all images in parallel
+    const allImages = images && images.length > 0 ? images : (image ? [image] : []);
+    if (allImages.length > 0) {
+      const uploadedUrls = await Promise.all(allImages.map(img => uploadToS3(img, 'image')));
+      const validUrls = uploadedUrls.filter(Boolean);
+      if (validUrls.length === 0 && allImages.some(img => img.base64)) {
         setIsSubmitting(false);
-        Alert.alert('Upload Failed', 'Could not upload image to S3. Please try again.');
+        Alert.alert('Upload Failed', 'Could not upload images. Please try again.');
         return;
       }
-      finalPayload.images = [s3Url];
+      finalPayload.images = validUrls;
+    }
+
+    // Upload video if present
+    if (video) {
+      const videoUrl = await uploadToS3(video, 'video');
+      if (!videoUrl) {
+        setIsSubmitting(false);
+        Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
+        return;
+      }
+      finalPayload.videos = [videoUrl];
     }
 
     let response;
@@ -166,13 +197,32 @@ const Step4ReviewScreen = ({navigation, route}) => {
           </View>
         </View>
 
-        {/* Image */}
-        {image && (
+        {/* Media preview */}
+        {(images && images.length > 0) || image || video ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Image</Text>
-            <Image source={{uri: image.uri || image}} style={styles.previewImage} />
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              Media {images && images.length > 1 ? `(${images.length} images)` : ''}
+            </Text>
+            {video ? (
+              <View style={[styles.videoPreview, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+                <Icon name="video" size={28} color="#FF6B35" />
+                <Text style={[styles.infoText, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                  {video.fileName || 'video.mp4'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesRow}>
+                {(images && images.length > 0 ? images : [image]).map((img, i) => (
+                  <Image
+                    key={i}
+                    source={{ uri: img?.uri || img }}
+                    style={[styles.previewImage, i > 0 && { marginLeft: 10 }]}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
-        )}
+        ) : null}
       </ScrollView>
 
       {/* Submit Button */}
@@ -244,9 +294,19 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   previewImage: {
-    width: '100%',
-    height: 200,
+    width: 200,
+    height: 160,
     borderRadius: 12,
+  },
+  imagesRow: {
+    flexDirection: 'row',
+  },
+  videoPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
   },
   footer: {
     padding: 20,

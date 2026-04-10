@@ -152,6 +152,10 @@ const ReporterDashboardScreen = ({navigation}) => {
             <View style={[styles.imageWrapper, { backgroundColor: isDarkMode ? '#222' : '#F5F5F5' }]}>
               {item.images && item.images.length > 0 ? (
                 <Image source={{ uri: item.images[0] }} style={styles.newsImage} />
+              ) : item.videos && item.videos.length > 0 ? (
+                <View style={[styles.newsImage, styles.placeholderImage]}>
+                  <Icon name="video" size={28} color={isDarkMode ? '#888' : '#999'} />
+                </View>
               ) : (
                 <View style={[styles.newsImage, styles.placeholderImage]}>
                   <Icon name="image-off" size={24} color={isDarkMode ? '#444' : '#C2C2C2'} />
