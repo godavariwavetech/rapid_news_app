@@ -45,7 +45,7 @@ const NewsDetailScreen = ({route, navigation}) => {
     const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_${Date.now()}.jpg`;
     try {
       const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
-      const newsTitle = news?.content?.title || news?.title || '';
+      const newsTitle = news?.content?.title ?? news?.title ?? '';
       const message = `${newsTitle}\n\n${appUrl}`;
 
       console.log('[Share] viewShotRef exists:', !!viewShotRef?.current);
@@ -120,9 +120,9 @@ const NewsDetailScreen = ({route, navigation}) => {
                 {new Date(news.published_at).toLocaleDateString()}
               </Text>
             </View>
-            <Text style={[styles.title, {color: theme.text}]}>{news.content.title}</Text>
+            <Text style={[styles.title, {color: theme.text}]}>{news.content?.title || news.title || ''}</Text>
             <View style={[styles.divider, {backgroundColor: theme.textSecondary + '20'}]} />
-            <Text style={[styles.bodyText, {color: theme.text}]}>{news.content.body}</Text>
+            <Text style={[styles.bodyText, {color: theme.text}]}>{news.content?.body || news.body || ''}</Text>
           </View>
         </ScrollView>
       </ViewShot>

@@ -67,7 +67,8 @@ const handleNotificationNavigation = async (data, navigation) => {
     navigation.navigate('OrderDetails', { orderId: data.orderId });
   } else if (data.newsId || data.news_id || data.id) {
     const newsId = data.newsId || data.news_id || data.id;
-    store.dispatch(fetchArticleById(newsId));
+    // Await the fetch so the article is in Redux before NewsDetailScreen renders
+    await store.dispatch(fetchArticleById(newsId));
     navigation.navigate('NewsDetail', { newsId: newsId });
   }
 };
