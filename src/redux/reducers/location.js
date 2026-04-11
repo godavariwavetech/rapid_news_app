@@ -6,7 +6,9 @@ const initialState = {
   currentLocation: null, 
   states: [], 
   districts: [], 
-  villages: [], // Added villages to state
+  villages: [],
+  searchResults: [],
+  searchLoading: false,
   detectedAddress: null,
   loading: false,
   error: null,
@@ -64,6 +66,33 @@ export const getVillages = createAsyncThunk(
       const response = await api.get('/location/villages/', {
         params: { district_id: districtId }
       });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Search location by name or pincode
+export const searchLocation = createAsyncThunk(
+  'location/search',
+  async ({ q, pincode }, { rejectWithValue }) => {
+    try {
+      const params = pincode ? { pincode } : { q };
+      const response = await api.get('/location/search', { params, skipAuth: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// PATCH /users/my-location (auth required)
+export const updateMyLocation = createAsyncThunk(
+  'location/updateMyLocation',
+  async ({ state_id, district_id, village_id }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch('/users/my-location', { state_id, district_id, village_id });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -149,14 +178,29 @@ const locationSlice = createSlice({
       })
       .addCase(getVillages.fulfilled, (state, action) => {
         state.loading = false;
-        state.villages = action.payload; // Store fetched villages
+        state.villages = action.payload;
       })
       .addCase(getVillages.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+
+      // --- Search Location ---
+      .addCase(searchLocation.pending, (state) => {
+        state.searchLoading = true;
+        state.searchResults = [];
+        state.error = null;
+      })
+      .addCase(searchLocation.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchResults = action.payload;
+      })
+      .addCase(searchLocation.rejected, (state, action) => {
+        state.searchLoading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const { setManualLocation,setReporterTempToken } = locationSlice.actions;
+export const { setManualLocation, setReporterTempToken } = locationSlice.actions;
 export default locationSlice.reducer;

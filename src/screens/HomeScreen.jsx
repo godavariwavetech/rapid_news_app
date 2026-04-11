@@ -4,7 +4,6 @@ import {
   StyleSheet,
   StatusBar,
   Animated,
-  Dimensions,
   Platform,
   ToastAndroid,
   Alert,
@@ -19,17 +18,16 @@ import CommentsBottomSheet from '../components/CommentsBottomSheet';
 import OfflineFallback from '../components/OfflineFallback';
 import FlipNewsScreen from './FlipNewsScreen';
 import { getBookmarks } from '../redux/reducers/bookmarks';
-import { fetchFCMToken } from '../services/NotificationsService';
-import { postToken } from '../redux/reducers/auth';
-
-const {height: SCREEN_HEIGHT} = Dimensions.get('window');
+import { postToken, registerGuestFCM } from '../redux/reducers/auth';
+import notifee from '@notifee/react-native';
 
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   
   const { articles, categories, selectedCategory, loading, hasMore, currentPage, isLoadingMore, error } = useSelector(state => state.news);
-  const {currentLocation} = useSelector(state => state.location);
-
+  
+  // --- ADDED loading: locationLoading HERE ---
+  const {currentLocation, loading: locationLoading} = useSelector(state => state.location);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -42,14 +40,15 @@ function HomeScreen({navigation}) {
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
 
-  const shouldShowFallback = !loading && (!articles || articles.length === 0) && (error || !hasMore);
+  // --- ADDED !locationLoading CHECK HERE ---
+  const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && !!error;
 
   const displayLocationName = useMemo(() => {
     return (
       currentLocation?.village?.name?.te || 
       currentLocation?.village?.name?.en  ||
       currentLocation?.district?.name?.te || 
-       currentLocation?.district?.name?.en ||
+      currentLocation?.district?.name?.en ||
       'రాజమండ్రి'
     );
   }, [currentLocation]);
@@ -65,32 +64,60 @@ function HomeScreen({navigation}) {
       }
     }
 
-    dispatch(clearNews());
-    dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+    // --- ADDED currentLocation CHECK HERE ---
+    // Only fetch news if we have resolved the location
+    if (currentLocation) {
+      dispatch(clearNews());
+      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+    }
+
     dispatch(getBookmarks())
     sendToken()
+    notifee.requestPermission();
   }, [selectedCategory, currentLocation, dispatch]);
 
   const sendToken = async () =>{
-    
     const res = await dispatch(postToken())
     console.log(res,">>>>>>>>>>>>FCM RES");
+    dispatch(registerGuestFCM());
   }
 
-
-
   useEffect(() => {
-    if (!loading && articles && articles?.items?.length === 0 && selectedCategory !== 'all' && !error) {
-      const msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(msg, ToastAndroid.LONG);
-      } else {
-        Alert.alert("సమాచారం", msg);
-      }
-      dispatch(setSelectedCategory('all'));
-    }
-  }, [articles, loading, selectedCategory, error]);
+    const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;
+    if (!loading && articlesCount === 0 && !error) {
+      let shouldFallback = false;
+      let msg = "";
 
+      if (activeTab === 'LocationTab') {
+        msg = "ఈ ప్రాంతంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
+        shouldFallback = true;
+      } else if (selectedCategory !== 'all') {
+        msg = "ఈ వర్గంలో వార్తలు లేవు. అన్ని వార్తలను చూపిస్తున్నాము.";
+        shouldFallback = true;
+      }
+
+      if (shouldFallback) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(msg, ToastAndroid.SHORT);
+        } else {
+          Alert.alert("సమాచారం", msg);
+        }
+        
+        if (activeTab === 'LocationTab') {
+          setActiveTab('HomeTab');
+        }
+        
+        if (selectedCategory !== 'all') {
+          dispatch(setSelectedCategory('all'));
+        } else if (activeTab === 'LocationTab') {
+          setHeaderTitle('న్యూస్');
+          dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
+        }
+
+        if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+      }
+    }
+  }, [articles, loading, selectedCategory, activeTab, error, dispatch, currentLocation]);
 
   useEffect(() => {
     const handleBack = () => {
@@ -129,16 +156,25 @@ function HomeScreen({navigation}) {
   const handleTabPress = useCallback((tabId) => {
     if (tabId === 'CategoriesTab') {
       setCategoriesModalVisible(true);
-    }else if (tabId === 'LocationTab') {
-    setActiveTab(tabId);
-    dispatch(clearNews());
-    dispatch(fetchNews({
-      currentLocation, 
-      category: selectedCategory, 
-      page: 1, 
-      isLocationMode: true 
-    }));
-  } else {
+    } else if (tabId === 'LocationTab') {
+      setActiveTab(tabId);
+      setHeaderTitle(displayLocationName);
+      dispatch(clearNews());
+      dispatch(fetchNews({
+        currentLocation, 
+        category: selectedCategory, 
+        page: 1, 
+        isLocationMode: true 
+      }));
+      if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+    } else if (tabId === 'HomeTab') {
+      setActiveTab(tabId);
+      setHeaderTitle('న్యూస్');
+      dispatch(setSelectedCategory('all'));
+      dispatch(clearNews());
+      dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
+      if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
+    } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
         dispatch(clearNews());
@@ -146,15 +182,19 @@ function HomeScreen({navigation}) {
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
       }
     }
-  }, [selectedCategory, currentLocation]);
+  }, [selectedCategory, currentLocation, displayLocationName, dispatch]);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
 
-      {!shouldShowFallback && (
+     {!shouldShowFallback && (
         <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
-          <Header title={headerTitle} onProfilePress={() => navigation.navigate("Profile")}/>
+          <Header 
+            title={headerTitle} 
+            onProfilePress={() => navigation.navigate("Profile")}
+            onTogglePress={() => navigation.navigate("UnreadNewsScreen")} 
+          />
         </Animated.View>
       )}
 

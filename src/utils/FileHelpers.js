@@ -1,60 +1,52 @@
-import { Share, Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Alert, NativeModules } from 'react-native';
+import RNShare from 'react-native-share';
 import RNFetchBlob from 'rn-fetch-blob';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
 
-/**
- * Formats and shares news content
- * @param {string} title - The news headline
- * @param {string} body - The short description or body
- * @param {string} newsId - Unique ID to generate the link
- */
-export const handleShare = async (title, body, newsId) => {
-  try {
-    // Construct the formatted message
-    const shareLink = `https://yourapp.com/news/${newsId}`;
-    const message = `${title}\n\n${body}\n\nRead more at: ${shareLink}`;
+const { ScreenshotModule } = NativeModules;
 
-    const result = await Share.share({
-      title: title,
-      message: message,
-      url: shareLink, // iOS specific for link preview
+export const handleShare = async (title, newsId, imageUrl) => {
+  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const message = `${title}\n\n${appUrl}`;
+
+  try {
+    // Native PixelCopy — works on New Architecture / Fabric (RN 0.79)
+    const fileUri = await ScreenshotModule.capture();
+    // fileUri = "file:///data/user/0/com.rapidnews/cache/screenshot_xxx.jpg"
+    // CacheDir is covered by RNShare's FileProvider → auto-converted to content://
+    await RNShare.open({
+      title,
+      message,
+      url: fileUri,
+      type: 'image/jpeg',
+      failOnCancel: false,
     });
 
-    if (result.action === Share.sharedAction) {
-      if (result.activityType) {
-        // shared with activity type of result.activityType
-      } else {
-        // shared
-      }
-    } else if (result.action === Share.dismissedAction) {
-      // dismissed
+    // Clean up
+    RNFetchBlob.fs.unlink(fileUri.replace('file://', '')).catch(() => {});
+  } catch (err) {
+    console.log('[Share] screenshot failed:', err?.message);
+    // Fallback: share news image if available
+    if (imageUrl) {
+      const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_img_${Date.now()}.jpg`;
+      try {
+        await RNFetchBlob.config({ path: destPath, trusty: true }).fetch('GET', imageUrl);
+        await RNShare.open({ title, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
+        RNFetchBlob.fs.unlink(destPath).catch(() => {});
+        return;
+      } catch (_) {}
     }
-  } catch (error) {
-    console.error("Sharing Error:", error.message);
+    // Last resort: text only
+    try { await RNShare.open({ title, message, failOnCancel: false }); } catch (_) {}
   }
 };
 
-/**
- * Downloads image and saves to gallery
- */
 export const downloadImageToGallery = async (imageUrl) => {
   if (!imageUrl) return;
-
-//   if (Platform.OS === 'android' && Platform.Version < 33) {
-//     const granted = await PermissionsAndroid.request(
-//       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-//     );
-//     if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-//       Alert.alert("Permission Denied", "Storage access is needed to save images.");
-//       return;
-//     }
-//   }
-
   try {
     const { config, fs } = RNFetchBlob;
     const date = new Date();
     const filePath = `${fs.dirs.PictureDir}/News_${Math.floor(date.getTime())}.jpg`;
-
     const res = await config({
       fileCache: true,
       appendExt: 'jpg',
@@ -65,7 +57,6 @@ export const downloadImageToGallery = async (imageUrl) => {
         description: 'Downloading News Image',
       },
     }).fetch('GET', imageUrl);
-
     await CameraRoll.save(res.data, { type: 'photo' });
     Alert.alert("Success", "Image saved to gallery!");
   } catch (error) {

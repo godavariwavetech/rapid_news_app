@@ -3,14 +3,16 @@ import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { fonts } from '../config/theme';
 
 const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsets();
+  
   const tabs = [
     {
       id: 'HomeTab',
       icon: 'newspaper-variant',
-      label: 'స్వార్న్',
+      label: 'న్యూస్',
     },
     {
       id: 'CategoriesTab',
@@ -35,7 +37,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   ];
 
   return (
-    <View style={[styles.bottomTabBar,{paddingBottom:insets.bottom}]}>
+    <View style={[styles.bottomTabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
@@ -47,15 +49,16 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
             <View style={styles.iconContainer}>
               <Icon
                 name={tab.icon}
-                size={20}
-                color={isActive ? '#FFFFFF' : '#BBBBBB'}
+                size={22}
+                // Active: Greyish White | Inactive: Dimmed Grey
+                color={isActive ? '#E0E0E0' : '#888888'}
               />
             </View>
             <Text
-            numberOfLines={1}
+              numberOfLines={1}
               style={[
                 styles.tabLabel,
-                {color: isActive ? '#FFFFFF' : '#BBBBBB'},
+                { color: isActive ? '#E0E0E0' : '#888888' },
               ]}>
               {tab.label}
             </Text>
@@ -69,14 +72,18 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
 const styles = StyleSheet.create({
   bottomTabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingVertical: 6,
-    paddingBottom: 12,
+    paddingTop: 10,
     paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
+    backgroundColor: '#2C2C2C', // Fixed Greyish Black Background
+    elevation: 15, // Slightly higher elevation for a floating look
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   tabButton: {
     alignItems: 'center',
@@ -93,10 +100,12 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: responsiveFontSize(1.1),
-    fontWeight: '600',
+    fontSize: responsiveFontSize(2),
+    // fontWeight: '700',
+    fontFamily:fonts.bold,
     textAlign: 'center',
-    letterSpacing: 0.2,
+    // letterSpacing: 0.2,
+
   },
 });
 

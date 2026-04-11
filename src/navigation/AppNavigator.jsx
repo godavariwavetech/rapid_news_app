@@ -1,8 +1,34 @@
-import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import {NavigationContainer, useNavigationContainerRef} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {useSelector} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
+import { setupNotificationHandlers } from '../services/NotificationsService';
+import { AppState, Linking, Text, TextInput } from 'react-native'; // <--- ADD Text, TextInput HERE
+
+// ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
+const customTextProps = {
+  style: {
+    fontFamily: 'Ramabhadra', // Your global default font
+  },
+};
+
+// Apply to all Text components
+if (Text.defaultProps) {
+  Text.defaultProps.style = { ...Text.defaultProps.style, ...customTextProps.style };
+} else {
+  Text.defaultProps = customTextProps;
+}
+
+// Apply to all TextInput components
+if (TextInput.defaultProps) {
+  TextInput.defaultProps.style = { ...TextInput.defaultProps.style, ...customTextProps.style };
+} else {
+  TextInput.defaultProps = customTextProps;
+}
+
+// Import Store to check fresh state inside event listeners
+import { store } from '../redux/store'; 
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -32,6 +58,12 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import UnreadNewsScreen from '../screens/UnreadNewsScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
+import AboutUsScreen from '../screens/AboutUsScreen';
+
+import { endActivity, startActivity, updateGuestLastActiveDate } from '../redux/reducers/auth';
+import { fetchArticleById } from '../redux/reducers/news';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,12 +84,127 @@ function TabNavigator() {
 }
 
 function AppNavigator() {
+  const navigationRef = useNavigationContainerRef();
+  const dispatch = useDispatch();
   const isOnboardingComplete = useSelector(
     state => state.auth.isOnboardingComplete,
   );
+  
+  const currentLocation = useSelector(state => state.location?.currentLocation);
+  const appState = useRef(AppState.currentState);
+  const districtIdRef = useRef(currentLocation?.district?._id);
+  const sessionIdRef = useRef(null);
+
+  const serviceHandler = async () =>{
+    const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
+    if (response?.meta?.requestId) {
+      sessionIdRef.current = response.meta.requestId;
+    }
+  }
+
+  useEffect(() => {
+    districtIdRef.current = currentLocation?.district?._id;
+  }, [currentLocation]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (navigationRef.isReady()) {
+        setupNotificationHandlers(navigationRef);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [navigationRef]);
+
+  // Handle App State Changes (Background/Foreground)
+  useEffect(() => {
+    serviceHandler()
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // App comes to Foreground
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+       serviceHandler()
+      } 
+      // App goes to Background
+      else if (
+        appState.current === 'active' &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        // --- 1. Track Guest Last Active Date ---
+        // Using store.getState() prevents stale closure issues in the event listener
+        const currentAuthState = store.getState().auth;
+        if (!currentAuthState.userToken && !currentAuthState.reporterToken) {
+           dispatch(updateGuestLastActiveDate());
+        }
+
+        // --- 2. End Tracking Session ---
+        if (sessionIdRef.current) {
+          dispatch(endActivity({ session_id: sessionIdRef.current }));
+          sessionIdRef.current = null;
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [dispatch]);
+
+  // Deep Linking & Notification Handling
+  useEffect(() => {
+    const handleDeepLink = async (url) => {
+      if (!url) return;
+
+      let newsId = null;
+
+      // Handle custom scheme: rapidnews://news/<id>
+      if (url.startsWith('rapidnews://news/')) {
+        newsId = url.replace('rapidnews://news/', '');
+      }
+      // Handle HTTPS app link: https://godavariwave.in/news/<id>
+      else if (url.startsWith('https://godavariwave.in/news/')) {
+        newsId = url.replace('https://godavariwave.in/news/', '');
+      }
+
+      if (!newsId) return;
+
+      console.log('Deep link newsId:', newsId);
+
+      const resp = await dispatch(fetchArticleById(newsId));
+      const article = resp?.payload;
+
+      const navigateToNews = () => {
+        if (navigationRef.isReady()) {
+          // Navigate to Main first so back button works, then to NewsDetail
+          navigationRef.current.navigate('Main');
+          navigationRef.current.navigate('NewsDetail', {
+            newsId,
+            news: article,
+          });
+        } else {
+          setTimeout(navigateToNews, 300);
+        }
+      };
+      navigateToNews();
+    };
+
+    // App opened from killed state via link
+    Linking.getInitialURL().then(handleDeepLink);
+
+    // App in background, link clicked
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    return () => {
+      linkingSubscription.remove();
+    };
+  }, [dispatch, navigationRef]);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -219,10 +366,27 @@ function AppNavigator() {
           component={BookmarksScreen}
           options={{headerShown: false}}
         />
-             <Stack.Screen
+        <Stack.Screen
           name="NewsDetail"
           component={NewsDetailScreen}
           options={{headerShown: false}}
+        />
+
+        <Stack.Screen 
+          name="UnreadNewsScreen" 
+          component={UnreadNewsScreen} 
+          options={{ headerShown: false }} 
+        />
+        
+        <Stack.Screen 
+          name="PrivacyPolicy" 
+          component={PrivacyPolicyScreen} 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="AboutUs" 
+          component={AboutUsScreen} 
+          options={{ headerShown: false }} 
         />
       </Stack.Navigator>
     </NavigationContainer>

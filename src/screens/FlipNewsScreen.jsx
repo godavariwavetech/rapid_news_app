@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { View, Text, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator, AppState } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -12,10 +12,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSelector, useDispatch } from 'react-redux';
-import { viewNews } from '../redux/reducers/news'; 
+import { markNewsAsRead, fetchUnreadNewsCount } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
+import FastImage from 'react-native-fast-image';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
+import { lightTheme, darkTheme } from '../config/theme';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
 const formatTimeAgo = (dateString) => {
@@ -38,10 +41,10 @@ const formatTimeAgo = (dateString) => {
 };
 
 // --- SKELETON LOADING COMPONENT ---
-const NewsSkeleton = ({ height }) => {
-  const imageHeight = height * 0.45;
+const NewsSkeleton = ({ height, theme }) => {
+  const imageHeight = height * 0.40;
   return (
-    <View style={[styles.skeletonContainer, { height }]}>
+    <View style={[styles.skeletonContainer, { height, backgroundColor: theme?.background || '#FFF' }]}>
       <ShimmerLoader height={imageHeight} borderRadius={0} />
       <View style={styles.skeletonContent}>
         <ShimmerLoader height={30} borderRadius={4} />
@@ -63,21 +66,21 @@ const NewsSkeleton = ({ height }) => {
 
 // --- PHYSICS CONFIGURATION ---
 const SPRING_CONFIG = {
-  mass: 1,
-  damping: 40,
-  stiffness: 300,
+  mass: 0.6,
+  damping: 28,
+  stiffness: 220,
   overshootClamping: true,
   restDisplacementThreshold: 0.01,
-  restSpeedThreshold: 2,
+  restSpeedThreshold: 1,
 };
 
 // 1. Memoized Card
-const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true }) => {
+const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true, onAutoNext }) => {
   if (!newsItem) return null;
   return (
    <View style={{ height }}>
       {newsItem.type === 'SURVEY' ? (
-        <SurveyCard survey={newsItem} />
+        <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
       ) : (
         <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} />
       )}
@@ -86,15 +89,15 @@ const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, i
 }, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive);
 
 // 2. CardHalf
-const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true }) => {
+const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme, onAutoNext }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
   const isTop = side === 'top';
   return (
-  <View style={styles.halfCardContainer}>
-      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight }]}>
+  <View style={[styles.halfCardContainer, { backgroundColor: theme?.background || '#fff' }]}>
+      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: theme?.background || '#fff' }]}>
         {newsItem.type === 'SURVEY' ? (
-          <SurveyCard survey={newsItem} />
+          <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
         ) : (
           <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} />
         )}
@@ -104,17 +107,23 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 });
 
 // WRAP WITH FORWARD REF
-const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange }, ref) => {
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main' }, ref) => {
   const dispatch = useDispatch();
-  const { articles, loading, hasMore } = useSelector(state => state.news);
-    const {bookmarks} = useSelector(state => state.bookmarks);
   
+  // DYNAMIC REDUX SELECTION BASED ON feedType PROP
+  // <--- ADDED: Extract totalNews from Redux
+  const { articles, totalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  const {bookmarks} = useSelector(state => state.bookmarks);
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
+  const activeArticles = feedType === 'unread' ? unreadArticles : articles;
+  const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
+  const activeHasMore = feedType === 'unread' ? false : hasMore; 
   
-    const bookmarkedIds = useMemo(() => {
+  const bookmarkedIds = useMemo(() => {
     return bookmarks?.map(item => item.news?._id);
   }, [bookmarks]);
-  
-  // const isItemBookmarked = (newsId) => bookmarkedIds.includes(newsId);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -128,8 +137,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   }));
 
   const formattedNews = useMemo(() => {
-    const rawItems = articles?.items || (Array.isArray(articles) ? articles : []);
-    return rawItems.map(item => {
+    const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
+    
+    // <--- ADDED: index parameter in map
+    return rawItems.map((item, index) => {
       if (item.type === 'AD') {
         return {
           id: item.data._id,
@@ -140,9 +151,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
           likes: 0,
+          dislikes: 0,
           comments: 0,
           commentsEnabled: false,
           images: [], 
+          itemIndex: index + 1, // <--- ADDED: Current index
+          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
         };
       } 
       else if (item.type === 'SURVEY') {
@@ -152,11 +166,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         question: item.data.question,
         options: item.data.options,
         totalVotes: item.data.total_votes,
+        voted_option_id: item.data.voted_option_id,
+        user_voted: item.data.user_voted,
         isAd: false,
+        itemIndex: index + 1, // <--- ADDED: Current index
+        totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
       };
     }
       else {
-        const data = item.data;
+        const data = item.data || item; 
         return {
           id: data._id,
           type: 'NEWS',
@@ -167,9 +185,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           image: data.images?.length > 0 ? data.images[0] : null,
           images: data.images || [], 
           videos: data.videos || [],
+          external_links: data.external_links || [], 
           publishedAt: data.published_at,
           timeAgo: formatTimeAgo(data.published_at),
           likes: data?.reactions?.likes || 0,
+          dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
           reporter: data.reporter || {
@@ -180,10 +200,22 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           isLiked:data?.reactions?.my_reaction=="LIKE",
           isDisliked:data?.reactions?.my_reaction=="DISLIKE",
           isBookmarked: bookmarkedIds.includes(data._id),
+          itemIndex: index + 1, // <--- ADDED: Current index
+          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
         };
       }
     });
-  }, [articles]);
+  }, [activeArticles, bookmarkedIds, totalNews]); // <--- ADDED: totalNews in dependencies
+
+  // Preload all ad images as soon as the feed is ready
+  useEffect(() => {
+    const adImages = formattedNews
+      .filter(item => item.isAd && item.image)
+      .map(item => ({ uri: item.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
+    if (adImages.length > 0) {
+      FastImage.preload(adImages);
+    }
+  }, [formattedNews]);
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
@@ -191,21 +223,17 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
   
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const halfHeight = containerHeight / 2;
   const scrollY = useSharedValue(0);
+  const loaderY = useSharedValue(-60); 
   const isAnimating = useSharedValue(false);
   const swipeDirection = useSharedValue(0); 
 
   // Track availability of Next/Prev for Animation Logic
   const hasNext = useSharedValue(false);
   const hasPrev = useSharedValue(false);
-
-  const getIndex = useCallback((i) => {
-    if (!formattedNews || formattedNews.length === 0) return 0;
-    if (i < 0) return 0;
-    if (i >= formattedNews.length) return formattedNews.length - 1;
-    return i;
-  }, [formattedNews]);
 
   const currentNews = useMemo(() => formattedNews[currIndex], [currIndex, formattedNews]);
   
@@ -234,12 +262,67 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
-  // --- TRIGGER API CALL ON NEWS CHANGE ---
   useEffect(() => {
-    if (currentNews && currentNews.id && !currentNews.isAd) {
-      dispatch(viewNews(currentNews.id));
+    if (currIndex >= formattedNews.length && formattedNews.length > 0) {
+      setCurrIndex(0);
+      scrollY.value = 0;
+      swipeDirection.value = 0;
     }
-  }, [currentNews?.id, dispatch]);
+  }, [formattedNews.length, currIndex, scrollY, swipeDirection]);
+
+  // Handle hiding the loader once Redux `loading` is finished
+  useEffect(() => {
+    if (!activeLoading && isRefreshing) {
+      setIsRefreshing(false);
+      loaderY.value = withTiming(-60, { duration: 300 }); 
+    }
+  }, [activeLoading, isRefreshing]);
+
+  // --- Impression-based read tracking with batching ---
+  const readBatchRef = useRef(new Set());
+  const flushTimerRef = useRef(null);
+  const impressionTimerRef = useRef(null);
+
+  const flushReadBatch = useCallback(() => {
+    if (readBatchRef.current.size === 0) return;
+    const ids = Array.from(readBatchRef.current);
+    readBatchRef.current.clear();
+    dispatch(markNewsAsRead(ids));
+  }, [dispatch]);
+
+  // Flush on app background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'background' || state === 'inactive') {
+        flushReadBatch();
+      }
+    });
+    return () => {
+      sub.remove();
+      flushReadBatch(); // flush on unmount too
+      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
+      if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
+    };
+  }, [flushReadBatch]);
+
+  // Flush every 2s
+  useEffect(() => {
+    flushTimerRef.current = setInterval(flushReadBatch, 2000);
+    return () => clearInterval(flushTimerRef.current);
+  }, [flushReadBatch]);
+
+  // Track impression: ≥1s visible → add to batch, flush at 10 ids
+  useEffect(() => {
+    if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
+    if (!currentNews?.id || currentNews.isAd || feedType === 'unread') return;
+
+    impressionTimerRef.current = setTimeout(() => {
+      readBatchRef.current.add(currentNews.id);
+      if (readBatchRef.current.size >= 10) flushReadBatch();
+    }, 1000);
+
+    return () => clearTimeout(impressionTimerRef.current);
+  }, [currentNews?.id, currentNews?.isAd, feedType, flushReadBatch]);
 
   useEffect(() => {
     if (isSwitching) {
@@ -269,13 +352,49 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
 
   const triggerRefresh = () => {
+    setIsRefreshing(true);
+    loaderY.value = withSpring(20, SPRING_CONFIG); 
     if (onRefresh) onRefresh();
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
   
+  const isLoadingMoreRef = useRef(false);
+
   const triggerLoadMore = () => {
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
     if (onEndReached) onEndReached();
     scrollY.value = withSpring(0, SPRING_CONFIG); 
+  };
+
+  // Reset the guard once loading finishes
+  useEffect(() => {
+    if (!isLoadingMore && !loading) {
+      isLoadingMoreRef.current = false;
+    }
+  }, [isLoadingMore, loading]);
+
+  // --- AUTOMATIC SWIPE FUNCTION ---
+  const autoSwipeNext = () => {
+    if (isAnimating.value) return;
+
+    if (!hasNext.value) {
+        if (!activeHasMore && Platform.OS === 'android') {
+          ToastAndroid.show("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
+        }
+        triggerLoadMore();
+    } else {
+       isAnimating.value = true;
+       swipeDirection.value = 1; 
+       
+       scrollY.value = withTiming(
+         1, 
+         { duration: 180, easing: Easing.out(Easing.quad) }, 
+         (finished) => { 
+           if (finished) runOnJS(finishFlip)('next'); 
+         }
+       );
+    }
   };
 
   const pan = Gesture.Pan()
@@ -295,6 +414,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       }
       else if (!hasPrev.value && position < 0) {
         position = position / 3; 
+        
+        if (!isRefreshing) {
+          const dragY = e.translationY; 
+          loaderY.value = Math.min(-60 + (dragY * 0.4), 20); 
+        }
       }
 
       scrollY.value = position;
@@ -309,8 +433,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
-            // Toast logic for End of News
-            if (!hasMore && Platform.OS === 'android') {
+            if (!activeHasMore && Platform.OS === 'android') {
               runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
             }
             runOnJS(triggerLoadMore)();
@@ -319,20 +442,24 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
            swipeDirection.value = 1;
            scrollY.value = withTiming(
              1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, 
+             { duration: 180, easing: Easing.out(Easing.quad) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('next'); }
            );
         }
       } 
       else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
-           runOnJS(triggerRefresh)();
+           if (!isRefreshing) {
+              runOnJS(triggerRefresh)();
+           } else {
+              scrollY.value = withSpring(0, SPRING_CONFIG);
+           }
         } else {
            isAnimating.value = true;
            swipeDirection.value = -1;
            scrollY.value = withTiming(
              -1, 
-             { duration: 200, easing: Easing.out(Easing.cubic) }, 
+             { duration: 180, easing: Easing.out(Easing.quad) }, 
              (finished) => { if (finished) runOnJS(finishFlip)('prev'); }
            );
         }
@@ -340,6 +467,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       else {
         swipeDirection.value = 0;
         scrollY.value = withSpring(0, SPRING_CONFIG);
+        if (!isRefreshing && !hasPrev.value) {
+           loaderY.value = withSpring(-60, SPRING_CONFIG);
+        }
       }
     });
 
@@ -414,50 +544,78 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     opacity: interpolate(Math.abs(scrollY.value), [0, 0.5, 1], [0, 0.3, 0], Extrapolate.CLAMP),
   }));
 
-  // --- SKELETON RENDER LOGIC ---
-  if (loading && formattedNews.length === 0) {
+  const topLoaderStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: loaderY.value }],
+      opacity: interpolate(loaderY.value, [-60, 20], [0, 1], Extrapolate.CLAMP),
+    };
+  });
+
+  if (activeLoading && formattedNews.length === 0) {
      return (
-        <View style={styles.container} onLayout={onLayout}>
-           <NewsSkeleton height={containerHeight} />
+        <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
+           <NewsSkeleton height={containerHeight} theme={theme} />
         </View>
      );
   }
 
+  // ALL CAUGHT UP STATE
+  if (!activeLoading && formattedNews.length === 0) {
+    return (
+      <View style={[styles.container, styles.centerView, { backgroundColor: theme.background }]}>
+        <Icon name="check-all" size={60} color="#666" style={{ marginBottom: 15 }} />
+        <Text style={[styles.emptyText, { color: theme.text }]}>You're all caught up!</Text>
+      </View>
+    );
+  }
+
   if (!displayNews) {
-    return <View style={styles.container} onLayout={onLayout} />;
+    return <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout} />;
   }
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={styles.container} onLayout={onLayout}>
+        <Animated.View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
           
+          <Animated.View style={[styles.refreshLoaderContainer, topLoaderStyle]}>
+            <ActivityIndicator size="large" color="#4dabf5" />
+          </Animated.View>
+
+          {/* Bottom load-more indicator — shown when fetching next page from the last card */}
+          {isLoadingMore && !nextNews && (
+            <View style={styles.bottomLoaderContainer}>
+              <ActivityIndicator size="small" color="#4dabf5" />
+              <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>
+            </View>
+          )}
+
           {activeNextNews && (
              <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
-               <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} />
+               <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
           {activePrevNews && (
              <Animated.View style={[styles.absoluteFill, destinationPrevStyle]}>
-               <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} />
+               <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
 
           <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} />
+            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
           </Animated.View>
 
           <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} />
+            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
           </Animated.View>
 
           {nextNews && (
             <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
               <Animated.View style={[styles.face, nextFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.face, nextBackStyle]}>
-                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -466,10 +624,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {prevNews && (
             <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
               <Animated.View style={[styles.face, prevFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.face, prevBackStyle]}>
-                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} />
+                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -481,48 +639,20 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  absoluteFill: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  halfWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-  },
-  halfCardContainer: {
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-  },
-  innerContainer: {
-    position: 'absolute',
-    width: '100%',
-    left: 0,
-    backgroundColor: '#fff',
-  },
-  face: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-    backfaceVisibility: 'visible',
-  },
-  shadow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
-  },
-  skeletonContainer: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  skeletonContent: {
-    flex: 1,
-    padding: 20,
-  }
+  container: { flex: 1, backgroundColor: '#000' },
+  absoluteFill: { ...StyleSheet.absoluteFillObject },
+  halfWrapper: { position: 'absolute', left: 0, right: 0, overflow: 'hidden', backgroundColor: 'transparent' },
+  halfCardContainer: { flex: 1, overflow: 'hidden' },
+  innerContainer: { position: 'absolute', width: '100%', left: 0 },
+  face: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent', backfaceVisibility: 'visible' },
+  shadow: { ...StyleSheet.absoluteFillObject, backgroundColor: 'black' },
+  skeletonContainer: { flex: 1 },
+  skeletonContent: { flex: 1, padding: 20 },
+  centerView: { justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 18, fontWeight: '600' },
+  refreshLoaderContainer: { position: 'absolute', top: 60, alignSelf: 'center', backgroundColor: '#2C2C2C', borderRadius: 25, padding: 8, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, zIndex: 9999 },
+  bottomLoaderContainer: { position: 'absolute', bottom: 90, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2C2C2C', borderRadius: 25, paddingVertical: 8, paddingHorizontal: 16, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, zIndex: 9999 },
+  bottomLoaderText: { color: '#4dabf5', fontSize: 13, fontWeight: '600' },
 });
 
 export default FlipNewsScreen;

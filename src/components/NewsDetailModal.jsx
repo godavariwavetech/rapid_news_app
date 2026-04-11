@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,33 @@ import {
   Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Video from 'react-native-video';
 
 const { width } = Dimensions.get('window');
 
 const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   if (!newsItem) return null;
+
+  const [videoPaused, setVideoPaused] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const imageScrollRef = useRef(null);
+
+  const hasVideo = newsItem.videos && newsItem.videos.length > 0;
+  const videoUri = hasVideo ? newsItem.videos[0] : null;
+  const allImages = newsItem.images || [];
+  const title = newsItem.content?.te?.title || newsItem.content?.en?.title || newsItem.content?.title || '';
+  const body = newsItem.content?.te?.body || newsItem.content?.en?.body || newsItem.content?.body || '';
+
+  const handleScroll = (e) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+    setActiveIndex(index);
+  };
+
+  const handleClose = () => {
+    setVideoPaused(true);
+    setActiveIndex(0);
+    onClose();
+  };
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -51,36 +73,78 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
       animationType="slide"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           {/* Header with Close Button */}
           <View style={styles.modalHeader}>
             <Text style={styles.headerTitle}>వార్త వివరాలు</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <Icon name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Full Image */}
-            <View style={styles.imageContainer}>
-              {newsItem.images && newsItem.images.length > 0 ? (
-                <Image
-                  source={{ uri: newsItem.images[0] }}
-                  style={styles.fullImage}
-                  resizeMode="cover"
-                />
+            {/* Media: video takes priority, then image pager */}
+            <View style={styles.mediaContainer}>
+              {hasVideo ? (
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={styles.videoWrapper}
+                  onPress={() => setVideoPaused(p => !p)}>
+                  <Video
+                    source={{ uri: videoUri }}
+                    style={styles.fullMedia}
+                    resizeMode="cover"
+                    paused={videoPaused}
+                    repeat={false}
+                    onEnd={() => setVideoPaused(true)}
+                  />
+                  {videoPaused && (
+                    <View style={styles.playOverlay}>
+                      <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : allImages.length > 0 ? (
+                <>
+                  <ScrollView
+                    ref={imageScrollRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={handleScroll}
+                    style={styles.imagePager}>
+                    {allImages.map((uri, i) => (
+                      <Image
+                        key={i}
+                        source={{ uri }}
+                        style={styles.fullMedia}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                  {allImages.length > 1 && (
+                    <View style={styles.dotsContainer}>
+                      {allImages.map((_, i) => (
+                        <View
+                          key={i}
+                          style={[styles.dot, i === activeIndex && styles.dotActive]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </>
               ) : (
-                <View style={[styles.fullImage, styles.placeholderImage]}>
+                <View style={[styles.fullMedia, styles.placeholderImage]}>
                   <Icon name="image-off" size={40} color="#C2C2C2" />
                 </View>
               )}
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>{newsItem.content?.title}</Text>
+            <Text style={styles.title}>{title}</Text>
 
             {/* Meta Info Row */}
             <View style={styles.metaRow}>
@@ -92,9 +156,7 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
 
             {/* Full Body */}
             <View style={styles.bodyContainer}>
-              <Text style={styles.bodyText}>
-                {newsItem.content?.body}
-              </Text>
+              <Text style={styles.bodyText}>{body}</Text>
             </View>
           </ScrollView>
         </View>
@@ -135,18 +197,50 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
   },
-  imageContainer: {
+  mediaContainer: {
     width: '100%',
     height: 250,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#000',
   },
-  fullImage: {
+  imagePager: {
     width: '100%',
     height: '100%',
+  },
+  videoWrapper: {
+    width: '100%',
+    height: '100%',
+  },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  fullMedia: {
+    width,
+    height: 250,
   },
   placeholderImage: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  dotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 18,
   },
   title: {
     fontSize: 20,

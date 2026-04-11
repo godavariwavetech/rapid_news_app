@@ -11,6 +11,11 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import com.sitinews.CustomNewsPackage
+
+// IMPORTANT: If your CustomNewsPackage is NOT in the "com.rapidnews" 
+// folder, you will need to import it here. For example:
+// import com.youractualfolder.CustomNewsPackage 
 
 class MainApplication : Application(), ReactApplication {
 
@@ -20,6 +25,8 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
+              
+              add(CustomNewsPackage()) // <-- Your custom module is registered here
             }
 
         override fun getJSMainModuleName(): String = "index"

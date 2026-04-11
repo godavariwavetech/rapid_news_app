@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, StatusBar, Image } from 'react-native';
 import Animated, { 
   useSharedValue, 
@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { applogo } from '../assets';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
+import { fetchNews } from '../redux/reducers/news'; 
 
 const SplashScreen = ({ navigation }) => {
   const dispatch = useDispatch()
@@ -19,31 +20,48 @@ const SplashScreen = ({ navigation }) => {
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
-
+  const watchIdRef = useRef(null);
 
   const handleNavigation = () => {
     navigation.replace('Main');
-    // if (!isOnboardingComplete) {
-    //   navigation.replace('LanguageSelection');
-    // } else if (isAuthenticated) {
-    //   navigation.replace('Main');
-    // } else {
-    //   navigation.replace('Main');
-    // }
   };
 
-  
-      const fetchLocationAreas = async () => {
-        try {
-          const position = await LocationService.getLocation();
-          dispatch(
-            resolveLocation({
-              latitude: position.coords?.latitude,
-              longitude: position.coords?.longitude,
-            }),
-          );
-        } catch (error) {}
-      };
+  const fetchLocationAreas = async () => {
+    try {
+      // 1. Get the device location (Lat, Long)
+      const position = await LocationService.getLocation();
+      
+      // 2. Resolve those coordinates to your backend location IDs (Village, District, State)
+      const resolvedLocation = await dispatch(
+        resolveLocation({
+          latitude: position.coords?.latitude,
+          longitude: position.coords?.longitude,
+        }),
+      ).unwrap(); 
+
+      // 3. Fetch news using the resolved current location
+      const newsResult = await dispatch(
+        fetchNews({ currentLocation: resolvedLocation, isLocationMode: true })
+      ).unwrap();
+
+      // 4. Extract the news items array and check if it's empty
+      const newsItems = Array.isArray(newsResult.data) 
+        ? newsResult.data 
+        : (newsResult.data?.items || []);
+
+      if (newsItems.length === 0) {
+        console.log('No news found for this location. Fetching with default/static location.');
+        // If the array is empty, call fetchNews without arguments.
+        // (This triggers the static fallback location defined in your Redux thunk)
+        dispatch(fetchNews());
+      }
+
+    } catch (error) {
+      console.log('Location permission denied or an error occurred:', error);
+      // If the user denied permission or GPS is off, fetch default news
+      dispatch(fetchNews());
+    }
+  };
 
   useEffect(() => {
     // Logo Animation: Bounce in
@@ -74,7 +92,7 @@ const SplashScreen = ({ navigation }) => {
       {/* Light content status bar looks best on Blue */}
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       
-      {/* BACKGROUND: The Royal Blue Gradient you liked */}
+      {/* BACKGROUND: The Royal Blue Gradient */}
       <LinearGradient
         colors={['#1e3c72', '#2a5298']} 
         style={StyleSheet.absoluteFill}
@@ -84,11 +102,6 @@ const SplashScreen = ({ navigation }) => {
 
       {/* Logo Section */}
       <Animated.View style={[styles.logoContainer, animatedLogoStyle]}>
-        
-        {/* FIX: White Background Circle
-            This ensures the logo sits on White, preventing it 
-            from mixing with the Blue background. 
-        */}
         <View style={styles.logoCircle}>
           <Image 
             source={applogo} 
@@ -96,7 +109,6 @@ const SplashScreen = ({ navigation }) => {
             resizeMode="contain" 
           />
         </View>
-
       </Animated.View>
 
       {/* Footer Text */}
@@ -112,7 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1e3c72', // Fallback color
+    backgroundColor: '#1e3c72',
   },
   logoContainer: {
     marginBottom: 0,
@@ -125,16 +137,15 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 200, 
     height: 200,
-    // Pure White Background to protect the logo
     backgroundColor: '#FFFFFF', 
-    borderRadius: 100, // Perfectly round
+    borderRadius: 100, 
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 30, // Padding keeps the logo away from the blue edge
+    padding: 10, // Adjusted padding to 10 so logo is larger
   },
   logoImage: {
-    width: '100%',
-    height: '100%',
+    width: '90%',
+    height: '90%',
   },
   footer: {
     position: 'absolute',

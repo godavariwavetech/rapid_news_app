@@ -1,25 +1,31 @@
-import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
+import { NativeModules, Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
+import { fetchArticleById } from '../redux/reducers/news';
+import { store } from '../redux/store';
+
+const { CustomNewsNotification } = NativeModules;
+
+// 1. Export the background handler separately for Headless JS (Killed State)
+export const backgroundMessageHandler = async (remoteMessage) => {
+  console.log(">>>>>>>>>>>>>>>HELLOMessage Background/Killed", remoteMessage);
+  await displayCustomNotification(remoteMessage);
+};
 
 export const setupNotificationHandlers = (navigation) => {
+  console.log("<><><><><><><><><><><>Notifications setup");
+  
   // Foreground notifications
-  console.log("<><><><><><><><><><><>")
   messaging().onMessage(async remoteMessage => {
-    console.log(">>>>>>>>>>>>>>>HELLOMessage")
-    displayNotification(remoteMessage.notification);
+    console.log(">>>>>>>>>>>>>>>HELLOMessage Foreground", remoteMessage);
+    displayCustomNotification(remoteMessage);
   });
 
-  // Background/Quit state notifications
-  messaging().setBackgroundMessageHandler(async remoteMessage => {
-    displayNotification(remoteMessage.notification);
-  });
-
-  // Notification opened handler
+  // Notification opened handler (When user taps the notification in background)
   messaging().onNotificationOpenedApp(remoteMessage => {
     handleNotificationNavigation(remoteMessage.data, navigation);
   });
 
-  // Check if app was opened from notification
+  // Check if app was opened from notification (Cold boot / Killed state)
   messaging().getInitialNotification().then(remoteMessage => {
     if (remoteMessage) {
       handleNotificationNavigation(remoteMessage.data, navigation);
@@ -27,46 +33,43 @@ export const setupNotificationHandlers = (navigation) => {
   });
 };
 
-const displayNotification = async (notification) => {
+const displayCustomNotification = async (remoteMessage) => {
+  console.log(remoteMessage,">>>>>>>>>>>>>>>>>>>>REMOTE NOTIFICATION");
+  if(!remoteMessage?.data) return
   try {
-    await notifee.displayNotification({
-      title: notification.title,
-      body: notification.body,
-      android: {
-        channelId: 'default4',
-        important:true,
-        importance:AndroidImportance.HIGH,
-        color: '#065E2C', 
-        colorized: true,  
-        style: {
-          type: AndroidStyle.BIGTEXT,
-          text: notification.body,
-        },
-        // Add custom text appearance
-        pressAction: {
-          id: 'default',
-          launchActivity: 'default',
-        },
-      },
-      ios: {
-        foregroundPresentationOptions: {
-          badge: true,
-          sound: true,
-          banner: true,
-          list: true,
-        },
-      },
-    });
+    // If using Data-Only messages (as you should), extract from data
+    const title = remoteMessage.data?.title || remoteMessage.notification?.title || 'New Update';
+    const body = remoteMessage.data?.body || remoteMessage.notification?.body || '';
+    
+    if (CustomNewsNotification && CustomNewsNotification.show) {
+      if (Platform.OS === 'android') {
+        // You can dynamically pass the title/body if needed, or use your hardcoded values
+        const newsHtml = `<b><font color="#ffffff">${title}</font></b>`;
+        const newsId = remoteMessage.data?.newsId || remoteMessage.data?.news_id || remoteMessage.data?.id || '98765'; 
+
+        CustomNewsNotification.show(newsHtml, newsId);
+      } else {
+        // iOS implementation
+      }
+    } else {
+      console.warn("CustomNewsNotification is not linked or the method name is incorrect.");
+    }
+
   } catch (error) {
-    console.error('Error displaying notification:', error);
+    console.error('Error displaying custom native notification:', error);
   }
 };
 
-const handleNotificationNavigation = (data, navigation) => {
+const handleNotificationNavigation = async (data, navigation) => {
+  if (!data) return;
+
   if (data.type === 'order_update') {
     navigation.navigate('OrderDetails', { orderId: data.orderId });
+  } else if (data.newsId || data.news_id || data.id) {
+    const newsId = data.newsId || data.news_id || data.id;
+    store.dispatch(fetchArticleById(newsId));
+    navigation.navigate('NewsDetail', { newsId: newsId });
   }
-  // Add more navigation handlers as needed
 };
 
 export const fetchFCMToken = async () => {
@@ -79,26 +82,12 @@ export const fetchFCMToken = async () => {
 }; 
 
 export const getFCMToken = async () => {
-  const token = await messaging().getToken();
-  console.log(token)
-  messaging().onMessage(async (remoteMessage) => {
-    await notifee.createChannel({
-      id: 'default1',
-      name: 'Default Channel',
-      importance: AndroidImportance.HIGH, // Ensures high priority notifications
-      sound: 'default', // You can add a custom sound here
-      vibration: true,
-    });
-    console.log(">>>>>>>>>>>>>MESSAGECALLING",remoteMessage)
-    await notifee.displayNotification({
-      title: remoteMessage.notification.title,
-      body: remoteMessage.notification.body,
-      android: {
-        channelId: "default1",
-        importance: AndroidImportance.HIGH,
-      },
-    });
-  });
-
- return token
+  try {
+    const token = await messaging().getToken();
+    console.log("FCM Token:", token);
+    return token;
+  } catch (error) {
+    console.error('Error getting FCM token in getFCMToken:', error);
+    return null;
+  }
 };

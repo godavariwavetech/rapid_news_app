@@ -15,9 +15,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
+import { useTheme } from '../context/ThemeContext';
 
 const LanguageSelectionScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const [selectedLanguage, setSelectedLanguage] = useState('telugu');
   const insets = useSafeAreaInsets()
   
@@ -30,7 +32,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
       icon: 'తě',
       name: 'తెలుగు',
       englishName: 'Telugu',
-      color: '#FFE5F1',
+      color: isDarkMode ? '#2D1A24' : '#FFE5F1',
       iconColor: '#FF1493',
     },
     {
@@ -38,7 +40,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
       icon: 'த',
       name: 'தமிழ்',
       englishName: 'Tamil',
-      color: '#E8F5E9',
+      color: isDarkMode ? '#1A2D1F' : '#E8F5E9',
       iconColor: '#4CAF50',
     },
     {
@@ -46,7 +48,7 @@ const LanguageSelectionScreen = ({navigation, route}) => {
       icon: 'ಕ',
       name: 'ಕನ್ನಡ',
       englishName: 'Kannada',
-      color: '#E3F2FD',
+      color: isDarkMode ? '#1A222D' : '#E3F2FD',
       iconColor: '#2196F3',
     },
   ];
@@ -60,8 +62,6 @@ const LanguageSelectionScreen = ({navigation, route}) => {
   };
 
   const handleContinue = () => {
-    // Save language preference here if needed
-    // You can dispatch an action to save the selected language
     dispatch(completeOnboarding());
     navigation.replace('Main');
   };
@@ -81,8 +81,8 @@ const LanguageSelectionScreen = ({navigation, route}) => {
   
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       
       <View style={styles.wrapper}>
         <ScrollView 
@@ -93,12 +93,12 @@ const LanguageSelectionScreen = ({navigation, route}) => {
           {/* Close Button - Only show when not onboarding */}
           {!isOnboarding && (
             <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Icon name="close" size={28} color="#999" />
+              <Icon name="close" size={28} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
 
           {/* Title */}
-          <Text style={styles.title}>Choose your preferred language{'\n'}to read the news</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Choose your preferred language{'\n'}to read the news</Text>
 
           {/* Language Options */}
           <View style={styles.languageList}>
@@ -109,7 +109,8 @@ const LanguageSelectionScreen = ({navigation, route}) => {
                   key={language.id}
                   style={[
                     styles.languageCard,
-                    isSelected && styles.languageCardSelected,
+                    { backgroundColor: theme.background, borderColor: isDarkMode ? '#333' : '#E8EAED' },
+                    isSelected && [styles.languageCardSelected, { borderColor: theme.primary, backgroundColor: isDarkMode ? '#1E1A1A' : '#FFFBFB' }],
                   ]}
                   onPress={() => handleLanguageSelect(language.id)}
                   activeOpacity={0.7}>
@@ -119,12 +120,12 @@ const LanguageSelectionScreen = ({navigation, route}) => {
                     </Text>
                   </View>
                   <View style={styles.languageInfo}>
-                    <Text style={styles.languageName}>{language.name}</Text>
-                    <Text style={styles.languageEnglishName}>{language.englishName}</Text>
+                    <Text style={[styles.languageName, { color: theme.text }]}>{language.name}</Text>
+                    <Text style={[styles.languageEnglishName, { color: theme.textSecondary }]}>{language.englishName}</Text>
                   </View>
                   {isSelected && (
-                    <View style={styles.checkmark}>
-                      <Icon name="check" size={20} color="#FFFFFF" />
+                    <View style={[styles.checkmark, { backgroundColor: theme.primary }]}>
+                      <Icon name="check" size={20} color={isDarkMode ? '#000' : "#FFFFFF"} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -135,12 +136,12 @@ const LanguageSelectionScreen = ({navigation, route}) => {
 
         {/* Continue Button - Only show during onboarding */}
         {isOnboarding && (
-          <View style={[styles.buttonContainer,{marginBottom:insets.bottom}]}>
+          <View style={[styles.buttonContainer,{marginBottom:insets.bottom, backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
             <TouchableOpacity 
-              style={styles.continueButton}
+              style={[styles.continueButton, { backgroundColor: theme.primary }]}
               onPress={handleContinue}
               activeOpacity={0.8}>
-              <Text style={styles.continueButtonText}>Continue</Text>
+              <Text style={[styles.continueButtonText, { color: isDarkMode ? '#000' : '#FFF' }]}>Continue</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -152,7 +153,6 @@ const LanguageSelectionScreen = ({navigation, route}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   wrapper: {
     flex: 1,
@@ -174,7 +174,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A',
     textAlign: 'center',
     paddingHorizontal: 40,
     paddingTop: 60,
@@ -188,16 +187,11 @@ const styles = StyleSheet.create({
   languageCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#E8EAED',
   },
-  languageCardSelected: {
-    borderColor: '#FF3B30',
-    backgroundColor: '#FFFBFB',
-  },
+  languageCardSelected: { },
   iconContainer: {
     width: 56,
     height: 56,
@@ -216,31 +210,25 @@ const styles = StyleSheet.create({
   languageName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 2,
   },
   languageEnglishName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
   },
   checkmark: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonContainer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   continueButton: {
-    backgroundColor: '#FF3B30',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -249,7 +237,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
 });
 

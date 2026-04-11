@@ -42,16 +42,20 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 	<key>UIAppFonts</key>
 	<array>
+		<string>Iphone_Keyboard.ttf</string>
+		<string>Abn.ttf</string>
 		<string>DMSansBold.ttf</string>
 		<string>DMSansMedium.ttf</string>
 		<string>DMSansRegular.ttf</string>
+		<string>DvpPriyanka.ttf</string>
+		<string>IphoneKeyboard.ttf</string>
+		<string>Priyaanka.ttf</string>
+		<string>Ramabhadra.ttf</string>
 	</array>
 </dict>
 </plist>

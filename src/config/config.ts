@@ -10,6 +10,7 @@ export const endpoints = {
   
   RESOLVE_LOCATION: 'location/resolve',
   GET_NEWS_FEED: 'news/feed',
+  GET_ARTICLE: 'news/article/:id',
   GUEST_REACT_LIKE: 'reactions',
   VIEW_NEWS:'views/news/:id',
 
@@ -41,5 +42,8 @@ export const endpoints = {
 
   GOOGLE_LOGIN:'users/google-login',
   POST_FCM_TOKEN:'users/register-fcm',
-  FEEDBACK: 'feedback'
+  FEEDBACK: 'feedback',
+  START_ACTIVITY: 'activity/start',
+  END_ACTIVITY: 'activity/end',
+  REGISTER_GUEST: 'users/register-guest'
 };

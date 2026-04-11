@@ -18,12 +18,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getComments, postComment } from '../redux/reducers/news';
+import { lightTheme, darkTheme } from '../config/theme';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
   
   // Selectors for news data
   const { currentComments, isLoadingComments, isPostingComment } = useSelector(
@@ -31,7 +34,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   );
 
   // Selectors for authentication status
-  const { isAuthenticated, userToken, reporterToken, reporter,user } = useSelector(
+  const { isAuthenticated, userToken, reporterToken, reporter, user } = useSelector(
     state => state.auth
   );
 
@@ -39,7 +42,7 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   const [modalVisible, setModalVisible] = useState(visible);
   
   // Logic to determine if the user is logged in
-  const hasToken = userToken || reporterToken || isAuthenticated;
+  const hasToken = !!(userToken || reporterToken || isAuthenticated);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const opacity = useRef(new Animated.Value(0)).current; 
@@ -89,16 +92,8 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
   };
 
   const handleSendComment = () => {
-    // Stop the user if no token is found
-    if (!hasToken) {
-      Alert.alert(
-        'Login Required',
-        'Please login to post a comment.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    // Stop the user if no token is found (Fallback safeguard)
+    if (!hasToken) return;
     if (!commentText.trim()) return;
 
     dispatch(postComment({ newsId, text: commentText }))
@@ -135,101 +130,112 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
           { transform: [{translateY}] },
         ]}>
         
-        <View style={styles.sheetContent}>
-          <View style={styles.handleBarContainer}>
-             <View style={styles.handleBar} />
+        <View style={[styles.sheetContent, { backgroundColor: theme.background }]}>
+          <View style={[styles.handleBarContainer, { backgroundColor: theme.background }]}>
+             <View style={[styles.handleBar, { backgroundColor: isDarkMode ? '#444' : '#DDD' }]} />
           </View>
 
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardContainer}>
-            
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <TouchableOpacity style={styles.backButton} onPress={handleClose}>
-                  <Icon name="arrow-left" size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {newsTitle || 'Comments'}
-                </Text>
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardContainer}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+                <View style={styles.headerLeft}>
+                  <TouchableOpacity style={styles.backButton} onPress={handleClose}>
+                    <Icon name="arrow-left" size={24} color={theme.text} />
+                  </TouchableOpacity>
+                  <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+                    {newsTitle || 'Comments'}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            {isLoadingComments ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2196F3" />
-              </View>
-            ) : (
-              <ScrollView
-                style={styles.content}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}>
-                
-                {currentComments && currentComments.length > 0 ? (
-                  currentComments.map((comment, index) => {
-                    const isSame= comment?.user?._id ==reporter?._id
-                    const userName = comment.user?.name || 'User';
-                    const userInitial = userName.charAt(0).toUpperCase();
-                    const timeString = comment.createdAt 
-                      ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                      : '';
+              {isLoadingComments ? (
+                <View style={[styles.loadingContainer, { backgroundColor: isDarkMode ? '#121212' : '#F5F6F8' }]}>
+                  <ActivityIndicator size="large" color={theme.primary} />
+                </View>
+              ) : (
+                <ScrollView
+                  style={[styles.content, { backgroundColor: isDarkMode ? '#121212' : '#F5F6F8' }]}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  showsVerticalScrollIndicator={false}>
+                  
+                  {currentComments && currentComments.length > 0 ? (
+                    currentComments.map((comment, index) => {
+                      const isSame = comment?.user?._id === reporter?._id;
+                      const userName = comment.user?.name || 'User';
+                      const userInitial = userName.charAt(0).toUpperCase();
+                      const timeString = comment.createdAt 
+                        ? new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                        : '';
 
-                    return (
-                      <View key={comment._id || index} style={styles.commentCard}>
-                        <View style={styles.commentLeft}>
-                          <View style={[styles.avatar, {backgroundColor: '#E8D5F5'}]}>
-                            <Text style={styles.avatarText}>{userInitial}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.commentRight}>
-                          <View style={[styles.commentBubble, {backgroundColor: '#F5F6F8'}]}>
-                            <View style={styles.commentHeader}>
-                              <Text style={styles.username}>{userName} {isSame&& '(You)'}</Text>
+                      return (
+                        <View key={comment._id || index} style={styles.commentCard}>
+                          <View style={styles.commentLeft}>
+                            <View style={[styles.avatar, {backgroundColor: isDarkMode ? '#333' : '#E8D5F5'}]}>
+                              <Text style={[styles.avatarText, { color: isDarkMode ? '#FFF' : '#333' }]}>{userInitial}</Text>
                             </View>
-                            <Text style={styles.commentText}>{comment.text}</Text>
                           </View>
 
-                          <View style={styles.commentActions}>
-                            <Text style={styles.commentTime}>{timeString}</Text>
+                          <View style={styles.commentRight}>
+                            <View style={[styles.commentBubble, {backgroundColor: isDarkMode ? '#222' : '#F5F6F8'}]}>
+                              <View style={styles.commentHeader}>
+                                <Text style={[styles.username, { color: theme.text }]}>{userName} {isSame && '(You)'}</Text>
+                              </View>
+                              <Text style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</Text>
+                            </View>
+
+                            <View style={styles.commentActions}>
+                              <Text style={[styles.commentTime, { color: theme.textSecondary }]}>{timeString}</Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No comments yet.</Text>
-                  </View>
-                )}
-              </ScrollView>
-            )}
+                      );
+                    })
+                  ) : (
+                    <View style={styles.emptyContainer}>
+                      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No comments yet.</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
 
-            {/* Guarded Input Container */}
-            <View style={[styles.inputContainer, {marginBottom: insets.bottom}]}>
-              <TextInput
-                style={[styles.input, !hasToken && { backgroundColor: '#f0f0f0' }]}
-                placeholder={hasToken ? "Write a comment..." : "Login to comment"}
-                placeholderTextColor="#999"
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                editable={hasToken!= null} // Disable typing if not authenticated
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton, 
-                  (!commentText.trim() || !hasToken) && { backgroundColor: '#ccc' }
-                ]}
-                onPress={handleSendComment}
-                disabled={isPostingComment || !commentText.trim() || !hasToken}
-                activeOpacity={0.8}>
-                {isPostingComment ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Icon name="send" size={24} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
+              {/* Guarded Input Container */}
+              {!hasToken ? (
+                <View style={[styles.loginPromptContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 16) }]}>
+                  <Icon name="lock-outline" size={22} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.loginPromptText, { color: theme.textSecondary }]}>
+                    Please login to post a comment
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.inputContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 12) }]}>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: isDarkMode ? '#222' : '#F5F6F8', color: theme.text }]}
+                    placeholder="Write a comment..."
+                    placeholderTextColor={isDarkMode ? '#666' : '#999'}
+                    value={commentText}
+                    onChangeText={setCommentText}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.sendButton, 
+                      (!commentText.trim()) && { backgroundColor: '#ccc' }
+                    ]}
+                    onPress={handleSendComment}
+                    disabled={isPostingComment || (hasToken && !commentText.trim())}
+                    activeOpacity={0.8}>
+                    {isPostingComment ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Icon name="send" size={24} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -254,7 +260,6 @@ const styles = StyleSheet.create({
   },
   sheetContent: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -266,12 +271,10 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
   },
   handleBar: {
     width: 40,
     height: 4,
-    backgroundColor: '#DDD',
     borderRadius: 2,
   },
   header: {
@@ -281,8 +284,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    backgroundColor: '#FFFFFF',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -297,25 +298,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
     flex: 1,
   },
   content: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
   },
   loadingContainer: {
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center',
-    backgroundColor: '#F5F6F8',
   },
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
   },
   emptyText: {
-    color: '#999',
     fontSize: 14,
   },
   commentCard: {
@@ -336,7 +333,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
   },
   commentRight: {
     flex: 1,
@@ -355,11 +351,9 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   commentText: {
     fontSize: 14,
-    color: '#333',
   },
   commentActions: {
     flexDirection: 'row',
@@ -370,26 +364,37 @@ const styles = StyleSheet.create({
   },
   commentTime: {
     fontSize: 12,
-    color: '#999',
   },
+  
+  // Login Prompt Styles
+  loginPromptContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  loginPromptText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
     gap: 12,
   },
   input: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#333',
     maxHeight: 100,
   },
   sendButton: {

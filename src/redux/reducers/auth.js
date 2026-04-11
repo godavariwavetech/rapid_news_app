@@ -6,14 +6,14 @@ import { Platform } from 'react-native';
 
 const initialState = {
   isOnboardingComplete: false,
-  user:null,
+  user: null,
   reporter: null,
   isAuthenticated: false,
-  reporterToken:null,
-  userToken:null,
+  reporterToken: null,
+  userToken: null,
   isActive: true,
+  guestLastActiveDate: null, // <--- ADDED: Store the last active date for guests
 };
-
 
 export const requestOTP = createAsyncThunk(
   'auth/requestOTP',
@@ -22,7 +22,6 @@ export const requestOTP = createAsyncThunk(
       const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload);
       return response;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>LOGIN");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -33,10 +32,8 @@ export const verifyOTP = createAsyncThunk(
   async (payload, {getState, rejectWithValue}) => {
     try {
       const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -54,10 +51,8 @@ export const applyReporter = createAsyncThunk(
         }
       };
       const response = await api.post(endpoints.APPLY_REPORTER, payload, config);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -67,12 +62,9 @@ export const getProfile = createAsyncThunk(
   'auth/getProfile',
   async (_, {getState, rejectWithValue}) => {
     try {
-      console.log(">>>>>>>>>>>>>CALLING");
       const response = await api.get(endpoints.GET_USER_PROFILE);
-      console.log(response,">>>>>>>>>>>>>>>responseeeeennenn LOGIN");
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>>>>>>>>>>>>>ERR");
       return rejectWithValue(error.response?.data || error.message);
     }
   },
@@ -81,12 +73,8 @@ export const getProfile = createAsyncThunk(
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (payload, { rejectWithValue }) => {
-    console.log("Called here>>>>>>>>>>>>");
     try {
-      // endpoints.GET_USER_PROFILE maps to 'users/my-profile'
       const response = await api.patch(endpoints.GET_USER_PROFILE, payload);
-
-      console.log(response,">>>>>>>>>>responseeeeee update profile");
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -100,7 +88,6 @@ export const userLogin = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const response = await api.post(endpoints.GOOGLE_LOGIN, payload);
-      console.log(response,">>>>>>>>>>>>>Responseeee>>>>>>>>>>>>");
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -120,7 +107,6 @@ export const postToken = createAsyncThunk(
         device_type: Platform.OS?.toUpperCase(),
       };
       const response = await api.post(endpoints.POST_FCM_TOKEN, payload);
-      console.log(response,"TOKEN RESPONSEE");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -128,7 +114,70 @@ export const postToken = createAsyncThunk(
   },
 );
 
+export const registerGuestFCM = createAsyncThunk(
+  'auth/registerGuestFCM',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      // Only proceed for guest users (no userToken and no reporterToken)
+      const { userToken, reporterToken } = state.auth;
+      if (userToken || reporterToken) return;
 
+      const fcm_token = await fetchFCMToken();
+      if (!fcm_token) return;
+
+      const currentLocation = state.location?.currentLocation;
+      const preferred_language = state.settings?.language || 'te';
+
+      const payload = {
+        fcm_token,
+        device_type: Platform.OS?.toUpperCase(),
+        location: {
+          state_id: currentLocation?.state?._id,
+          district_id: currentLocation?.district?._id,
+          village_id: currentLocation?.village?._id,
+        },
+        preferred_language,
+      };
+
+
+      console.log(payload,">>>>>>>>>>>>>>>GUUEST USER FCM");
+      const response = await api.post(endpoints.REGISTER_GUEST, payload, { skipAuth: true });
+      console.log(response,">>>>>>>>>>>>>>>>> GUEST FCM REST");
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+export const startActivity = createAsyncThunk(
+  'auth/startActivity',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.START_ACTIVITY, payload);
+      return response.data;
+    } catch (error) {
+      console.log(error, "ERROR Starting Activity");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+export const endActivity = createAsyncThunk(
+  'auth/endActivity',
+  async (payload, { rejectWithValue }) => {
+    try {
+      console.log(">>>>>>>>>>>Responseee>>>>>>>>>>>>>>>PAYLOAD",payload);
+      const response = await api.post(endpoints.END_ACTIVITY, payload);
+      console.log(response,">>>RESP");
+      return response.data;
+    } catch (error) {
+      console.log(error, "ERROR Ending Activity");
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -141,49 +190,64 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.isAuthenticated = true;
     },
-   logout: (state) => {
+    logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       state.isActive = null;
       state.reporter = null;
-      state.reporterToken=null
+      state.reporterToken = null;
     },
-    clearReporter:(state)=>{
-      state.reporter=null,
-      state.reporterToken=null
+    clearReporter:(state) => {
+      state.reporter = null;
+      state.reporterToken = null;
+    },
+    // <--- ADDED: Reducer to update guest's last active date
+    updateGuestLastActiveDate: (state, action) => {
+      // If a specific date string is passed, use it. Otherwise, default to current time.
+      state.guestLastActiveDate = action.payload || new Date().toISOString();
     }
   },
-    extraReducers: builder => {
-      builder
-        .addCase(verifyOTP.pending, state => {
-          state.loading = true;
-          state.error = null;
-        })
-        .addCase(verifyOTP.fulfilled, (state, action) => {
-          state.loading = false;
-          if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
-            state.reporter = action.payload?.user?.reporter_profile;
-             state.reporterToken = action.payload?.token;
-          }
-        })
-        .addCase(verifyOTP.rejected, (state, action) => {
-          state.loading = false;
-          state.error = action.error.message || 'Failed to fetch news';
-        })
-        .addCase(getProfile.fulfilled, (state, action) => {
-          state.loading = false;
-          state.isActive = action.payload?.is_active;
-          state.reporter=action.payload
-        })
-        .addCase(userLogin.fulfilled, (state, action) => {
-          console.log(action.payload,">>>>>>>>>>>>>PREEPPEPEPEPEP");
-          state.loading = false;
-          state.user=action.payload.user
-          state.userToken=action.payload.token
-        })
-    },
+  extraReducers: builder => {
+    builder
+      .addCase(requestOTP.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(requestOTP.fulfilled, state => {
+        state.loading = false;
+      })
+      .addCase(requestOTP.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to send OTP';
+      })
+      .addCase(verifyOTP.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyOTP.fulfilled, (state, action) => {
+        state.loading = false;
+        if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
+          state.reporter = action.payload?.user?.reporter_profile;
+          state.reporterToken = action.payload?.token;
+        }
+      })
+      .addCase(verifyOTP.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch news';
+      })
+      .addCase(getProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isActive = action.payload?.is_active;
+        state.reporter = action.payload;
+      })
+      .addCase(userLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.userToken = action.payload.token;
+      });
+  },
 });
 
-export const {completeOnboarding, setUser, logout, clearReporter} = authSlice.actions;
+export const { completeOnboarding, setUser, logout, clearReporter, updateGuestLastActiveDate } = authSlice.actions; // <--- ADDED EXPORT
 export default authSlice.reducer;

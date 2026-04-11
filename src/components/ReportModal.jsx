@@ -4,8 +4,9 @@ import {
   Modal, KeyboardAvoidingView, Platform, Alert, ActivityIndicator 
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { reportNews } from '../redux/reducers/news';
+import { lightTheme, darkTheme } from '../config/theme';
 
 const REPORT_REASONS = [
   { label: "Fake News", value: "FAKE_NEWS" },
@@ -18,11 +19,23 @@ const REPORT_REASONS = [
 
 const ReportModal = ({ visible, onClose, newsId }) => {
   const dispatch = useDispatch();
+  
+  // Theme State
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
+  // --- ADDED: Auth State Check ---
+  const { isAuthenticated, userToken, reporterToken } = useSelector(state => state.auth);
+  const hasToken = !!(userToken || reporterToken || isAuthenticated);
+
   const [reason, setReason] = useState(null);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleReport = async () => {
+    // Extra safeguard
+    if (!hasToken) return;
+
     if (!reason) {
       Alert.alert("సమాచారం", "దయచేసి ఒక కారణాన్ని ఎంచుకోండి (Select a reason)");
       return;
@@ -38,7 +51,7 @@ const ReportModal = ({ visible, onClose, newsId }) => {
       setReason(null);
       setMessage('');
     } else {
-      Alert.alert("Error", result?.payload?.message);
+      Alert.alert("Error", result?.payload?.message || "Failed to submit report");
     }
   };
 
@@ -47,52 +60,83 @@ const ReportModal = ({ visible, onClose, newsId }) => {
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={styles.sheet}
+          style={[styles.sheet, { backgroundColor: theme.background }]}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Report this Content</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Report this Content</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>దయచేసి కారణాన్ని ఎంచుకోండి:</Text>
-          
-          <View style={styles.grid}>
-            {REPORT_REASONS.map((item) => (
-              <TouchableOpacity
-                key={item.value}
-                style={[styles.chip, reason === item.value && styles.activeChip]}
-                onPress={() => setReason(item.value)}
+          {/* Conditional Rendering: Check if user is logged in */}
+          {!hasToken ? (
+            <View style={styles.loginPromptContainer}>
+              <Icon name="lock-outline" size={56} color={theme.textSecondary} style={{ marginBottom: 16 }} />
+              <Text style={[styles.loginPromptText, { color: theme.textSecondary }]}>
+                Please login to report this content
+              </Text>
+              <TouchableOpacity 
+                style={[styles.submitBtn, { backgroundColor: isDarkMode ? theme.primary : '#1a1a1a', width: '100%', marginTop: 10 }]} 
+                onPress={onClose}
               >
-                <Text style={[styles.chipText, reason === item.value && styles.activeChipText]}>
-                  {item.label}
-                </Text>
+                <Text style={styles.submitText}>Okay</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          ) : (
+            <>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>దయచేసి కారణాన్ని ఎంచుకోండి:</Text>
+              
+              <View style={styles.grid}>
+                {REPORT_REASONS.map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.chip, 
+                      { backgroundColor: isDarkMode ? '#2A2A2A' : '#f9f9f9', borderColor: isDarkMode ? '#333' : '#eee' }, 
+                      reason === item.value && styles.activeChip
+                    ]}
+                    onPress={() => setReason(item.value)}
+                  >
+                    <Text style={[
+                      styles.chipText, 
+                      { color: isDarkMode ? '#CCC' : '#555' }, 
+                      reason === item.value && styles.activeChipText
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Tell us more about the issue (Optional)..."
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={4}
-            value={message}
-            onChangeText={setMessage}
-          />
+              <TextInput
+                style={[styles.input, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F2F2F2', color: theme.text }]}
+                placeholder="Tell us more about the issue (Optional)..."
+                placeholderTextColor={isDarkMode ? '#666' : '#999'}
+                multiline
+                numberOfLines={4}
+                value={message}
+                onChangeText={setMessage}
+              />
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, !reason && styles.disabledBtn]} 
-            onPress={handleReport}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.submitText}>Submit Report</Text>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.submitBtn, 
+                  { backgroundColor: isDarkMode ? theme.primary : '#1a1a1a' }, 
+                  !reason && styles.disabledBtn
+                ]} 
+                onPress={handleReport}
+                disabled={submitting || !reason}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitText}>Submit Report</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -101,7 +145,7 @@ const ReportModal = ({ visible, onClose, newsId }) => {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
+  sheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 22, fontWeight: '800', color: '#1a1a1a' },
   label: { fontSize: 14, color: '#666', marginBottom: 15, fontWeight: '600' },
@@ -114,6 +158,20 @@ const styles = StyleSheet.create({
   submitBtn: { backgroundColor: '#1a1a1a', marginTop: 25, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: Platform.OS === 'ios' ? 20 : 0 },
   disabledBtn: { backgroundColor: '#ccc' },
   submitText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  
+  // ADDED: Login Prompt Styles
+  loginPromptContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+  },
+  loginPromptText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
 });
 
 export default ReportModal;

@@ -20,6 +20,8 @@ import {createNews, updateNews} from '../../redux/reducers/news';
 import { Buffer } from 'buffer';
 import api from '../../utils/api';
 import axios from 'axios';
+import RNFetchBlob from 'rn-fetch-blob';
+import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -27,39 +29,54 @@ const STATUS_BAR_HEIGHT =
 const Step4ReviewScreen = ({navigation, route}) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const {reporter} = useSelector(state => state.auth);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Destructure new params: isEditing and newsId
-  const {location, headline, description, category, image, isEditing, newsId, apiPayload} = route.params;
+  // Destructure params
+  const {location, headline, description, category, image, images, video, isEditing, newsId, apiPayload} = route.params;
 
-  const uploadToS3 = async (imageAsset) => {
-    if (!imageAsset || !imageAsset.base64) return imageAsset?.uri || null;
+  const uploadToS3 = async (asset, mediaType = 'image') => {
+    if (!asset) return null;
+    // Already a remote URL (editing case), no upload needed
+    if (asset.uri?.startsWith('http')) return asset.uri;
+
+    const isVideo = mediaType === 'video';
+    const defaultExt = isVideo ? 'mp4' : 'jpg';
+    const defaultMime = isVideo ? 'video/mp4' : 'image/jpeg';
+    const mimeType = asset.type || defaultMime;
 
     try {
-      // 1. Get Pre-signed URL
+      // 1. Get signed URL from server
       const response = await api.post('media/upload-url', {
-        filename: imageAsset.fileName || `news_${Date.now()}.jpg`,
-        type: imageAsset.type || 'image/jpeg',
+        filename: asset.fileName || `news_${Date.now()}.${defaultExt}`,
+        type: mimeType,
         reporterId: reporter?._id,
       });
-
       const { signedUrl } = response.data.data;
-      const binaryData = Uint8Array.from(Buffer.from(imageAsset.base64, 'base64'));
-      const uploadResult = await axios.put(signedUrl, binaryData, {
-          headers: { 
-            'Content-Type': imageAsset.type || 'image/jpeg',
-            'Content-Disposition': 'attachment'
-          },
-          
-          transformRequest: [(data) => data], 
+
+      // 2. Upload — use base64 for images, RNFetchBlob file stream for videos
+      if (!isVideo && asset.base64) {
+        const binaryData = Uint8Array.from(Buffer.from(asset.base64, 'base64'));
+        const uploadResult = await axios.put(signedUrl, binaryData, {
+          headers: { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
+          transformRequest: [(data) => data],
           timeout: 120000,
         });
-
-      if (uploadResult.status === 200) {
-        return signedUrl.split('?')[0];
+        if (uploadResult.status !== 200) return null;
+      } else {
+        // For video (or image without base64): read from local file path and upload
+        const localPath = asset.uri.replace('file://', '');
+        const uploadResult = await RNFetchBlob.fetch(
+          'PUT',
+          signedUrl,
+          { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
+          RNFetchBlob.wrap(localPath),
+        );
+        if (uploadResult.respInfo.status !== 200) return null;
       }
-      return null;
+
+      return signedUrl.split('?')[0];
     } catch (error) {
       console.error('S3 Upload Error:', error);
       return null;
@@ -70,29 +87,37 @@ const Step4ReviewScreen = ({navigation, route}) => {
     setIsSubmitting(true);
     let finalPayload = { ...apiPayload };
 
-    // Handle Image Upload if it's a new image (has base64)
-    if (image && image.base64) {
-      const s3Url = await uploadToS3(image);
-      if (!s3Url) {
+    // Upload all images in parallel
+    const allImages = images && images.length > 0 ? images : (image ? [image] : []);
+    if (allImages.length > 0) {
+      const uploadedUrls = await Promise.all(allImages.map(img => uploadToS3(img, 'image')));
+      const validUrls = uploadedUrls.filter(Boolean);
+      if (validUrls.length === 0 && allImages.some(img => img.base64)) {
         setIsSubmitting(false);
-        Alert.alert('Upload Failed', 'Could not upload image to S3. Please try again.');
+        Alert.alert('Upload Failed', 'Could not upload images. Please try again.');
         return;
       }
-      finalPayload.images = [s3Url];
+      finalPayload.images = validUrls;
+    }
+
+    // Upload video if present
+    if (video) {
+      const videoUrl = await uploadToS3(video, 'video');
+      if (!videoUrl) {
+        setIsSubmitting(false);
+        Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
+        return;
+      }
+      finalPayload.videos = [videoUrl];
     }
 
     let response;
-    // Check if we are in Edit Mode
     if (isEditing && newsId) {
-      // Dispatch Update Action
       response = await dispatch(updateNews({
         id: newsId,
         payload: finalPayload
       }));
-
-      console.log(response,">>>>>>>>>>>>>>RESPONSEEEEEE");
     } else {
-      // Dispatch Create Action
       response = await dispatch(createNews(finalPayload));
     }
 
@@ -117,77 +142,91 @@ const Step4ReviewScreen = ({navigation, route}) => {
         ]
       );
     } else {
-      Alert.alert('Failed', 'Something went wrong', [
-        {
-          text: 'OK',
-        },
-      ]);
+      Alert.alert('Failed', 'Something went wrong', [{ text: 'OK' }]);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
+          <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
-        {/* Dynamic Header Title */}
-        <Text style={styles.headerTitle}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
-        <Text style={styles.stepIndicator}>3 / 3</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
+        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>3 / 3</Text>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Location</Text>
-          <View style={styles.infoCard}>
-            <Icon name="map-marker" size={20} color="#666" />
-            <Text style={styles.infoText}>{location}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Location</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Icon name="map-marker" size={20} color={theme.textSecondary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>{location}</Text>
           </View>
         </View>
 
         {/* Category */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Category</Text>
-          <View style={styles.infoCard}>
-            <Icon name="folder-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>{category}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Category</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Icon name="folder-outline" size={20} color={theme.textSecondary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>{category}</Text>
           </View>
         </View>
 
         {/* Headline */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Headline</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.contentText}>{headline}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Headline</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Text style={[styles.contentText, { color: theme.text }]}>{headline}</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Description</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.contentText}>{description}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Description</Text>
+          <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+            <Text style={[styles.contentText, { color: theme.text }]}>{description}</Text>
           </View>
         </View>
 
-        {/* Image */}
-        {image && (
+        {/* Media preview */}
+        {(images && images.length > 0) || image || video ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Image</Text>
-            <Image source={{uri: image.uri || image}} style={styles.previewImage} />
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              Media {images && images.length > 1 ? `(${images.length} images)` : ''}
+            </Text>
+            {video ? (
+              <View style={[styles.videoPreview, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+                <Icon name="video" size={28} color="#FF6B35" />
+                <Text style={[styles.infoText, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                  {video.fileName || 'video.mp4'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesRow}>
+                {(images && images.length > 0 ? images : [image]).map((img, i) => (
+                  <Image
+                    key={i}
+                    source={{ uri: img?.uri || img }}
+                    style={[styles.previewImage, i > 0 && { marginLeft: 10 }]}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
-        )}
+        ) : null}
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={[styles.footer, {marginBottom: insets.bottom}]}>
+      <View style={[styles.footer, {marginBottom: insets.bottom, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -207,10 +246,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -218,7 +254,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
   },
   backButton: {
     padding: 4,
@@ -228,11 +263,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   stepIndicator: {
     fontSize: 16,
-    color: '#999',
   },
   content: {
     flex: 1,
@@ -243,36 +276,41 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#999',
     marginBottom: 10,
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F6F8',
     padding: 16,
     borderRadius: 12,
     gap: 12,
   },
   infoText: {
     fontSize: 15,
-    color: '#333',
     fontWeight: '600',
   },
   contentText: {
     fontSize: 15,
-    color: '#333',
     lineHeight: 22,
   },
   previewImage: {
-    width: '100%',
-    height: 200,
+    width: 200,
+    height: 160,
     borderRadius: 12,
+  },
+  imagesRow: {
+    flexDirection: 'row',
+  },
+  videoPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
   },
   submitButton: {
     backgroundColor: '#4CAF50',
@@ -293,86 +331,3 @@ const styles = StyleSheet.create({
 });
 
 export default Step4ReviewScreen;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#FFFFFF',
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     paddingTop: STATUS_BAR_HEIGHT + 10,
-//     paddingHorizontal: 16,
-//     paddingBottom: 12,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#E8EAED',
-//   },
-//   backButton: {
-//     padding: 4,
-//     marginRight: 12,
-//   },
-//   headerTitle: {
-//     flex: 1,
-//     fontSize: 18,
-//     fontWeight: '700',
-//     color: '#1A1A1A',
-//   },
-//   stepIndicator: {
-//     fontSize: 16,
-//     color: '#999',
-//   },
-//   content: {
-//     flex: 1,
-//   },
-//   section: {
-//     padding: 20,
-//   },
-//   sectionLabel: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#999',
-//     marginBottom: 10,
-//   },
-//   infoCard: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#F5F6F8',
-//     padding: 16,
-//     borderRadius: 12,
-//     gap: 12,
-//   },
-//   infoText: {
-//     fontSize: 15,
-//     color: '#333',
-//     fontWeight: '600',
-//   },
-//   contentText: {
-//     fontSize: 15,
-//     color: '#333',
-//     lineHeight: 22,
-//   },
-//   previewImage: {
-//     width: '100%',
-//     height: 200,
-//     borderRadius: 12,
-//   },
-//   footer: {
-//     padding: 20,
-//     borderTopWidth: 1,
-//     borderTopColor: '#E8EAED',
-//   },
-//   submitButton: {
-//     backgroundColor: '#4CAF50',
-//     paddingVertical: 16,
-//     borderRadius: 12,
-//     alignItems: 'center',
-//   },
-//   submitButtonText: {
-//     fontSize: 16,
-//     fontWeight: '700',
-//     color: '#FFFFFF',
-//   },
-// });
-
-// export default Step4ReviewScreen;

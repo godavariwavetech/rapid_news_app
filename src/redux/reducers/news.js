@@ -45,6 +45,17 @@ const initialState = {
   isSubmittingFeedback: false,
   feedbackSuccess: false,
   feedbackError: null,
+
+  notificationArticle: null,
+
+  // --- Unread News State ---
+  unreadArticles: [],
+  isLoadingUnread: false,
+  unreadError: null,
+  
+  // --- Unread Count State (Added for Header Badge) ---
+  unreadCount: 0,
+  totalNews: 0,
 };
 
 // --- ASYNC THUNKS ---
@@ -55,7 +66,11 @@ export const fetchNews = createAsyncThunk(
   async (arg = 'all', { getState, rejectWithValue }) => {
     let category = 'all';
     let page = 1;
-    let location = {};
+    let location = {
+      village_id: "697d8135322a103bdabf0fc7",
+        district_id: "697d8135322a103bdabf0fc5",
+        state_id: "697d8135322a103bdabf0fc3",
+    };
     let isLocationMode = false;
 
     if (typeof arg === 'object') {
@@ -69,8 +84,11 @@ export const fetchNews = createAsyncThunk(
       };
     }
 
+
     try {
       const deviceId = await getUniqueId();
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
 
       // Prepare base parameters
       const queryParams = {
@@ -79,25 +97,49 @@ export const fetchNews = createAsyncThunk(
         state_id: location.state_id,
         lang: 'te',
         page: page,
-        limit: 5,
+        limit: 10,
         category_id: category !== 'all' ? category : undefined,
       };
+
+
+
+
+      console.log(queryParams,">>>>>>>>>>>>>>QUERY PARAMSSSSSSSS");
 
       if (isLocationMode && location.village_id) {
         queryParams['feed_mode'] = "village";
       }
 
+      const config = { params: queryParams };
+      if (!hasToken) {
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
 
-      const response = await api.get(endpoints.GET_NEWS_FEED, {
-        params: queryParams,
-        headers: {
+      const response = await api.get(endpoints.GET_NEWS_FEED, config);
+
+      console.log(response,">>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>response.data");
+
+      return { data: response.data, page }; 
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 1.1 Fetch Article By Id
+export const fetchArticleById = createAsyncThunk(
+  'news/fetchArticleById',
+  async (id, { rejectWithValue }) => {
+    try {
+      const deviceId = await getUniqueId();
+      const url = endpoints.GET_ARTICLE.replace(':id', id);
+      const response = await api.get(url,{},{
+         headers: {
           'x-device-id': deviceId
         }
       });
-
-      console.log(response.data,">>>>>>>>>>>>>>>>>>>>>>response.data");
-
-      return { data: response.data, page }; 
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -136,7 +178,6 @@ export const updateNews = createAsyncThunk(
   async ({ id, payload }, { rejectWithValue }) => {
     try {
       const url = endpoints.UPDATE_NEWS.replace(':id', id);
-      console.log(url,">>>>>>>>>>>>>>URLLL",payload);
       const response = await api.patch(url, payload); 
       return response.data;
     } catch (error) {
@@ -148,14 +189,23 @@ export const updateNews = createAsyncThunk(
 // 5. React to News (Like/Dislike)
 export const reactToNews = createAsyncThunk(
   'news/reactToNews',
-  async ({ newsId, type }, { rejectWithValue }) => {
+  async ({ newsId, type }, { getState, rejectWithValue }) => {
     try {
-      console.log({ newsId, type },">>>>>>>>>>>>>>>REACTION PAYLOADDDDD");
-      const deviceId = await getUniqueId();
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
       const payload = { news_id: newsId, type: type };
-      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload,{
-        headers: { 'x-device-id': deviceId }
-      }); 
+      console.log(payload,">>>>>>>>>>>>>>>>>>PAYLOADDDDDD><>>>>>>>>>>>>> React TO News");
+
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config); 
+
+      console.log(response,'>>>>>>>>>>>>>>>>>>>Responseeeeeeee Displain');
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -235,24 +285,38 @@ export const getReporterNews = createAsyncThunk(
   }
 );
 
-
 export const reportNews = createAsyncThunk(
   'news/reportNews',
-  async ({ newsId, reason, message }, { rejectWithValue }) => {
+  async ({ newsId, reason, message }, { getState, rejectWithValue }) => {
     try {
-      console.log(newsId,reason,message,">>>>>>>>>>>>>>>>>>>MESSAGEEEEEE",`${endpoints.REPORT_NEWS}/${newsId}`);
+      // 1. Check if the user is logged in by looking for a token in the auth state
+      const state = getState();
+      const hasToken = state.auth?.userToken || state.auth?.reporterToken;
+      
+      // 2. Prepare custom headers
+      const headers = {};
+      
+      if (!hasToken) {
+        // If there is NO token, send the device ID and strip the Authorization header
+        const deviceId = await getUniqueId();
+        headers['x-device-id'] = deviceId;
+        headers['Authorization'] = ''; // Overrides any default Authorization header
+      }
+
+      // 3. Make the API call with dynamic headers
       const response = await api.post(`${endpoints.REPORT_NEWS}/${newsId}`, {
         reason,
         message
+      }, {
+        headers
       });
+      
       return response.data;
     } catch (error) {
-      console.log(error,">>>>>>ERRRRR");
       return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
-
 
 export const postFeedback = createAsyncThunk(
   'news/postFeedback',
@@ -263,6 +327,121 @@ export const postFeedback = createAsyncThunk(
       const response = await api.post(endpoints.FEEDBACK, { message },  {headers: {
           'x-device-id': deviceId
         }});
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Fetch Unread News
+export const fetchUnreadNews = createAsyncThunk(
+  'news/fetchUnreadNews',
+  async (lastSeenAt, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const location = state.location?.currentLocation || {};
+      const deviceId = await getUniqueId();
+
+      const queryParams = {
+        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
+        last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      const response = await api.get('/news/unread', {
+        params: queryParams,
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// --- Fetch Unread News Count (For Guests & Users) ---
+export const fetchUnreadNewsCount = createAsyncThunk(
+  'news/fetchUnreadNewsCount',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const { guestLastActiveDate } = state.auth;
+      const location = state.location?.currentLocation || {};
+      const deviceId = await getUniqueId();
+
+      let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const queryParams = {
+        last_seen_at: lastSeenAt,
+        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
+      };
+
+      const response = await api.get('/news/unread/count', {
+        params: queryParams,
+        headers: {
+          'x-device-id': deviceId
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const submitSurveyVote = createAsyncThunk(
+  'news/submitSurveyVote',
+  async ({ surveyId, optionId }, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+      
+      const payload = { option_index: optionId };
+      let config = {};
+
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config = {
+          headers: {
+            'x-device-id': deviceId
+          },
+          skipAuth: true
+        };
+      }
+
+      const response = await api.post(`/surveys/${surveyId}/vote`, payload, config); 
+
+      console.log(response,">>>>>>>>>>>>>>SURVEY>>>>>>>>>>>>>>>>>>>");
+      
+      return { surveyId, optionId, data: response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// --- Mark Articles as Read (batched) ---
+export const markNewsAsRead = createAsyncThunk(
+  'news/markNewsAsRead',
+  async (newsIds, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+      const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -317,22 +496,133 @@ const newsSlice = createSlice({
         state.isLoadingMore = false;
         state.currentPage = page;
 
-        const incomingItems = Array.isArray(data) ? data : (data.items || []);
+        const pagination = data?.pagination;
+
+        // Page 1: show today's count. Page 2+: show full total
+        if (pagination) {
+          if (page === 1 && pagination.today_total_news != null) {
+            state.totalNews = pagination.today_total_news;
+          } else if (pagination.total_news != null) {
+            state.totalNews = pagination.total_news;
+          }
+          // hasMore: there are still items beyond what we've loaded
+          state.hasMore = pagination.end != null && pagination.total_news != null
+            ? pagination.end < pagination.total_news
+            : false;
+        } else {
+          state.hasMore = false;
+        }
+
+        let incomingItems = Array.isArray(data) ? data : (data.items || []);
+        
         if (page === 1) {
-          state.articles = data;
+          if (state.notificationArticle) {
+            const article = state.notificationArticle;
+            const filtered = incomingItems.filter(item => 
+              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+            );
+            incomingItems = [article, ...filtered];
+            
+            if (Array.isArray(data)) {
+              state.articles = incomingItems;
+            } else {
+              state.articles = { ...data, items: incomingItems };
+            }
+          } else {
+            state.articles = data;
+          }
         } else {
           if (Array.isArray(state.articles)) {
-             state.articles = [...state.articles, ...incomingItems];
+            const existingIds = new Set(state.articles.map(i => i.data?._id || i._id));
+            const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            state.articles = [...state.articles, ...unique];
           } else if (state.articles?.items) {
-             state.articles.items = [...state.articles.items, ...incomingItems];
+            const existingIds = new Set(state.articles.items.map(i => i.data?._id || i._id));
+            const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            state.articles.items = [...state.articles.items, ...unique];
           }
         }
-        state.hasMore = incomingItems.length > 0;
       })
       .addCase(fetchNews.rejected, (state, action) => {
         state.loading = false;
         state.isLoadingMore = false;
         state.error = action.payload || 'Failed to fetch news';
+      })
+
+      // --- Fetch Article By Id ---
+      .addCase(fetchArticleById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchArticleById.fulfilled, (state, action) => {
+        state.loading = false;
+        let article = action.payload;
+        
+        if (!article.data) {
+          article = { data: article, type: 'NEWS' };
+        }
+
+        state.notificationArticle = article;
+
+        if (Array.isArray(state.articles)) {
+          const filtered = state.articles.filter(item => 
+            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+          );
+          state.articles = [article, ...filtered];
+        } else if (state.articles?.items) {
+          const filtered = state.articles.items.filter(item => 
+            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+          );
+          state.articles.items = [article, ...filtered];
+        } else {
+          state.articles = [article];
+        }
+      })
+      .addCase(fetchArticleById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch article';
+      })
+
+      // --- React To News (Optimistic Update) ---
+      .addCase(reactToNews.pending, (state, action) => {
+        const { newsId, type } = action.meta.arg;
+        
+        const updateReactionCount = (itemsList) => {
+          if (!Array.isArray(itemsList)) return;
+          
+          const index = itemsList.findIndex(item => (item.data ? item.data._id === newsId : item._id === newsId));
+          
+          if (index !== -1) {
+            let target = itemsList[index].data || itemsList[index];
+            
+            if (!target.reactions) {
+              target.reactions = { likes: 0, dislikes: 0, my_reaction: null };
+            }
+            
+            const prevReaction = target.reactions.my_reaction;
+            
+            if (prevReaction === 'LIKE') {
+              target.reactions.likes = Math.max(0, (target.reactions.likes || 0) - 1);
+            } else if (prevReaction === 'DISLIKE') {
+              target.reactions.dislikes = Math.max(0, (target.reactions.dislikes || 0) - 1);
+            }
+            
+            if (type === 'LIKE') {
+              target.reactions.likes = (target.reactions.likes || 0) + 1;
+            } else if (type === 'DISLIKE') {
+              target.reactions.dislikes = (target.reactions.dislikes || 0) + 1;
+            }
+            
+            target.reactions.my_reaction = type === 'NONE' ? null : type;
+          }
+        };
+
+        if (state.articles?.items) updateReactionCount(state.articles.items);
+        else if (Array.isArray(state.articles)) updateReactionCount(state.articles);
+        
+        updateReactionCount(state.unreadArticles);
+        updateReactionCount(state.reporterNews);
+        if (state.notificationArticle) updateReactionCount([state.notificationArticle]);
       })
 
       // --- Get Categories ---
@@ -345,12 +635,20 @@ const newsSlice = createSlice({
           ? action.payload 
           : (action.payload.items || []);
       })
-      .addCase(getCategories.rejected, (state, action) => {
-        state.loadingCategories = false;
-        console.log("Error fetching categories:", action.payload);
+
+      // --- Get Reporter News (ADDED) ---
+      .addCase(getReporterNews.pending, (state) => {
+        state.isLoadingReporterNews = true;
+      })
+      .addCase(getReporterNews.fulfilled, (state, action) => {
+        state.isLoadingReporterNews = false;
+        state.reporterNews = Array.isArray(action.payload) ? action.payload : (action.payload?.items || action.payload?.data || []);
+      })
+      .addCase(getReporterNews.rejected, (state) => {
+        state.isLoadingReporterNews = false;
       })
 
-      // --- Create News ---
+      // --- Create News (ADDED) ---
       .addCase(createNews.pending, (state) => {
         state.isCreatingNews = true;
         state.createNewsSuccess = false;
@@ -362,10 +660,10 @@ const newsSlice = createSlice({
       })
       .addCase(createNews.rejected, (state, action) => {
         state.isCreatingNews = false;
-        state.createNewsError = action.payload;
+        state.createNewsError = action.payload || 'Failed to create news';
       })
 
-      // --- Update News ---
+      // --- Update News (ADDED) ---
       .addCase(updateNews.pending, (state) => {
         state.isUpdatingNews = true;
         state.updateNewsSuccess = false;
@@ -377,21 +675,36 @@ const newsSlice = createSlice({
       })
       .addCase(updateNews.rejected, (state, action) => {
         state.isUpdatingNews = false;
-        state.updateNewsError = action.payload;
+        state.updateNewsError = action.payload || 'Failed to update news';
       })
 
-      // --- Get Comments ---
+      // --- Post Feedback (ADDED) ---
+      .addCase(postFeedback.pending, (state) => {
+        state.isSubmittingFeedback = true;
+        state.feedbackSuccess = false;
+        state.feedbackError = null;
+      })
+      .addCase(postFeedback.fulfilled, (state) => {
+        state.isSubmittingFeedback = false;
+        state.feedbackSuccess = true;
+      })
+      .addCase(postFeedback.rejected, (state, action) => {
+        state.isSubmittingFeedback = false;
+        state.feedbackError = action.payload || 'Failed to submit feedback';
+      })
+
+      // --- Get Comments (ADDED) ---
       .addCase(getComments.pending, (state) => {
         state.isLoadingComments = true;
         state.interactionError = null;
       })
       .addCase(getComments.fulfilled, (state, action) => {
         state.isLoadingComments = false;
-        state.currentComments = action.payload.items || []; 
+        state.currentComments = action.payload?.items || action.payload || []; 
       })
       .addCase(getComments.rejected, (state, action) => {
         state.isLoadingComments = false;
-        state.interactionError = action.payload;
+        state.interactionError = action.payload || 'Failed to fetch comments';
       })
 
       // --- Post Comment ---
@@ -403,7 +716,6 @@ const newsSlice = createSlice({
         state.isPostingComment = false;
         const { newsId } = action.meta.arg;
         
-        // Optimistic Update for comments count
         const updateItemCommentCount = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
           const index = itemsList.findIndex(item => (item.data && item.data._id === newsId));
@@ -426,37 +738,72 @@ const newsSlice = createSlice({
         state.interactionError = action.payload;
       })
 
-      // --- Get Reporter News ---
-      .addCase(getReporterNews.pending, (state) => {
-        state.isLoadingReporterNews = true;
+      // --- Fetch Unread News ---
+      .addCase(fetchUnreadNews.pending, (state) => {
+        state.isLoadingUnread = true;
+        state.unreadError = null;
       })
-      .addCase(getReporterNews.fulfilled, (state, action) => {
-        state.isLoadingReporterNews = false;
-        state.reporterNews = Array.isArray(action.payload) ? action.payload : (action.payload.items || []);
+      .addCase(fetchUnreadNews.fulfilled, (state, action) => {
+        state.isLoadingUnread = false;
+        const data = action.payload;
+        console.log(data, ">>>>>>>>>>>>>>>>UNREAD NEWS");
+        let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
+        state.unreadArticles = incomingItems;
       })
-      .addCase(getReporterNews.rejected, (state, action) => {
-        state.isLoadingReporterNews = false;
-        console.log("Error fetching reporter news:", action.payload);
+      .addCase(fetchUnreadNews.rejected, (state, action) => {
+        state.isLoadingUnread = false;
+        state.unreadError = action.payload || 'Failed to fetch unread news';
       })
 
-      // --- Track Ad Click ---
-      .addCase(trackAdClick.rejected, (state, action) => {
-        console.log("Ad click tracking failed", action.payload);
+      // --- Fetch Unread News Count ---
+      .addCase(fetchUnreadNewsCount.fulfilled, (state, action) => {
+        state.unreadCount = action.payload?.unread_news || action.payload?.count || 0;
       })
+      
+      // --- Submit Survey Vote ---
+      .addCase(submitSurveyVote.fulfilled, (state, action) => {
+        const { surveyId, optionId, data } = action.payload;
+        
+        const updateSurveyData = (itemsList) => {
+          if (!Array.isArray(itemsList)) return;
+          
+          // Match by id or _id
+          const index = itemsList.findIndex(item => 
+            (item.data && item.data.id === surveyId) || 
+            (item.data && item.data._id === surveyId) || 
+            (item.id === surveyId) || 
+            (item._id === surveyId)
+          );
+          
+          if (index !== -1) {
+            let targetSurvey = itemsList[index].data || itemsList[index];
+            targetSurvey.user_voted = true;
+            targetSurvey.voted_option_id = optionId;
+            
+            // Check if API only returned a "Vote recorded" message (no real stats)
+            const isMessageOnly = data?.message === "Vote recorded" && !data?.options && typeof data?.totalVotes === 'undefined' && typeof data?.total_votes === 'undefined';
 
-      // --- Post Feedback ---
-      .addCase(postFeedback.pending, (state) => {
-        state.isSubmittingFeedback = true;
-        state.feedbackSuccess = false;
-        state.feedbackError = null;
-      })
-      .addCase(postFeedback.fulfilled, (state) => {
-        state.isSubmittingFeedback = false;
-        state.feedbackSuccess = true;
-      })
-      .addCase(postFeedback.rejected, (state, action) => {
-        state.isSubmittingFeedback = false;
-        state.feedbackError = action.payload;
+            if (!isMessageOnly) {
+               // Update completely if API returns the new values
+               if (data?.options) {
+                 targetSurvey.options = data.options;
+                 targetSurvey.totalVotes = data.totalVotes || data.total_votes || targetSurvey.totalVotes || targetSurvey.total_votes;
+                 targetSurvey.total_votes = targetSurvey.totalVotes; // Sync both keys just in case
+               } else {
+                 // Optimistic update locally
+                 targetSurvey.totalVotes = (targetSurvey.totalVotes || targetSurvey.total_votes || 0) + 1;
+                 targetSurvey.total_votes = targetSurvey.totalVotes;
+                 
+                 if (Array.isArray(targetSurvey.options) && targetSurvey.options[optionId]) {
+                    targetSurvey.options[optionId].votes = (targetSurvey.options[optionId].votes || 0) + 1;
+                 }
+               }
+            }
+          }
+        };
+
+        if (state.articles?.items) updateSurveyData(state.articles.items);
+        else if (Array.isArray(state.articles)) updateSurveyData(state.articles);
       });
   },
 });

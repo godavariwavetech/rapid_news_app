@@ -2,6 +2,10 @@
   "migIndex": 1,
   "data": [
     {
+      "path": "src/config/fonts/Abn.ttf",
+      "sha1": "04d3ba5a5923f54e9040f869249806e4189635ce"
+    },
+    {
       "path": "src/config/fonts/DMSansBold.ttf",
       "sha1": "5987ba6a8b8c8cc7f755431eca614ea7f5de1b96"
     },
@@ -12,6 +16,26 @@
     {
       "path": "src/config/fonts/DMSansRegular.ttf",
       "sha1": "ac9a042a40e49e8cdbfe0e64e84d9b1c5724e98d"
+    },
+    {
+      "path": "src/config/fonts/DvpPriyanka.ttf",
+      "sha1": "5d8ef28b474c9fae23148e797ac8d714d6d2008e"
+    },
+    {
+      "path": "src/config/fonts/IphoneKeyboard.ttf",
+      "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
+    },
+    {
+      "path": "src/config/fonts/PRIYAANK.TTF",
+      "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
+    },
+    {
+      "path": "src/config/fonts/Priyaanka.ttf",
+      "sha1": "9443a35ff4dcbdd146cd000171c3b3d2baa12eed"
+    },
+    {
+      "path": "src/config/fonts/Ramabhadra.ttf",
+      "sha1": "28190e90f75413617718a96df42515daca5526c9"
     }
   ]
 }

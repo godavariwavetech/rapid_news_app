@@ -11,16 +11,20 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector } from 'react-redux';
+import { lightTheme, darkTheme } from '../config/theme';
 
 const {width, height} = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.85;
 
 const ProfileDrawer = ({visible, onClose}) => {
-  const {reporter} = useSelector(state=>state.auth)
+  const {reporter} = useSelector(state=>state.auth);
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
   const categories = [
     {id: 'education', icon: 'school', label: 'మీ కోసం', color: '#4ECDC4'},
     {id: 'politics', icon: 'account-tie', label: 'రాజకీయాలు', color: '#9B59B6'},
-    {id: 'news', icon: 'newspaper-variant', label: 'స్వార్న్', color: '#E74C3C'},
+    {id: 'news', icon: 'newspaper-variant', label: 'న్యూస్', color: '#E74C3C'},
     {id: 'business', icon: 'chart-line', label: 'వ్యాపారం', color: '#F39C12'},
     {id: 'cinema', icon: 'movie-open', label: 'సినిమా', color: '#3498DB'},
   ];
@@ -38,74 +42,74 @@ const ProfileDrawer = ({visible, onClose}) => {
           onPress={onClose}
         />
         
-        <View style={styles.drawer}>
+        <View style={[styles.drawer, { backgroundColor: theme.background }]}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
-              <Icon name="arrow-left" size={24} color="#333" />
+              <Icon name="arrow-left" size={24} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>స్వార్న్</Text>
+            <Text style={[styles.headerTitle, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>న్యూస్</Text>
             <TouchableOpacity style={styles.settingsButton}>
-              <Icon name="cog-outline" size={24} color="#666" />
+              <Icon name="cog-outline" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.searchButton}>
-              <Icon name="magnify" size={24} color="#666" />
+              <Icon name="magnify" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Profile Section */}
             <View style={styles.profileSection}>
-              <View style={styles.profileCard}>
+              <View style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#F9F9F9', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
                 <View style={styles.avatarContainer}>
-                  <Icon name="account-circle" size={60} color="#CCC" />
+                  <Icon name="account-circle" size={60} color={isDarkMode ? '#555' : '#CCC'} />
                 </View>
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>{reporter?.reporter_profile?.username || "Guest"}</Text>
+                  <Text style={[styles.profileName, { color: theme.text }]}>{reporter?.reporter_profile?.username || "Guest"}</Text>
                   <TouchableOpacity>
-                    <Text style={styles.profileLink}>Click here to select email id</Text>
+                    <Text style={[styles.profileLink, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>Click here to select email id</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
 
             {/* Language & Location Section */}
-            <View style={styles.settingsSection}>
+            <View style={[styles.settingsSection, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFF5F0' }]}>
               {/* Language */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={[styles.settingItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.settingIcon}>
                   <Icon name="translate" size={28} color="#E74C3C" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>మీ భాషని ఎంచుకోడి</Text>
-                  <Text style={styles.settingValue}>తెలుగు Telugu</Text>
+                  <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీ భాషని ఎంచుకోడి</Text>
+                  <Text style={[styles.settingValue, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>తెలుగు Telugu</Text>
                 </View>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
 
               {/* Location */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={[styles.settingItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.settingIcon}>
                   <Icon name="map-marker" size={28} color="#E74C3C" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>మీరు ఎందుకున్న స్థానం</Text>
-                  <Text style={styles.settingValue}>Rajamundry (Change)</Text>
+                  <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎందుకున్న స్థానం</Text>
+                  <Text style={[styles.settingValue, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>Rajamundry (Change)</Text>
                 </View>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {/* Categories Section */}
             <View style={styles.categoriesSection}>
-              <Text style={styles.sectionTitle}>Categories</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Categories</Text>
               <View style={styles.categoriesGrid}>
                 {categories.map(category => (
                   <TouchableOpacity key={category.id} style={styles.categoryCard}>
                     <View style={[styles.categoryIcon, {backgroundColor: category.color}]}>
                       <Icon name={category.icon} size={32} color="#FFFFFF" />
                     </View>
-                    <Text style={styles.categoryLabel}>{category.label}</Text>
+                    <Text style={[styles.categoryLabel, { color: theme.text }]}>{category.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -113,44 +117,44 @@ const ProfileDrawer = ({visible, onClose}) => {
 
             {/* Menu Items */}
             <View style={styles.menuSection}>
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.menuIcon}>
                   <Icon name="newspaper" size={24} color="#E74C3C" />
                 </View>
-                <Text style={styles.menuText}>డిజిటల్ మ్యాగజిన్స్</Text>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Text style={[styles.menuText, { color: theme.text }]}>డిజిటల్ మ్యాగజిన్స్</Text>
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.menuIcon}>
                   <Icon name="video" size={24} color="#E74C3C" />
                 </View>
-                <Text style={styles.menuText}>వీడియోస్</Text>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Text style={[styles.menuText, { color: theme.text }]}>వీడియోస్</Text>
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.menuIcon}>
                   <Icon name="bullhorn" size={24} color="#E74C3C" />
                 </View>
-                <Text style={styles.menuText}>వైరల్</Text>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Text style={[styles.menuText, { color: theme.text }]}>వైరల్</Text>
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.menuIcon}>
                   <Icon name="star" size={24} color="#E74C3C" />
                 </View>
-                <Text style={styles.menuText}>సిటీ న్యూస్ ఎక్స్క్లూసివ్</Text>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Text style={[styles.menuText, { color: theme.text }]}>సిటీ న్యూస్ ఎక్స్క్లూసివ్</Text>
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={[styles.menuItem, { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
                 <View style={styles.menuIcon}>
                   <Icon name="settings" size={24} color="#E74C3C" />
                 </View>
-                <Text style={styles.menuText}>సంప్రదింపండి</Text>
-                <Icon name="chevron-right" size={24} color="#999" />
+                <Text style={[styles.menuText, { color: theme.text }]}>సంప్రదింపండి</Text>
+                <Icon name="chevron-right" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -175,7 +179,6 @@ const styles = StyleSheet.create({
   drawer: {
     width: DRAWER_WIDTH,
     height: height,
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: {width: -2, height: 0},
     shadowOpacity: 0.3,
@@ -189,7 +192,6 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
     gap: 12,
   },
   backButton: {

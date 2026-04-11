@@ -13,86 +13,47 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getProfile } from '../redux/reducers/auth';
+import { useTheme } from '../context/ThemeContext';
+
+// Added these imports for responsive fonts and custom font family
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
+import { fonts } from '../config/theme'; // <-- Adjust this import path if your fonts are located elsewhere
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const ReporterScreen = ({navigation}) => {
   const dispatch = useDispatch()
-  const {reporter,reporterToken} = useSelector((state)=>state.auth)
+  const { theme, isDarkMode } = useTheme();
+  const {reporter, reporterToken} = useSelector((state)=>state.auth)
   const [activeTab, setActiveTab] = useState('submitted');
   const [expandedQuestion, setExpandedQuestion] = useState(null);
 
   const faqData = [
     {
       id: 1,
-      question: 'SITI సున్నాన్ జడ్యాలిస్తు ఎలా అవ్వాలి',
-      answer: 'SITI సున్నాన్ జడ్యాలిస్తు అవ్వడానికి మీరు మా యాప్‌ని డౌన్‌లోడ్ చేసుకుని, రిపోర్టర్ సెక్షన్‌లో రిజిస్టర్ చేసుకోవాలి. మీ వివరాలు నమోదు చేసి, వెరిఫికేషన్ పూర్తి చేయండి.',
+      question: 'రాపిడ్ న్యూస్‌లో జర్నలిస్ట్‌గా ఎలా మారాలి?',
+      answer: 'రిపోర్టర్‌గా ప్రారంభించాలంటే ముందుగా రిజిస్ట్రేషన్ చేయాలి. అందుకు ఉన్న ఆప్షన్‌పై క్లిక్ చేసి మీ పేరు నమోదు చేయండి. తరువాత మీ జిల్లాను ఎంచుకుని, మొబైల్ నంబర్‌ను వెరిఫై చేయండి. అంతే, మీరు ఎంచుకున్న జిల్లాకు సంబంధించిన వార్తలను పంపించే అవకాశం పొందుతారు. గమనిక: మీరు ఎంచుకున్న జిల్లాకు మాత్రమే వార్తలు పంపగలరు.',
     },
     {
       id: 2,
-      question: 'SITI సున్నాన్ కు వార్తలు ఎలా సంపాలి',
-      answer: 'వార్తలను పంపడానికి యాప్‌లో "వార్తను పంపించండి" ఆప్షన్‌ను ఎంచుకోండి. ఫోటో లేదా వీడియో అప్‌లోడ్ చేసి, వివరణ రాసి సబ్మిట్ చేయండి. మా టీమ్ దీనిని రివ్యూ చేసి ప్రచురిస్తుంది.',
+      question: 'రాపిడ్ న్యూస్‌కు వార్తలను ఎలా పంపాలి?',
+      answer: 'రిజిస్ట్రేషన్ పూర్తయ్యాక “షార్ట్ న్యూస్ పోస్ట్ చేయండి” అనే ఆప్షన్‌ను క్లిక్ చేయండి. తరువాత ప్రాంతాన్ని ఎంచుకుని, హెడ్‌లైన్, ఫోటో, పూర్తి వార్తను జాగ్రత్తగా నమోదు చేయండి. ఎలాంటి తప్పులు లేకుండా చెక్ చేసి సబ్మిట్ చేయండి.',
     },
     {
       id: 3,
-      question: 'ఫీ-టివిఎం వాటిల్ కు సంబంధించిన డబ్బులను ఎలా రీఫిల్ చేయాలి',
-      answer: 'మీ వాలెట్‌ను రీఫిల్ చేయడానికి యాప్‌లో వాలెట్ సెక్షన్‌కు వెళ్లండి. UPI, డెబిట్ కార్డ్, క్రెడిట్ కార్డ్ లేదా నెట్ బ్యాంకింగ్ ద్వారా డబ్బు జోడించవచ్చు.',
+      question: 'నా అకౌంట్ ఎందుకు బ్లాక్ అవుతుంది?',
+      answer: 'మీరు పంపే కంటెంట్ కాపీ చేసినదిగా లేదా అసత్యంగా ఉంటే, సాధారణంగా అకౌంట్ బ్లాక్ అవుతుంది. బ్లాక్ చేసినప్పుడు కారణాన్ని మా టీమ్ తెలియజేస్తుంది. రాపిడ్ న్యూస్ రిపోర్టర్లు తమ పరిసరాల్లో జరుగుతున్న నిజమైన, తాజా వార్తలను మాత్రమే పంపాలి. కాపీ కంటెంట్ అనుమతించబడదు. ప్రచురితమైన వార్తలు అనేక మందికి చేరుతాయి కాబట్టి, ఈ విషయంలో మేము కఠినంగా వ్యవహరిస్తాము.',
     },
     {
       id: 4,
-      question: 'జిల్లా మరియు బాసా అమరుమ్మను అవికాశం ఉంద్ప?',
-      answer: 'అవును, మీరు మీ జిల్లా మరియు భాష ప్రాధాన్యతలను సెట్టింగ్స్‌లో మార్చుకోవచ్చు. ఇది మీకు సంబంధిత వార్తలను చూపించడంలో సహాయపడుతుంది.',
+      question: 'వార్త ప్రచురణకు ఎంత సమయం పడుతుంది?',
+      answer: 'సాధారణంగా వార్త చాలా త్వరగా, ఒక నిమిషంలోనే ప్రచురితమవుతుంది అని చెప్పవచ్చు. అయితే పరిస్థితుల ఆధారంగా కొంత సమయం మారవచ్చు. మేము వేగంగా మరియు ఖచ్చితమైన వార్తలను అందించడంపై దృష్టి పెడుతున్నాము.',
     },
     {
       id: 5,
-      question: 'నేను ఎమ్మదూ డబ్బును పొందగలను?',
-      answer: 'మీరు పంపిన వార్తలు ప్రచురించబడినప్పుడు మీకు డబ్బు లభిస్తుంది. ప్రతి వార్త కోసం వ్యూస్ మరియు ఎంగేజ్‌మెంట్ ఆధారంగా చెల్లించబడుతుంది.',
-    },
-    {
-      id: 6,
-      question: 'నా అక్షిల్ భార్త అవ్వద్దానికి గల కారణం ఏమిటి?',
-      answer: 'అకౌంట్ బ్లాక్ అవ్వడానికి అనేక కారణాలు ఉండవచ్చు - నిబంధనల ఉల్లంఘన, తప్పుడు సమాచారం పంపడం, లేదా స్పామ్ కంటెంట్. మరింత సమాచారం కోసం సపోర్ట్ టీమ్‌ను సంప్రదించండి.',
-    },
-    {
-      id: 7,
-      question: 'నేను ఓటి సారి రెండు జిల్లా వార్తలను పంపవచ్చా?',
-      answer: 'అవును, మీరు ఒకేసారి బహుళ జిల్లాల నుండి వార్తలను పంపవచ్చు. ప్రతి వార్తకు సరైన లొకేషన్ ట్యాగ్ చేయడం గుర్తుంచుకోండి.',
-    },
-    {
-      id: 8,
-      question: 'నేను సిసియర్ జడ్యాలిస్తు ఎలా అవుతాను?',
-      answer: 'సీనియర్ జర్నలిస్ట్ అవ్వడానికి మీరు కనీసం 100 వార్తలు పంపాలి మరియు మంచి రేటింగ్ కలిగి ఉండాలి. సీనియర్ జర్నలిస్ట్‌లకు ఎక్కువ బోనస్ మరియు ప్రత్యేక ప్రయోజనాలు లభిస్తాయి.',
-    },
-    {
-      id: 9,
-      question: 'వార్తల ప్రమదర్తకమడానికి ఎంత సమయం పడుతుంది?',
-      answer: 'సాధారణంగా వార్తలు 2-4 గంటల్లో రివ్యూ చేయబడతాయి. అత్యవసర లేదా బ్రేకింగ్ న్యూస్ కోసం, ఇది 30 నిమిషాల్లో వేగంగా ప్రాసెస్ చేయబడుతుంది.',
-    },
-    {
-      id: 10,
-      question: 'నేను అంగ్ భాషలో వార్తలను పంపవచ్చలని అనుకుంటున్నాను, ఆ భాషి అందుబాటులో ఉంద?',
-      answer: 'మేము ప్రస్తుతం తెలుగు, హిందీ, తమిళం, కన్నడ మరియు ఇంగ్లీష్ భాషలకు మద్దతు ఇస్తున్నాము. త్వరలో మరిన్ని భాషలు జోడించబడతాయి.',
-    },
-    {
-      id: 11,
-      question: 'వార్తలను పంపించేందుకు నాకు డబ్బులు వస్తాయ్?',
-      answer: 'అవును, ప్రతి ప్రచురించబడిన వార్తకు మీకు డబ్బు లభిస్తుంది. చెల్లింపు వ్యూస్, షేర్స్ మరియు కంటెంట్ క్వాలిటీపై ఆధారపడి ఉంటుంది.',
-    },
-    {
-      id: 12,
-      question: 'నేను వార్తను ముందర పంపవచ్చను, కాని వినిన్నీ కొళ్ళ విధ్వానికి అనుగణంగా ఆ వార్తను ఎదుకు ప్రమదరించేదెదు?',
-      answer: 'వార్త మా కమ్యూనిటీ గైడ్‌లైన్స్‌కు అనుగుణంగా లేకపోవడం, తప్పుడు సమాచారం లేదా నాణ్యత ప్రమాణాలను చేరుకోకపోవడం వంటి కారణాల వల్ల తిరస్కరించబడవచ్చు.',
-    },
-    {
-      id: 13,
-      question: 'కథనాన్ని రక్షణా చేయద్దానికి చాల సమయం ఎందుకు పడుతుంది?',
-      answer: 'ప్రతి కథనాన్ని నాణ్యత, ఖచ్చితత్వం మరియు గైడ్‌లైన్స్ పాటన కోసం మా మోడరేషన్ టీమ్ జాగ్రత్తగా రివ్యూ చేస్తుంది. ఇది మంచి కంటెంట్ ప్రమాణాలను నిర్వహించడానికి అవసరం.',
-    },
-    {
-      id: 14,
-      question: 'కథనాలు ఎక్కడుకు సంపణడుతున్నాయ్?',
-      answer: 'కథనాలు మా యాప్‌లో మరియు వెబ్‌సైట్‌లో ప్రచురించబడతాయి. అధిక నాణ్యత కథనాలు మా సోషల్ మీడియా ఛానెల్స్‌లో కూడా షేర్ చేయబడతాయి.',
+      question: 'కథనాలు ఎందుకు తిరస్కరించబడుతాయి?',
+      answer: 'రిపోర్టర్లు పంపే ప్రతి కథనాన్ని ప్రచురించే ముందు అది నిజమా? నిబంధనలకు అనుగుణంగా ఉందా? అని పరిశీలిస్తాము. కొన్ని సందర్భాల్లో నిబంధనలు ఉల్లంఘించినా, ఆలస్యంగా వచ్చినా, లేదా చట్టపరమైన సమస్యలు కలిగించే అవకాశం ఉన్నా కథనాన్ని తిరస్కరిస్తాము. ఇది మీకూ, రాపిడ్ న్యూస్‌కూ రక్షణగా ఉంటుంది.',
     },
   ];
 
@@ -105,94 +66,94 @@ const ReporterScreen = ({navigation}) => {
   },[])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.headerWrapper}>
-        <View style={styles.header}>
+      <View style={[styles.headerWrapper, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.background }]}>
           <View style={styles.profileSection}>
            {reporter?.username ? <Image
               source={{uri:reporter?.profile_image }}
               style={styles.profileImage}
-            />:<Icon name="account-circle" size={48} color="#CCC" />}
+            />:<Icon name="account-circle" size={48} color={isDarkMode ? '#555' : "#CCC"} />}
             <View style={styles.welcomeSection}>
-              <Text style={styles.welcomeText}>Welcome</Text>
-              <Text style={styles.guestText}>{reporter?.username || "Guest"}</Text>
+              <Text style={[styles.welcomeText, { color: theme.text }]}>Welcome</Text>
+              <Text style={[styles.guestText, { color: theme.textSecondary }]}>{reporter?.username || "Guest"}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.homeButton}>
-            <Icon name="home-outline" size={26} color="#333" />
+          <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('Home')}>
+            <Icon name="home-outline" size={30} color={theme.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Section Title */}
-        <Text style={styles.sectionTitle}>పొస్ట్ చేయండి</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>పోస్ట్‌ చేయండి</Text>
 
         {/* Action Cards */}
         <TouchableOpacity
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}
           activeOpacity={0.7}
-          onPress={() =>navigation.navigate(reporterToken  ?  "ReporterApp" :'MobileLogin')}>
-          <View style={styles.iconCircle}>
-            <Icon name="microphone" size={28} color="#E74C3C" />
+          onPress={() =>navigation.navigate(reporterToken ? "ReporterApp" :'MobileLogin')}>
+          <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? '#2D1F1F' : '#FFE5E5' }]}>
+            <Icon name="microphone" size={32} color="#E74C3C" />
           </View>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>రిపోర్టర్ అవ్వండి</Text>
-            <Text style={styles.actionSubtitle}>
-              సున్నాన్ పోస్ట్ చేసి ఆదాయం పొందండి
+            <Text style={[styles.actionTitle, { color: theme.text }]}>రిపోర్టర్‌ అవ్వండి</Text>
+            <Text style={[styles.actionSubtitle, { color: theme.textSecondary }]}>
+              (న్యూస్‌ పోస్ట్‌ చేయండి)
             </Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#999" />
+          <Icon name="chevron-right" size={26} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('AdFreeSubscription')}>
-          <View style={[styles.iconCircle, {backgroundColor: '#FFE5E5'}]}>
-            <Icon name="television" size={28} color="#E74C3C" />
+          <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? '#2D1F1F' : '#FFE5E5' }]}>
+            <Icon name="television" size={32} color="#E74C3C" />
           </View>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>
-              ప్రాసికి ప్రకటనలు పోస్ట్ చేయండి
+            <Text style={[styles.actionTitle, { color: theme.text }]}>
+              స్థానిక ప్రకటనలు పోస్ట్‌ చేయండి
             </Text>
-            <Text style={styles.actionSubtitle}>ఆదాయం పొందండి</Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#999" />
+          <Icon name="chevron-right" size={26} color={theme.textSecondary} />
         </TouchableOpacity>
 
         {/* Tabs Section */}
-        <Text style={styles.sectionTitle}>తరచుగా అడుగుతున్న ప్రశ్నలు</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>తరచుగా అడుగు ప్రశ్నలు</Text>
 
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E8EAED' }]}>
           <TouchableOpacity
             style={[
               styles.tab,
-              activeTab === 'submitted' && styles.activeTab,
+              activeTab === 'submitted' && [styles.activeTab, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }],
             ]}
             onPress={() => setActiveTab('submitted')}>
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'submitted' && styles.activeTabText,
+                { color: isDarkMode ? '#888' : '#666' },
+                activeTab === 'submitted' && [styles.activeTabText, { color: isDarkMode ? '#000' : '#FFF' }],
               ]}>
-              సున్నాన్ గురించి
+              న్యూస్‌ గురించి  
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.tab,
-              activeTab === 'published' && styles.activeTab,
+              activeTab === 'published' && [styles.activeTab, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }],
             ]}
             onPress={() => setActiveTab('published')}>
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'published' && styles.activeTabText,
+                { color: isDarkMode ? '#888' : '#666' },
+                activeTab === 'published' && [styles.activeTabText, { color: isDarkMode ? '#000' : '#FFF' }],
               ]}>
               ప్రకటన గురించి
             </Text>
@@ -202,22 +163,22 @@ const ReporterScreen = ({navigation}) => {
         {/* FAQ List with Expandable Answers */}
         <View style={styles.questionsList}>
           {faqData.map((faq) => (
-            <View key={faq.id} style={styles.faqContainer}>
+            <View key={faq.id} style={[styles.faqContainer, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}>
               <TouchableOpacity
                 style={styles.questionItem}
                 activeOpacity={0.7}
                 onPress={() => toggleQuestion(faq.id)}>
-                <Text style={styles.questionText}>{faq.question}</Text>
+                <Text style={[styles.questionText, { color: theme.text }]}>{faq.question}</Text>
                 <Icon
                   name={expandedQuestion === faq.id ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color="#999"
+                  size={24}
+                  color={theme.textSecondary}
                 />
               </TouchableOpacity>
               
               {expandedQuestion === faq.id && (
-                <View style={styles.answerContainer}>
-                  <Text style={styles.answerText}>{faq.answer}</Text>
+                <View style={[styles.answerContainer, { borderTopColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+                  <Text style={[styles.answerText, { color: theme.textSecondary }]}>{faq.answer}</Text>
                 </View>
               )}
             </View>
@@ -233,11 +194,9 @@ const ReporterScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
   },
   headerWrapper: {
     paddingTop: STATUS_BAR_HEIGHT,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -245,7 +204,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
   },
   profileSection: {
     flexDirection: 'row',
@@ -253,134 +211,122 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#E0E0E0',
   },
   welcomeSection: {
     justifyContent: 'center',
   },
   welcomeText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontSize: responsiveFontSize(2.4),
+    fontFamily: fonts.bold,
+    includeFontPadding: false,
   },
   guestText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: responsiveFontSize(1.8),
     marginTop: 2,
+    includeFontPadding: false,
   },
   homeButton: {
-    padding: 4,
+    padding: 6,
   },
   content: {
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontSize: responsiveFontSize(2.6),
+    fontFamily: fonts.bold,
+    includeFontPadding: false,
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingTop: 24,
+    paddingBottom: 16,
   },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 14,
+    padding: 18,
+    borderRadius: 14,
+    elevation: 3,
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFE5E5',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
   actionContent: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
+    fontSize: responsiveFontSize(2.2),
+    fontFamily: fonts.bold,
+    includeFontPadding: false,
+    marginBottom: 6,
   },
   actionSubtitle: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
+    fontSize: responsiveFontSize(1.8),
+    includeFontPadding: false,
+    lineHeight: responsiveFontSize(2.6),
   },
   tabsContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#E8EAED',
+    marginBottom: 20,
     borderRadius: 12,
-    padding: 4,
+    padding: 6,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 10,
   },
-  activeTab: {
-    backgroundColor: '#1A1A1A',
-  },
+  activeTab: { },
   tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: responsiveFontSize(1.9),
+    fontFamily: fonts.bold,
+    includeFontPadding: false,
   },
-  activeTabText: {
-    color: '#FFFFFF',
-  },
+  activeTabText: { },
   questionsList: {
     paddingHorizontal: 16,
   },
   faqContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    marginBottom: 12,
     overflow: 'hidden',
+    elevation: 1,
   },
   questionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 18,
   },
   questionText: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    lineHeight: 20,
-    marginRight: 10,
+    fontSize: responsiveFontSize(2.1),
+    fontFamily: fonts.bold,
+    includeFontPadding: false,
+    lineHeight: responsiveFontSize(3.2), // Added line height to prevent clipping
+    marginRight: 12,
   },
   answerContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
     paddingTop: 0,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   answerText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 22,
+    fontSize: responsiveFontSize(1.9),
+    includeFontPadding: false,
+    lineHeight: responsiveFontSize(3.0), // increased for readability
   },
 });
 

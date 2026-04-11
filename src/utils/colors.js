@@ -1,33 +1,4 @@
-export const lightTheme = {
-  background: '#FFFFFF',
-  cardBackground: '#F8F9FA',
-  text: '#000000',
-  textSecondary: '#6C757D',
-  primary: '#FF6B35',
-  secondary: '#4ECDC4',
-  border: '#DEE2E6',
-  tabBar: '#FFFFFF',
-  shadow: '#000000',
-  shimmer: ['#E8E8E8', '#F3F3F3', '#E8E8E8'],
-  success: '#28A745',
-  error: '#DC3545',
-  warning: '#FFC107',
-  info: '#17A2B8',
-};
+import { lightTheme as lt, darkTheme as dt } from '../config/theme';
 
-export const darkTheme = {
-  background: '#121212',
-  cardBackground: '#1E1E1E',
-  text: '#FFFFFF',
-  textSecondary: '#B0B0B0',
-  primary: '#FF6B35',
-  secondary: '#4ECDC4',
-  border: '#2C2C2C',
-  tabBar: '#1E1E1E',
-  shadow: '#FFFFFF',
-  shimmer: ['#2C2C2C', '#3A3A3A', '#2C2C2C'],
-  success: '#28A745',
-  error: '#DC3545',
-  warning: '#FFC107',
-  info: '#17A2B8',
-};
+export const lightTheme = lt;
+export const darkTheme = dt;

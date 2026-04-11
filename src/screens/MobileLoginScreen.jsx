@@ -16,14 +16,17 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearReporter, requestOTP } from '../redux/reducers/auth';
 import { setReporterTempToken } from '../redux/reducers/location';
+import { useTheme } from '../context/ThemeContext';
+import { fonts } from '../config/theme';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const MobileLoginScreen = ({navigation}) => {
   const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
   const [mobileNumber, setMobileNumber] = useState('');
   
-  // 1. Getting loading state from Redux
   const { loading } = useSelector(state => state.auth);
 
   const handleProceed = async () => {
@@ -48,8 +51,8 @@ const MobileLoginScreen = ({navigation}) => {
   const isValid = mobileNumber.length === 10;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       <View style={styles.backButtonContainer}>
         <TouchableOpacity
@@ -58,7 +61,7 @@ const MobileLoginScreen = ({navigation}) => {
           activeOpacity={0.7}
           disabled={loading} 
         >
-          <Icon name="arrow-left" size={24} color="#333" />
+          <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -71,53 +74,50 @@ const MobileLoginScreen = ({navigation}) => {
           keyboardShouldPersistTaps="handled">
           
           <View style={{ marginBottom: 60 }}>
-            <Text style={styles.enterText}>Enter your</Text>
-            <Text style={styles.mobileNumberTitle}>Mobile Number</Text>
+            <Text style={[styles.enterText, { color: theme.textSecondary }]}>Enter your</Text>
+            <Text style={[styles.mobileNumberTitle, { color: theme.text }]}>Mobile Number</Text>
           </View>
 
           <View style={styles.inputSection}>
-            <Text style={styles.label}>Mobile Number</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Mobile Number</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text, borderBottomColor: isDarkMode ? '#333' : '#E0E0E0' }]}
               keyboardType="phone-pad"
               maxLength={10}
               value={mobileNumber}
               onChangeText={setMobileNumber}
-              placeholderTextColor="#999"
-              editable={!loading} // Prevents typing while API is fetching
+              placeholderTextColor={isDarkMode ? '#444' : '#999'}
+              editable={!loading} 
             />
           </View>
 
           <View style={styles.termsSection}>
-            <Text style={styles.termsText}>
+            <Text style={[styles.termsText, { color: theme.textSecondary }]}>
               by clicking 'proceed' you agree to our{' '}
-              <Text style={styles.linkText}>terms & conditions</Text> and{' '}
-              <Text style={styles.linkText}>Privacy policy</Text>
+              <Text style={[styles.linkText, { color: theme.accentBlue }]}>terms & conditions</Text> and{' '}
+              <Text style={[styles.linkText, { color: theme.accentBlue }]}>Privacy policy</Text>
             </Text>
           </View>
 
-          {/* 2. Enhanced Proceed Button */}
           <TouchableOpacity
             style={[
               styles.proceedButton,
-              // Keep button dark if valid OR if currently loading
-              (isValid || loading) ? styles.proceedButtonActive : null,
+              { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' },
+              (isValid || loading) ? [styles.proceedButtonActive, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }] : null,
             ]}
             onPress={handleProceed}
             disabled={!isValid || loading} 
             activeOpacity={0.8}>
             {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={isDarkMode ? "#000" : "#FFFFFF"} />
             ) : (
-              <Text style={styles.proceedButtonText}>proceed</Text>
+              <Text style={[styles.proceedButtonText, { color: isDarkMode && isValid ? '#000' : '#FFFFFF' }]}>proceed</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.descriptionSection}>
-            <Text style={styles.descriptionText}>
-              ఇక్కడ ఫ్రాన్ సంబంధ ఇవ్వి వేణుస్తు నేటుప్ర్యబ్లో చేరండి. మీరు
-              సున్నాన్ మొత్తే వార్తలను చుటుప్పకళ్లతో పొటు.. మీరు సుర్వర్యంగా
-              వార్తలను పంపండి, ఆదాయన్ని పొందండి..
+            <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>
+              ఇక్కడ ఫోన్‌ నంబర్‌ ఇచ్చి రాపిడ్‌ న్యూస్‌ నెట్‌వర్క్‌లో చేరండి. మీరు నచ్చే, మెచ్చే వార్తలను చదవడంతో పాటు.. మీరూ స్వయంగా వార్తలను పంపండి.
             </Text>
           </View>
         </ScrollView>
@@ -127,7 +127,7 @@ const MobileLoginScreen = ({navigation}) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1 },
   backButtonContainer: {
     paddingTop: STATUS_BAR_HEIGHT + 10,
     paddingHorizontal: 16,
@@ -136,40 +136,34 @@ const styles = StyleSheet.create({
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 24 },
-  enterText: { fontSize: 16, color: '#666', marginBottom: 4 },
-  mobileNumberTitle: { fontSize: 36, fontWeight: '700', color: '#1A1A1A' },
+  enterText: { fontSize: 16, marginBottom: 4 },
+  mobileNumberTitle: { fontSize: 36, fontWeight: '700' },
   inputSection: { marginBottom: 20 },
-  label: { fontSize: 16, color: '#999', marginBottom: 12 },
+  label: { fontSize: responsiveFontSize(2.5), marginBottom: 12,fontFamily:fonts.bold },
   input: {
     fontSize: 18,
-    color: '#1A1A1A',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
     paddingVertical: 12,
   },
   termsSection: { marginTop: 24, marginBottom: 32 },
-  termsText: { fontSize: 14, color: '#666', lineHeight: 20 },
-  linkText: { color: '#2196F3', fontWeight: '600' },
+  termsText: { fontSize: responsiveFontSize(2.5), lineHeight: 20,fontFamily:fonts.bold },
+  linkText: { fontWeight: '600' },
   proceedButton: {
-    backgroundColor: '#E0E0E0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 30,
-    height: 58, // Fixed height prevents the button from jumping when loader appears
+    height: 58, 
     justifyContent: 'center',
   },
-  proceedButtonActive: {
-    backgroundColor: '#1A1A1A',
-  },
+  proceedButtonActive: { },
   proceedButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
     textTransform: 'lowercase',
   },
   descriptionSection: { marginTop: 20 },
-  descriptionText: { fontSize: 14, color: '#999', lineHeight: 22 },
+  descriptionText: { fontSize: responsiveFontSize(2.5), lineHeight: 22,fontFamily:fonts.bold },
 });
 
 export default MobileLoginScreen;
