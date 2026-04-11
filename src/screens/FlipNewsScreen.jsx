@@ -139,8 +139,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
     
-    // <--- ADDED: index parameter in map
-    return rawItems.map((item, index) => {
+    // Count only real news items for the index display
+    let newsCounter = 0;
+
+    return rawItems.map((item) => {
       if (item.type === 'AD') {
         return {
           id: item.data._id,
@@ -155,25 +157,26 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           comments: 0,
           commentsEnabled: false,
           images: [], 
-          itemIndex: index + 1, // <--- ADDED: Current index
-          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
+          itemIndex: null,   // ads don't count
+          totalNews: null,
         };
       } 
       else if (item.type === 'SURVEY') {
-      return {
-        id: item.data._id,
-        type: 'SURVEY',
-        question: item.data.question,
-        options: item.data.options,
-        totalVotes: item.data.total_votes,
-        voted_option_id: item.data.voted_option_id,
-        user_voted: item.data.user_voted,
-        isAd: false,
-        itemIndex: index + 1, // <--- ADDED: Current index
-        totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
-      };
-    }
+        return {
+          id: item.data._id,
+          type: 'SURVEY',
+          question: item.data.question,
+          options: item.data.options,
+          totalVotes: item.data.total_votes,
+          voted_option_id: item.data.voted_option_id,
+          user_voted: item.data.user_voted,
+          isAd: false,
+          itemIndex: null,   // polls don't count
+          totalNews: null,
+        };
+      }
       else {
+        newsCounter += 1;
         const data = item.data || item; 
         return {
           id: data._id,
@@ -197,15 +200,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             imageUrl: 'https://via.placeholder.com/100',
             location: 'Andhra Pradesh'
           },
-          isLiked:data?.reactions?.my_reaction=="LIKE",
-          isDisliked:data?.reactions?.my_reaction=="DISLIKE",
+          isLiked: data?.reactions?.my_reaction === 'LIKE',
+          isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
-          itemIndex: index + 1, // <--- ADDED: Current index
-          totalNews: totalNews || rawItems.length, // <--- ADDED: Total news
+          itemIndex: newsCounter,
+          totalNews: totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length,
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews]); // <--- ADDED: totalNews in dependencies
+  }, [activeArticles, bookmarkedIds, totalNews]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
