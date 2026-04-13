@@ -104,7 +104,7 @@ const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
               {/* <YoutubeTestScreen /> */}
               <AppNavigator />
               <CustomModal
-                visible={showUpdateModal}
+                visible={true}
                 title="Update Available"
                 message="A new version of the app is available. Please update to continue using all features."
                 confirmText="Update Now"

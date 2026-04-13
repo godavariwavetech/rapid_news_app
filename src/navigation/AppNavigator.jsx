@@ -177,11 +177,11 @@ function AppNavigator() {
 
       const navigateToNews = () => {
         if (navigationRef.isReady()) {
-          // Navigate to Main first so back button works, then to NewsDetail
-          navigationRef.current.navigate('Main');
-          navigationRef.current.navigate('NewsDetail', {
-            newsId,
-            news: article,
+          // fetchArticleById already prepended the article to index 0 in the feed.
+          // Reset to Main so the user sees it first in the normal flip flow.
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Main' }],
           });
         } else {
           setTimeout(navigateToNews, 300);

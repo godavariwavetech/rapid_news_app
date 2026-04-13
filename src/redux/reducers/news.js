@@ -551,11 +551,10 @@ const newsSlice = createSlice({
 
       // --- Fetch Article By Id ---
       .addCase(fetchArticleById.pending, (state) => {
-        state.loading = true;
+        // Use a separate flag — don't touch `loading` so HomeScreen feed isn't blocked
         state.error = null;
       })
       .addCase(fetchArticleById.fulfilled, (state, action) => {
-        state.loading = false;
         let article = action.payload;
         
         if (!article.data) {
@@ -579,7 +578,6 @@ const newsSlice = createSlice({
         }
       })
       .addCase(fetchArticleById.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload || 'Failed to fetch article';
       })
 
