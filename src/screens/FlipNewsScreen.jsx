@@ -112,7 +112,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
   // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  const { articles, totalNews, todayTotalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -204,11 +204,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
           itemIndex: newsCounter,
-          totalNews: totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length,
+          // Show today's count until user scrolls past it, then show full total
+          totalNews: (todayTotalNews && newsCounter <= todayTotalNews)
+            ? todayTotalNews
+            : (totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length),
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews]);
+  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
@@ -264,6 +267,18 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   useEffect(() => {
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
+
+  // Pre-fetch next page when user reaches 2 items before the end
+  useEffect(() => {
+    if (!activeHasMore || isLoadingMore || loading) return;
+    const total = formattedNews.length;
+    if (total > 0 && currIndex >= total - 2) {
+      if (!isLoadingMoreRef.current) {
+        isLoadingMoreRef.current = true;
+        if (onEndReached) onEndReached();
+      }
+    }
+  }, [currIndex, formattedNews.length, activeHasMore, isLoadingMore, loading]);
 
   useEffect(() => {
     if (currIndex >= formattedNews.length && formattedNews.length > 0) {

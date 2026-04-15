@@ -101,21 +101,19 @@ const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
         <PersistGate loading={null} persistor={persistorStore}>
           <TabBarProvider>
             <ThemeProvider>
-              {/* <YoutubeTestScreen /> */}
               <AppNavigator />
-              <CustomModal
-                visible={true}
-                title="Update Available"
-                message="A new version of the app is available. Please update to continue using all features."
-                confirmText="Update Now"
-                onConfirm={handleUpdate}
-                cancelText=''
-              />
             </ThemeProvider>
-         {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>  */}
           </TabBarProvider>
         </PersistGate>
       </Provider>
+      <CustomModal
+        visible={showUpdateModal}
+        title="Update Available"
+        message="A new version of the app is available. Please update to continue using all features."
+        confirmText="Update Now"
+        onConfirm={handleUpdate}
+        cancelText=''
+      />
     </GestureHandlerRootView>
   );
 }

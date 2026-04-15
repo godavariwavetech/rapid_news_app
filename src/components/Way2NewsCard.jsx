@@ -486,7 +486,12 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       <View style={styles.bottomContainer}>
         <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
-            <Text style={styles.title}>{displayTitle}</Text>
+            <Text 
+              style={styles.title}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >{displayTitle}</Text>
             <View style={styles.bodyContainer}>
               <Text style={styles.body}>
                 {displayBody}
@@ -647,15 +652,20 @@ watermarkLogo: {
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
     fontFamily: fonts.medium,
-    fontSize: responsiveFontSize(3.3), 
+    fontSize: responsiveFontSize(2.9), 
     color: '#000000', 
-    lineHeight: responsiveFontSize(4.5), 
+    lineHeight: responsiveFontSize(3.7),
     includeFontPadding: false,
     paddingTop: 12,
     paddingBottom: 4,
-   },
+  },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.7), lineHeight: responsiveFontSize(4.0), color: '#666666', flex: 1 },
+  body: { 
+    fontFamily: fonts.description, 
+    fontSize: responsiveFontSize(3.9), 
+    lineHeight: responsiveFontSize(4.6), 
+    color: '#333333',
+  },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },

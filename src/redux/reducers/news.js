@@ -56,6 +56,7 @@ const initialState = {
   // --- Unread Count State (Added for Header Badge) ---
   unreadCount: 0,
   totalNews: 0,
+  todayTotalNews: 0,
 };
 
 // --- ASYNC THUNKS ---
@@ -498,14 +499,13 @@ const newsSlice = createSlice({
 
         const pagination = data?.pagination;
 
-        // Page 1: show today's count. Page 2+: show full total
         if (pagination) {
-          if (page === 1 && pagination.today_total_news != null) {
-            state.totalNews = pagination.today_total_news;
-          } else if (pagination.total_news != null) {
+          if (pagination.today_total_news != null) {
+            state.todayTotalNews = pagination.today_total_news;
+          }
+          if (pagination.total_news != null) {
             state.totalNews = pagination.total_news;
           }
-          // hasMore: there are still items beyond what we've loaded
           state.hasMore = pagination.end != null && pagination.total_news != null
             ? pagination.end < pagination.total_news
             : false;

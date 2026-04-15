@@ -23,6 +23,9 @@ function Header({ onProfilePress, onTogglePress, title }) {
     ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8 
     : Math.max(insets.top, 44);
 
+
+    console.log(unreadCount,">>>>>>>>>>>>>>>>>>>>unreadCount");
+
   return (
     <View style={[styles.container,{ paddingTop: dynamicPaddingTop }]}>
       {/* Left - Profile Icon */}
