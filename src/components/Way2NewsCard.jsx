@@ -664,7 +664,8 @@ watermarkLogo: {
     fontFamily: fonts.description, 
     fontSize: responsiveFontSize(3.9), 
     lineHeight: responsiveFontSize(4.6), 
-    color: '#333333',
+    color: '#555555',
+    fontWeight: '400',
   },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },

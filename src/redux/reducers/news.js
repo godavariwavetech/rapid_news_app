@@ -341,8 +341,9 @@ export const fetchUnreadNews = createAsyncThunk(
   async (lastSeenAt, { getState, rejectWithValue }) => {
     try {
       const state = getState();
+      const { userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
-      const deviceId = await getUniqueId();
+      const hasToken = userToken || reporterToken;
 
       const queryParams = {
         village_id: location.village?._id || "697d8135322a103bdabf0fc7",
@@ -351,13 +352,15 @@ export const fetchUnreadNews = createAsyncThunk(
         last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
       };
 
-      const response = await api.get('/news/unread', {
-        params: queryParams,
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const config = { params: queryParams };
 
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const response = await api.get('/news/unread', config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -371,11 +374,13 @@ export const fetchUnreadNewsCount = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState();
-      const { guestLastActiveDate } = state.auth;
+      const { guestLastActiveDate, userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
-      const deviceId = await getUniqueId();
+      const hasToken = userToken || reporterToken;
 
       let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      console.log(lastSeenAt,">>>>>>>>>>>>>LAST SEEN");
 
       const queryParams = {
         last_seen_at: lastSeenAt,
@@ -384,13 +389,17 @@ export const fetchUnreadNewsCount = createAsyncThunk(
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
       };
 
-      const response = await api.get('/news/unread/count', {
-        params: queryParams,
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const config = { params: queryParams };
 
+      if (!hasToken) {
+        // Guest — send device ID, skip auth header
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+      // Logged-in user — api interceptor sends Authorization automatically, no device ID needed
+
+      const response = await api.get('/news/unread/count', config);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -442,7 +451,9 @@ export const markNewsAsRead = createAsyncThunk(
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;
       }
+      console.log(newsIds,">>>>>>>>>>>>>>>>>>NEWS IDDD");
       const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
+      console.log(response,">>>>>>>>>>>>>Responseeeeeeeeee");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
