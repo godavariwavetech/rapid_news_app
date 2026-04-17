@@ -223,6 +223,23 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     }
   }, [formattedNews]);
 
+  // Preload next 3 news images ahead of current index
+  useEffect(() => {
+    const toPreload = formattedNews
+      .slice(currIndex, currIndex + 4)
+      .flatMap(item => {
+        const uris = [];
+        if (item.image) uris.push(item.image);
+        if (item.images?.length) uris.push(...item.images);
+        return uris;
+      })
+      .filter(Boolean)
+      .map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
+    if (toPreload.length > 0) {
+      FastImage.preload(toPreload);
+    }
+  }, [currIndex, formattedNews]);
+
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
   
@@ -332,7 +349,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   // Track impression: ≥1s visible → add to batch, flush at 10 ids
   useEffect(() => {
     if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
-    if (!currentNews?.id || currentNews.isAd || feedType === 'unread') return;
+    if (!currentNews?.id || currentNews.isAd) return;
 
     impressionTimerRef.current = setTimeout(() => {
       readBatchRef.current.add(currentNews.id);

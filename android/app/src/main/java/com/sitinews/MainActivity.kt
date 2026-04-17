@@ -1,5 +1,7 @@
 package com.rapidnews
 
+import android.content.Context
+import android.content.res.Configuration
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -7,16 +9,16 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
 
-  /**
-   * Returns the name of the main component registered from JavaScript. This is used to schedule
-   * rendering of the component.
-   */
   override fun getMainComponentName(): String = "sitinews"
 
-  /**
-   * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
-   * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
-   */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  // Lock font scale to 1.0 regardless of device accessibility settings
+  override fun attachBaseContext(newBase: Context) {
+    val config = Configuration(newBase.resources.configuration)
+    config.fontScale = 1.0f
+    val context = newBase.createConfigurationContext(config)
+    super.attachBaseContext(context)
+  }
 }

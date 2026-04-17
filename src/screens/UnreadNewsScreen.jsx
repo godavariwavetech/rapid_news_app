@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { fetchUnreadNews } from '../redux/reducers/news';
+import { fetchUnreadNews, fetchUnreadNewsCount } from '../redux/reducers/news';
 import FlipNewsScreen from './FlipNewsScreen'; 
 import CommentsBottomSheet from '../components/CommentsBottomSheet'; 
 
@@ -21,6 +21,10 @@ const UnreadNewsScreen = () => {
   useEffect(() => {
     const lastSeenDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     dispatch(fetchUnreadNews(lastSeenDate));
+    return () => {
+      // Refresh unread count after flush completes when leaving this screen
+      setTimeout(() => dispatch(fetchUnreadNewsCount()), 500);
+    };
   }, [dispatch]);
 
   const handleRefresh = () => {

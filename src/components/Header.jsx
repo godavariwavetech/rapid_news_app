@@ -37,7 +37,7 @@ function Header({ onProfilePress, onTogglePress, title }) {
       </TouchableOpacity>
 
       {/* Center - Title */}
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}  allowFontScaling={false}>{title}</Text>
 
       {/* Right - Hide/Show Toggle Icon with Unread Badge */}
       <TouchableOpacity

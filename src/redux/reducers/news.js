@@ -400,6 +400,8 @@ export const fetchUnreadNewsCount = createAsyncThunk(
       // Logged-in user — api interceptor sends Authorization automatically, no device ID needed
 
       const response = await api.get('/news/unread/count', config);
+
+      console.log(response,">>>>>>>>>>>>>>>>>response unread");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
