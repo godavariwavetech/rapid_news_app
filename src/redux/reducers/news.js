@@ -51,6 +51,9 @@ const initialState = {
   // --- Unread News State ---
   unreadArticles: [],
   isLoadingUnread: false,
+  isLoadingMoreUnread: false,
+  unreadHasMore: false,
+  unreadPage: 1,
   unreadError: null,
   
   // --- Unread Count State (Added for Header Badge) ---
@@ -338,18 +341,24 @@ export const postFeedback = createAsyncThunk(
 // Fetch Unread News
 export const fetchUnreadNews = createAsyncThunk(
   'news/fetchUnreadNews',
-  async (lastSeenAt, { getState, rejectWithValue }) => {
+  async (arg, { getState, rejectWithValue }) => {
     try {
       const state = getState();
       const { userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
       const hasToken = userToken || reporterToken;
 
+      // arg can be a lastSeenAt string (legacy) or an object { lastSeenAt, page }
+      const lastSeenAt = typeof arg === 'string' ? arg : arg?.lastSeenAt;
+      const page = typeof arg === 'object' ? (arg?.page || 1) : 1;
+
       const queryParams = {
         village_id: location.village?._id || "697d8135322a103bdabf0fc7",
         district_id: location.district?._id || "697d8135322a103bdabf0fc5",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
         last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        page,
+        limit: 10,
       };
 
       const config = { params: queryParams };
@@ -361,7 +370,7 @@ export const fetchUnreadNews = createAsyncThunk(
       }
 
       const response = await api.get('/news/unread', config);
-      return response.data;
+      return { data: response.data, page };
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -750,19 +759,37 @@ const newsSlice = createSlice({
       })
 
       // --- Fetch Unread News ---
-      .addCase(fetchUnreadNews.pending, (state) => {
-        state.isLoadingUnread = true;
+      .addCase(fetchUnreadNews.pending, (state, action) => {
+        const page = typeof action.meta.arg === 'object' ? action.meta.arg?.page : 1;
+        if (page > 1) state.isLoadingMoreUnread = true;
+        else state.isLoadingUnread = true;
         state.unreadError = null;
       })
       .addCase(fetchUnreadNews.fulfilled, (state, action) => {
         state.isLoadingUnread = false;
-        const data = action.payload;
-        console.log(data, ">>>>>>>>>>>>>>>>UNREAD NEWS");
+        state.isLoadingMoreUnread = false;
+        const { data, page } = action.payload;
         let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
-        state.unreadArticles = incomingItems;
+        const pagination = data?.pagination;
+        state.unreadPage = page;
+        if (pagination) {
+          state.unreadHasMore = pagination.end != null && pagination.total_news != null
+            ? pagination.end < pagination.total_news
+            : incomingItems.length >= 10;
+        } else {
+          state.unreadHasMore = incomingItems.length >= 10;
+        }
+        if (page === 1) {
+          state.unreadArticles = incomingItems;
+        } else {
+          const existingIds = new Set(state.unreadArticles.map(i => i.data?._id || i._id));
+          const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+          state.unreadArticles = [...state.unreadArticles, ...unique];
+        }
       })
       .addCase(fetchUnreadNews.rejected, (state, action) => {
         state.isLoadingUnread = false;
+        state.isLoadingMoreUnread = false;
         state.unreadError = action.payload || 'Failed to fetch unread news';
       })
 

@@ -112,14 +112,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
   // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, todayTotalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  const { articles, totalNews, todayTotalNews, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
 
   const activeArticles = feedType === 'unread' ? unreadArticles : articles;
   const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
-  const activeHasMore = feedType === 'unread' ? false : hasMore; 
+  const activeHasMore = feedType === 'unread' ? unreadHasMore : hasMore;
+  const activeIsLoadingMore = feedType === 'unread' ? isLoadingMoreUnread : isLoadingMore;
   
   const bookmarkedIds = useMemo(() => {
     return bookmarks?.map(item => item.news?._id);
@@ -204,10 +205,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
           itemIndex: newsCounter,
-          // Show today's count until user scrolls past it, then show full total
-          totalNews: (todayTotalNews && newsCounter <= todayTotalNews)
-            ? todayTotalNews
-            : (totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length),
+          totalNews: feedType === 'unread'
+            ? (unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length)
+            : (todayTotalNews && newsCounter <= todayTotalNews)
+              ? todayTotalNews
+              : (totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length),
         };
       }
     });
@@ -285,9 +287,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
-  // Pre-fetch next page when user reaches 2 items before the end
+  // Pre-fetch next page when user lands on the second-to-last item
   useEffect(() => {
-    if (!activeHasMore || isLoadingMore || loading) return;
+    if (!activeHasMore || activeIsLoadingMore || activeLoading) return;
     const total = formattedNews.length;
     if (total > 0 && currIndex >= total - 2) {
       if (!isLoadingMoreRef.current) {
@@ -295,7 +297,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         if (onEndReached) onEndReached();
       }
     }
-  }, [currIndex, formattedNews.length, activeHasMore, isLoadingMore, loading]);
+  }, [currIndex, formattedNews.length, activeHasMore, activeIsLoadingMore, activeLoading]);
 
   useEffect(() => {
     if (currIndex >= formattedNews.length && formattedNews.length > 0) {
@@ -314,50 +316,65 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   }, [activeLoading, isRefreshing]);
 
   // --- Impression-based read tracking with batching ---
+  // Strategy: collect IDs in a Set, flush after 5s of inactivity (debounce),
+  // immediately on 10+ IDs, on app background, and on unmount.
   const readBatchRef = useRef(new Set());
-  const flushTimerRef = useRef(null);
+  const debounceTimerRef = useRef(null);
   const impressionTimerRef = useRef(null);
 
   const flushReadBatch = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     if (readBatchRef.current.size === 0) return;
     const ids = Array.from(readBatchRef.current);
     readBatchRef.current.clear();
     dispatch(markNewsAsRead(ids));
   }, [dispatch]);
 
-  // Flush on app background
+  const scheduleFlush = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(flushReadBatch, 2000);
+  }, [flushReadBatch]);
+
+  // Flush on app background or unmount
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'background' || state === 'inactive') {
-        flushReadBatch();
-      }
+      if (state === 'background' || state === 'inactive') flushReadBatch();
     });
     return () => {
       sub.remove();
-      flushReadBatch(); // flush on unmount too
-      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
+      flushReadBatch();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
     };
   }, [flushReadBatch]);
 
-  // Flush every 2s
-  useEffect(() => {
-    flushTimerRef.current = setInterval(flushReadBatch, 2000);
-    return () => clearInterval(flushTimerRef.current);
-  }, [flushReadBatch]);
-
-  // Track impression: ≥1s visible → add to batch, flush at 10 ids
+  // Track impression: add ID immediately on swipe-away, or after 1s if still viewing
   useEffect(() => {
     if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
     if (!currentNews?.id || currentNews.isAd) return;
 
+    const newsId = currentNews.id;
+
     impressionTimerRef.current = setTimeout(() => {
-      readBatchRef.current.add(currentNews.id);
-      if (readBatchRef.current.size >= 10) flushReadBatch();
+      readBatchRef.current.add(newsId);
+      if (readBatchRef.current.size >= 10) {
+        flushReadBatch();
+      } else {
+        scheduleFlush();
+      }
     }, 1000);
 
-    return () => clearTimeout(impressionTimerRef.current);
-  }, [currentNews?.id, currentNews?.isAd, feedType, flushReadBatch]);
+    return () => {
+      clearTimeout(impressionTimerRef.current);
+      // Always mark as read on swipe-away, even if < 1s
+      readBatchRef.current.add(newsId);
+      if (readBatchRef.current.size >= 10) {
+        flushReadBatch();
+      } else {
+        scheduleFlush();
+      }
+    };
+  }, [currentNews?.id, currentNews?.isAd, flushReadBatch, scheduleFlush]);
 
   useEffect(() => {
     if (isSwitching) {
@@ -394,20 +411,23 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
   
   const isLoadingMoreRef = useRef(false);
+  const [userSwipedPastEnd, setUserSwipedPastEnd] = useState(false);
 
   const triggerLoadMore = () => {
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
+    setUserSwipedPastEnd(true);
     if (onEndReached) onEndReached();
     scrollY.value = withSpring(0, SPRING_CONFIG); 
   };
 
-  // Reset the guard once loading finishes
+  // Reset the guard and swipe flag once loading finishes
   useEffect(() => {
-    if (!isLoadingMore && !loading) {
+    if (!activeIsLoadingMore && !activeLoading) {
       isLoadingMoreRef.current = false;
+      setUserSwipedPastEnd(false);
     }
-  }, [isLoadingMore, loading]);
+  }, [activeIsLoadingMore, activeLoading]);
 
   // --- AUTOMATIC SWIPE FUNCTION ---
   const autoSwipeNext = () => {
@@ -617,8 +637,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <ActivityIndicator size="large" color="#4dabf5" />
           </Animated.View>
 
-          {/* Bottom load-more indicator — shown when fetching next page from the last card */}
-          {isLoadingMore && !nextNews && (
+          {/* Bottom load-more indicator — only shown when user swipes past last card */}
+          {userSwipedPastEnd && activeIsLoadingMore && !nextNews && (
             <View style={styles.bottomLoaderContainer}>
               <ActivityIndicator size="small" color="#4dabf5" />
               <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>

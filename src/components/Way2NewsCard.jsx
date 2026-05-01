@@ -651,7 +651,7 @@ watermarkLogo: {
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
     fontFamily: fonts.medium,
-    fontSize: responsiveFontSize(2.6), 
+    fontSize: responsiveFontSize(2.8), 
     color: '#000000', 
     lineHeight: responsiveFontSize(3.4),
     includeFontPadding: false,
@@ -661,7 +661,7 @@ watermarkLogo: {
   bodyContainer: { flex: 1, overflow: 'hidden' },
   body: { 
     fontFamily: fonts.description, 
-    fontSize: responsiveFontSize(3.3), 
+    fontSize: responsiveFontSize(3.5), 
     lineHeight: responsiveFontSize(3.5), 
     color: '#555555',
     fontWeight: '400',

@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { fetchUnreadNews, fetchUnreadNewsCount } from '../redux/reducers/news';
 import FlipNewsScreen from './FlipNewsScreen'; 
 import CommentsBottomSheet from '../components/CommentsBottomSheet'; 
@@ -13,28 +13,32 @@ const UnreadNewsScreen = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const flipScreenRef = useRef(null);
+  const lastSeenDateRef = useRef(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-  // --- 1. Use state instead of refs for the bottom sheet (Mimicking HomeScreen) ---
+  const { unreadPage, unreadHasMore } = useSelector(state => state.news);
+
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [selectedNews, setSelectedNews] = useState(null);
 
   useEffect(() => {
-    const lastSeenDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    dispatch(fetchUnreadNews(lastSeenDate));
+    dispatch(fetchUnreadNews({ lastSeenAt: lastSeenDateRef.current, page: 1 }));
     return () => {
-      // Refresh unread count after flush completes when leaving this screen
       setTimeout(() => dispatch(fetchUnreadNewsCount()), 500);
     };
   }, [dispatch]);
 
   const handleRefresh = () => {
-    const lastSeenDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    dispatch(fetchUnreadNews(lastSeenDate));
+    lastSeenDateRef.current = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    dispatch(fetchUnreadNews({ lastSeenAt: lastSeenDateRef.current, page: 1 }));
+  };
+
+  const handleEndReached = () => {
+    if (!unreadHasMore) return;
+    dispatch(fetchUnreadNews({ lastSeenAt: lastSeenDateRef.current, page: unreadPage + 1 }));
   };
 
   return (
     <View style={styles.container}>
-      {/* Absolute Floating Back Button */}
       <TouchableOpacity 
         style={[styles.backButton, { top: Math.max(insets.top, 20) + 10 }]} 
         onPress={() => navigation.goBack()}
@@ -49,7 +53,7 @@ const UnreadNewsScreen = () => {
         hideUI={() => {}} 
         toggleUI={() => {}} 
         onRefresh={handleRefresh}
-        // --- 2. Pass the handler exactly like HomeScreen ---
+        onEndReached={handleEndReached}
         onCommentsPress={(item) => { 
           setSelectedNews(item); 
           setCommentsVisible(true); 
@@ -72,21 +76,17 @@ const UnreadNewsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
+  container: { flex: 1, backgroundColor: '#000000' },
   backButton: {
     position: 'absolute',
     left: 16,
-    zIndex: 100, // Make sure it sits above the 3D flipping cards
+    zIndex: 100,
     backgroundColor: 'rgba(0,0,0,0.5)',
     padding: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  // Add this container style from HomeScreen to ensure it mounts properly over the UI
   commentContainer: { 
     ...StyleSheet.absoluteFillObject, 
     zIndex: 200 
