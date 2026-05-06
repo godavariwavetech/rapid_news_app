@@ -68,7 +68,7 @@ function HomeScreen({navigation}) {
       // Don't clearNews before fetching — it creates a race condition that
       // briefly shows articles=[] and triggers the "no news" toast.
       // fetchNews page 1 already replaces articles in the reducer.
-      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab' }));
     }
 
     dispatch(getBookmarks())
@@ -176,7 +176,7 @@ function HomeScreen({navigation}) {
     } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
-        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}));
+        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}));
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
       }
     }
@@ -204,8 +204,8 @@ function HomeScreen({navigation}) {
           toggleUI={toggleUI}
           hideUI={hideUI}
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
-          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}))}
-          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1}))}
+          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}))}
+          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1, isLocationMode: activeTab === 'LocationTab'}))}
         />
       )}
 
