@@ -22,8 +22,20 @@ const Step1LocationScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const { theme, isDarkMode } = useTheme();
   
-  const {states, districts, villages, loading} = useSelector(state => state.location);
-  
+  const {states, districts, villages} = useSelector(state => state.location);
+  const reporter = useSelector(state => state.auth.reporter);
+
+  // reporter can be the full user object (getProfile sets reporter = full user)
+  // or reporter_profile directly (verifyOTP sets reporter = user.reporter_profile)
+  const reporterProfile = reporter?.reporter_profile || reporter;
+
+  // These may be populated objects {_id, name:{en,te}} or plain ID strings
+  const assignedState    = reporterProfile?.location?.state_id;
+  const assignedDistrict = reporterProfile?.location?.district_id;
+  const assignedVillage  = reporterProfile?.location?.village_id;
+
+  const isReporter = !!(assignedDistrict || assignedState);
+
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
@@ -33,8 +45,55 @@ const Step1LocationScreen = ({navigation}) => {
   const [showVillagePicker, setShowVillagePicker] = useState(false);
 
   useEffect(() => {
-    dispatch(getStates());
-  }, [dispatch]);
+    if (!isReporter) {
+      dispatch(getStates());
+      return;
+    }
+
+    // If assigned values are already populated objects (have _id + name), use directly
+    if (assignedState && typeof assignedState === 'object' && assignedState.name) {
+      setSelectedState(assignedState);
+    }
+    if (assignedDistrict && typeof assignedDistrict === 'object' && assignedDistrict.name) {
+      setSelectedDistrict(assignedDistrict);
+      const districtId = assignedDistrict._id;
+      if (districtId) dispatch(getVillages(districtId));
+    }
+    if (assignedVillage && typeof assignedVillage === 'object' && assignedVillage.name) {
+      setSelectedVillage(assignedVillage);
+    }
+
+    // If they are plain ID strings, fetch states list to resolve names
+    if (typeof assignedState === 'string' || typeof assignedDistrict === 'string') {
+      dispatch(getStates());
+    }
+  }, [isReporter]);
+
+  // Once states list loads, resolve plain ID strings to full objects
+  useEffect(() => {
+    if (!isReporter || !states?.length) return;
+
+    if (typeof assignedState === 'string' && !selectedState) {
+      const match = states.find(s => s._id === assignedState);
+      if (match) {
+        setSelectedState(match);
+        dispatch(getDistrict(match._id));
+      }
+    }
+  }, [states]);
+
+  // Once districts load, resolve district ID to full object
+  useEffect(() => {
+    if (!isReporter || !districts?.length) return;
+
+    if (typeof assignedDistrict === 'string' && !selectedDistrict) {
+      const match = districts.find(d => d._id === assignedDistrict);
+      if (match) {
+        setSelectedDistrict(match);
+        dispatch(getVillages(match._id));
+      }
+    }
+  }, [districts]);
 
   const handleStateSelect = (item) => {
     setSelectedState(item);
@@ -56,9 +115,13 @@ const Step1LocationScreen = ({navigation}) => {
     setShowVillagePicker(false);
   };
 
+  const canProceed = isReporter
+    ? !!selectedVillage
+    : !!(selectedState && selectedDistrict && selectedVillage);
+
   const handleNext = () => {
-    if (!selectedState || !selectedDistrict || !selectedVillage) {
-      Alert.alert('Required', 'Please complete all location fields.');
+    if (!canProceed) {
+      Alert.alert('Required', isReporter ? 'Please select a village.' : 'Please complete all location fields.');
       return;
     }
     navigation.navigate('NewsSubmissionStep3', {
@@ -74,17 +137,46 @@ const Step1LocationScreen = ({navigation}) => {
     });
   };
 
-  const LocationField = ({label, value, onPress, disabled, active}) => (
-    <View style={[styles.fieldWrapper, disabled && {opacity: 0.3}]}>
-      <Text style={[styles.fieldLabel, { color: theme.text }]}>{label}</Text>
+  const getDisplayName = (obj) => {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj; // plain ID — no name available
+    return obj?.name?.en || obj?.name || obj?._id || '';
+  };
+
+  const LocationField = ({label, value, onPress, disabled, active, locked}) => (
+    <View style={[styles.fieldWrapper, disabled && !locked && {opacity: 0.3}]}>
+      <View style={styles.fieldLabelRow}>
+        <Text style={[styles.fieldLabel, { color: locked ? '#888' : theme.text }]}>{label}</Text>
+        {locked && (
+          <View style={styles.lockedBadge}>
+            <Icon name="lock" size={11} color="#fff" />
+            <Text style={styles.lockedText}>Assigned</Text>
+          </View>
+        )}
+      </View>
       <TouchableOpacity 
-        style={[styles.fieldInput, { borderBottomColor: isDarkMode ? '#444' : '#E0E0E0' }, active && { borderBottomColor: isDarkMode ? theme.primary : '#000000' }]} 
-        onPress={onPress} 
-        disabled={disabled}
-        activeOpacity={0.8}
+        style={[
+          styles.fieldInput,
+          locked
+            ? styles.fieldInputLocked
+            : { borderBottomColor: active ? (isDarkMode ? theme.primary : '#000000') : (isDarkMode ? '#444' : '#E0E0E0') }
+        ]} 
+        onPress={locked ? undefined : onPress}
+        disabled={disabled || locked}
+        activeOpacity={locked ? 1 : 0.8}
       >
-        <Text style={[styles.fieldValue, { color: theme.text }, !active && {color: isDarkMode ? '#666' : '#A0A0A0'}]}>{value}</Text>
-        <Icon name="chevron-down" size={20} color={theme.text} />
+        <Text style={[
+          styles.fieldValue,
+          { color: locked ? '#888' : theme.text },
+          !active && !locked && { color: isDarkMode ? '#666' : '#A0A0A0' }
+        ]}>
+          {value}
+        </Text>
+        <Icon
+          name={locked ? 'lock' : 'chevron-down'}
+          size={18}
+          color={locked ? '#aaa' : theme.text}
+        />
       </TouchableOpacity>
     </View>
   );
@@ -93,7 +185,6 @@ const Step1LocationScreen = ({navigation}) => {
     <View style={[styles.container, {paddingTop: insets.top, backgroundColor: theme.background}]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
-      {/* Professional Minimal Header */}
       <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={26} color={theme.text} />
@@ -105,48 +196,59 @@ const Step1LocationScreen = ({navigation}) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
         <View style={styles.titleContainer}>
           <Text style={[styles.mainTitle, { color: theme.text }]}>Location</Text>
-          <Text style={[styles.subTitle, { color: theme.textSecondary }]}>Select the origin of the report.</Text>
+          <Text style={[styles.subTitle, { color: theme.textSecondary }]}>
+            {isReporter
+              ? 'Your news will be posted to your assigned area.'
+              : 'Select the origin of the report.'}
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
           <LocationField 
             label="STATE"
-            value={selectedState ? (selectedState.name?.en || selectedState.name) : 'Select State'}
-            onPress={() => setShowStatePicker(true)}
+            value={selectedState ? getDisplayName(selectedState) : 'Select State'}
+            onPress={() => { dispatch(getStates()); setShowStatePicker(true); }}
             active={!!selectedState}
+            locked={isReporter && !!assignedState}
           />
 
           <LocationField 
             label="DISTRICT"
-            value={selectedDistrict ? (selectedDistrict.name?.en || selectedDistrict.name) : 'Select District'}
+            value={selectedDistrict ? getDisplayName(selectedDistrict) : 'Select District'}
             onPress={() => setShowDistrictPicker(true)}
             disabled={!selectedState}
             active={!!selectedDistrict}
+            locked={isReporter && !!assignedDistrict}
           />
 
           <LocationField 
             label="VILLAGE / MANDAL"
-            value={selectedVillage ? (selectedVillage.name?.en || selectedVillage.name) : 'Select Village'}
+            value={selectedVillage ? getDisplayName(selectedVillage) : 'Select Village'}
             onPress={() => setShowVillagePicker(true)}
             disabled={!selectedDistrict}
             active={!!selectedVillage}
+            locked={false}
           />
         </View>
       </ScrollView>
 
       <View style={[styles.footer, {paddingBottom: Math.max(insets.bottom, 24)}]}>
         <TouchableOpacity 
-          style={[styles.nextButton, { backgroundColor: isDarkMode ? theme.primary : '#000000' }, (!selectedState || !selectedDistrict || !selectedVillage) && [styles.nextButtonDisabled, { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' }]]}
+          style={[styles.nextButton, { backgroundColor: isDarkMode ? theme.primary : '#000000' }, !canProceed && [styles.nextButtonDisabled, { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' }]]}
           onPress={handleNext}
-          disabled={!selectedState || !selectedDistrict || !selectedVillage}
+          disabled={!canProceed}
         >
           <Text style={[styles.nextButtonText, { color: isDarkMode ? '#000' : '#FFFFFF' }]}>Continue</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Selection Modals */}
-      <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} theme={theme} isDarkMode={isDarkMode} />
-      <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} theme={theme} isDarkMode={isDarkMode} />
+      {/* Village modal always available; state/district modals only for non-reporters */}
+      {!isReporter && (
+        <>
+          <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} theme={theme} isDarkMode={isDarkMode} />
+          <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} theme={theme} isDarkMode={isDarkMode} />
+        </>
+      )}
       <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} theme={theme} isDarkMode={isDarkMode} />
     </View>
   );
@@ -192,13 +294,27 @@ const styles = StyleSheet.create({
   mainTitle: { fontSize: 32, fontFamily: fonts.bold },
   subTitle: { fontSize: 16, fontFamily: fonts.regular, marginTop: 4 },
   formContainer: { gap: 28 },
-  fieldLabel: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 1.5, marginBottom: 10 },
+  fieldWrapper: {},
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  fieldLabel: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 1.5 },
+  lockedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#888', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  lockedText: { fontSize: 10, color: '#fff', fontFamily: fonts.medium },
   fieldInput: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 2,
     paddingVertical: 12,
+  },
+  fieldInputLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 2,
+    borderBottomColor: '#ccc',
+    borderStyle: 'dashed',
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   fieldValue: { fontSize: 18, fontFamily: fonts.medium },
   footer: { paddingHorizontal: 24 },

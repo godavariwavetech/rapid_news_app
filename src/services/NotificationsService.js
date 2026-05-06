@@ -5,27 +5,29 @@ import { store } from '../redux/store';
 
 const { CustomNewsNotification } = NativeModules;
 
-// 1. Export the background handler separately for Headless JS (Killed State)
+// Background/Killed state handler — navigation only, display is handled natively
 export const backgroundMessageHandler = async (remoteMessage) => {
-  console.log(">>>>>>>>>>>>>>>HELLOMessage Background/Killed", remoteMessage);
-  await displayCustomNotification(remoteMessage);
+  console.log(">>>>>>>>>>>>>>>FCM Background/Killed", remoteMessage);
+  // Notification display is handled by CustomFirebaseMessagingService.java
+  // Nothing to do here for display — just return so the headless task completes
 };
 
 export const setupNotificationHandlers = (navigation) => {
   console.log("<><><><><><><><><><><>Notifications setup");
   
-  // Foreground notifications
+  // Foreground: display is handled natively by CustomFirebaseMessagingService
+  // We only need to listen for navigation on tap
   messaging().onMessage(async remoteMessage => {
-    console.log(">>>>>>>>>>>>>>>HELLOMessage Foreground", remoteMessage);
-    displayCustomNotification(remoteMessage);
+    console.log(">>>>>>>>>>>>>>>FCM Foreground", remoteMessage);
+    // Display already handled natively — nothing to do
   });
 
-  // Notification opened handler (When user taps the notification in background)
+  // Tapped while app in background
   messaging().onNotificationOpenedApp(remoteMessage => {
     handleNotificationNavigation(remoteMessage.data, navigation);
   });
 
-  // Check if app was opened from notification (Cold boot / Killed state)
+  // Tapped from killed state
   messaging().getInitialNotification().then(remoteMessage => {
     if (remoteMessage) {
       handleNotificationNavigation(remoteMessage.data, navigation);
@@ -35,21 +37,22 @@ export const setupNotificationHandlers = (navigation) => {
 
 const displayCustomNotification = async (remoteMessage) => {
   console.log(remoteMessage,">>>>>>>>>>>>>>>>>>>>REMOTE NOTIFICATION");
-  if(!remoteMessage?.data) return
+  if(!remoteMessage?.data) return;
+
   try {
-    // If using Data-Only messages (as you should), extract from data
-    const title = remoteMessage.data?.title || remoteMessage.notification?.title || 'New Update';
-    const body = remoteMessage.data?.body || remoteMessage.notification?.body || '';
-    
+    // Backend may send title at different paths — try all common ones
+    const data = remoteMessage.data;
+    const title = data?.title
+      || data?.content?.title
+      || data?.news_title
+      || 'New Update';
+
+    const newsId = data?.newsId || data?.news_id || data?.id || '';
+
     if (CustomNewsNotification && CustomNewsNotification.show) {
       if (Platform.OS === 'android') {
-        // You can dynamically pass the title/body if needed, or use your hardcoded values
         const newsHtml = `<b><font color="#ffffff">${title}</font></b>`;
-        const newsId = remoteMessage.data?.newsId || remoteMessage.data?.news_id || remoteMessage.data?.id || '98765'; 
-
         CustomNewsNotification.show(newsHtml, newsId);
-      } else {
-        // iOS implementation
       }
     } else {
       console.warn("CustomNewsNotification is not linked or the method name is incorrect.");
@@ -67,8 +70,22 @@ const handleNotificationNavigation = async (data, navigation) => {
     navigation.navigate('OrderDetails', { orderId: data.orderId });
   } else if (data.newsId || data.news_id || data.id) {
     const newsId = data.newsId || data.news_id || data.id;
-    store.dispatch(fetchArticleById(newsId));
-    navigation.navigate('NewsDetail', { newsId: newsId });
+
+    // Fetch article — this also prepends it to index 0 in the Redux feed
+    await store.dispatch(fetchArticleById(newsId));
+
+    const navigateTo = () => {
+      if (navigation.isReady()) {
+        // Go to Main (HomeScreen) — the fetched article is at index 0 in the flip feed
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        setTimeout(navigateTo, 300);
+      }
+    };
+    navigateTo();
   }
 };
 

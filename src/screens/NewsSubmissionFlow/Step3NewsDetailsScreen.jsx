@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
 import { useTheme } from '../../context/ThemeContext';
+import CameraComponent from '../../components/CameraComponent';
 
 const MAX_IMAGES = 5;
 
@@ -56,6 +57,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   // UI State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   useEffect(() => {
     dispatch(getCategories());
@@ -155,16 +157,17 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   const handleCamera = () => {
     setShowMediaOptions(false);
-    launchCamera({ mediaType: 'photo', quality: 0.7, includeBase64: true }, response => {
-      if (response.assets && response.assets[0]) {
-        setImages(prev => {
-          if (prev.length >= MAX_IMAGES) {
-            Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
-            return prev;
-          }
-          return [...prev, response.assets[0]];
-        });
+    setShowCamera(true);
+  };
+
+  const handleCapture = (photo) => {
+    setShowCamera(false);
+    setImages(prev => {
+      if (prev.length >= MAX_IMAGES) {
+        Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+        return prev;
       }
+      return [...prev, photo];
     });
   };
 
@@ -388,6 +391,8 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Add Images or Video</Text>
           </TouchableOpacity>
         )}
+        
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       <View style={[styles.footer, {marginBottom: insets.bottom, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
@@ -448,6 +453,12 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <CameraComponent
+        isVisible={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCapture}
+      />
 
     </SafeAreaView>
   );

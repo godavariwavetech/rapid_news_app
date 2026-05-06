@@ -45,7 +45,7 @@ const NewsDetailScreen = ({route, navigation}) => {
     const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_${Date.now()}.jpg`;
     try {
       const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
-      const newsTitle = news?.content?.title || news?.title || '';
+      const newsTitle = news?.content?.title ?? news?.title ?? '';
       const message = `${newsTitle}\n\n${appUrl}`;
 
       console.log('[Share] viewShotRef exists:', !!viewShotRef?.current);
@@ -101,9 +101,9 @@ const NewsDetailScreen = ({route, navigation}) => {
     <View style={[styles.container, {backgroundColor: theme.background}]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* ViewShot wraps only the content — FAB stays outside so it won't appear in capture */}
-      <ViewShot ref={viewShotRef} style={styles.container} options={{format: 'jpg', quality: 0.9}}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* ViewShot wraps only the content — FAB stays outside so it won't appear in capture */}
+        <ViewShot ref={viewShotRef} options={{format: 'jpg', quality: 0.9}}>
           <View style={styles.imageContainer}>
             <Image source={{uri: news.images?.[0]}} style={styles.mainImage} />
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -120,12 +120,12 @@ const NewsDetailScreen = ({route, navigation}) => {
                 {new Date(news.published_at).toLocaleDateString()}
               </Text>
             </View>
-            <Text style={[styles.title, {color: theme.text}]}>{news.content.title}</Text>
+            <Text style={[styles.title, {color: theme.text}]}>{news.content?.title || news.title || ''}</Text>
             <View style={[styles.divider, {backgroundColor: theme.textSecondary + '20'}]} />
-            <Text style={[styles.bodyText, {color: theme.text}]}>{news.content.body}</Text>
+            <Text style={[styles.bodyText, {color: theme.text}]}>{news.content?.body || news.body || ''}</Text>
           </View>
-        </ScrollView>
-      </ViewShot>
+        </ViewShot>
+      </ScrollView>
 
       {/* FAB outside ViewShot — won't appear in the captured image */}
       <TouchableOpacity

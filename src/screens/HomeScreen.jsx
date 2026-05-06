@@ -10,7 +10,7 @@ import {
   BackHandler,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, getCategories, setSelectedCategory, clearNews} from '../redux/reducers/news';
+import {fetchNews, getCategories, setSelectedCategory} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
@@ -64,11 +64,11 @@ function HomeScreen({navigation}) {
       }
     }
 
-    // --- ADDED currentLocation CHECK HERE ---
-    // Only fetch news if we have resolved the location
     if (currentLocation) {
-      dispatch(clearNews());
-      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
+      // Don't clearNews before fetching — it creates a race condition that
+      // briefly shows articles=[] and triggers the "no news" toast.
+      // fetchNews page 1 already replaces articles in the reducer.
+      dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab' }));
     }
 
     dispatch(getBookmarks())
@@ -84,7 +84,8 @@ function HomeScreen({navigation}) {
 
   useEffect(() => {
     const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;
-    if (!loading && articlesCount === 0 && !error) {
+    // Guard: only trigger fallback logic when we're fully done loading and truly have no articles
+    if (!loading && !isLoadingMore && articlesCount === 0 && !error) {
       let shouldFallback = false;
       let msg = "";
 
@@ -159,7 +160,6 @@ function HomeScreen({navigation}) {
     } else if (tabId === 'LocationTab') {
       setActiveTab(tabId);
       setHeaderTitle(displayLocationName);
-      dispatch(clearNews());
       dispatch(fetchNews({
         currentLocation, 
         category: selectedCategory, 
@@ -171,14 +171,12 @@ function HomeScreen({navigation}) {
       setActiveTab(tabId);
       setHeaderTitle('న్యూస్');
       dispatch(setSelectedCategory('all'));
-      dispatch(clearNews());
       dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
       if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
     } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
-        dispatch(clearNews());
-        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}));
+        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}));
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
       }
     }
@@ -206,8 +204,8 @@ function HomeScreen({navigation}) {
           toggleUI={toggleUI}
           hideUI={hideUI}
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
-          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1}))}
-          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1}))}
+          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}))}
+          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1, isLocationMode: activeTab === 'LocationTab'}))}
         />
       )}
 

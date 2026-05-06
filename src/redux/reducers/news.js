@@ -51,11 +51,15 @@ const initialState = {
   // --- Unread News State ---
   unreadArticles: [],
   isLoadingUnread: false,
+  isLoadingMoreUnread: false,
+  unreadHasMore: false,
+  unreadPage: 1,
   unreadError: null,
   
   // --- Unread Count State (Added for Header Badge) ---
   unreadCount: 0,
   totalNews: 0,
+  todayTotalNews: 0,
 };
 
 // --- ASYNC THUNKS ---
@@ -337,27 +341,36 @@ export const postFeedback = createAsyncThunk(
 // Fetch Unread News
 export const fetchUnreadNews = createAsyncThunk(
   'news/fetchUnreadNews',
-  async (lastSeenAt, { getState, rejectWithValue }) => {
+  async (arg, { getState, rejectWithValue }) => {
     try {
       const state = getState();
+      const { userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
-      const deviceId = await getUniqueId();
+      const hasToken = userToken || reporterToken;
+
+      // arg can be a lastSeenAt string (legacy) or an object { lastSeenAt, page }
+      const lastSeenAt = typeof arg === 'string' ? arg : arg?.lastSeenAt;
+      const page = typeof arg === 'object' ? (arg?.page || 1) : 1;
 
       const queryParams = {
         village_id: location.village?._id || "697d8135322a103bdabf0fc7",
         district_id: location.district?._id || "697d8135322a103bdabf0fc5",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
         last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        page,
+        limit: 10,
       };
 
-      const response = await api.get('/news/unread', {
-        params: queryParams,
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const config = { params: queryParams };
 
-      return response.data;
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const response = await api.get('/news/unread', config);
+      return { data: response.data, page };
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -370,11 +383,13 @@ export const fetchUnreadNewsCount = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState();
-      const { guestLastActiveDate } = state.auth;
+      const { guestLastActiveDate, userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
-      const deviceId = await getUniqueId();
+      const hasToken = userToken || reporterToken;
 
       let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      console.log(lastSeenAt,">>>>>>>>>>>>>LAST SEEN");
 
       const queryParams = {
         last_seen_at: lastSeenAt,
@@ -383,13 +398,19 @@ export const fetchUnreadNewsCount = createAsyncThunk(
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
       };
 
-      const response = await api.get('/news/unread/count', {
-        params: queryParams,
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const config = { params: queryParams };
 
+      if (!hasToken) {
+        // Guest — send device ID, skip auth header
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+      // Logged-in user — api interceptor sends Authorization automatically, no device ID needed
+
+      const response = await api.get('/news/unread/count', config);
+
+      console.log(response,">>>>>>>>>>>>>>>>>response unread");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -441,7 +462,9 @@ export const markNewsAsRead = createAsyncThunk(
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;
       }
+      console.log(newsIds,">>>>>>>>>>>>>>>>>>NEWS IDDD");
       const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
+      console.log(response,">>>>>>>>>>>>>Responseeeeeeeeee");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -498,14 +521,13 @@ const newsSlice = createSlice({
 
         const pagination = data?.pagination;
 
-        // Page 1: show today's count. Page 2+: show full total
         if (pagination) {
-          if (page === 1 && pagination.today_total_news != null) {
-            state.totalNews = pagination.today_total_news;
-          } else if (pagination.total_news != null) {
+          if (pagination.today_total_news != null) {
+            state.todayTotalNews = pagination.today_total_news;
+          }
+          if (pagination.total_news != null) {
             state.totalNews = pagination.total_news;
           }
-          // hasMore: there are still items beyond what we've loaded
           state.hasMore = pagination.end != null && pagination.total_news != null
             ? pagination.end < pagination.total_news
             : false;
@@ -551,11 +573,10 @@ const newsSlice = createSlice({
 
       // --- Fetch Article By Id ---
       .addCase(fetchArticleById.pending, (state) => {
-        state.loading = true;
+        // Use a separate flag — don't touch `loading` so HomeScreen feed isn't blocked
         state.error = null;
       })
       .addCase(fetchArticleById.fulfilled, (state, action) => {
-        state.loading = false;
         let article = action.payload;
         
         if (!article.data) {
@@ -579,7 +600,6 @@ const newsSlice = createSlice({
         }
       })
       .addCase(fetchArticleById.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload || 'Failed to fetch article';
       })
 
@@ -739,19 +759,37 @@ const newsSlice = createSlice({
       })
 
       // --- Fetch Unread News ---
-      .addCase(fetchUnreadNews.pending, (state) => {
-        state.isLoadingUnread = true;
+      .addCase(fetchUnreadNews.pending, (state, action) => {
+        const page = typeof action.meta.arg === 'object' ? action.meta.arg?.page : 1;
+        if (page > 1) state.isLoadingMoreUnread = true;
+        else state.isLoadingUnread = true;
         state.unreadError = null;
       })
       .addCase(fetchUnreadNews.fulfilled, (state, action) => {
         state.isLoadingUnread = false;
-        const data = action.payload;
-        console.log(data, ">>>>>>>>>>>>>>>>UNREAD NEWS");
+        state.isLoadingMoreUnread = false;
+        const { data, page } = action.payload;
         let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
-        state.unreadArticles = incomingItems;
+        const pagination = data?.pagination;
+        state.unreadPage = page;
+        if (pagination) {
+          state.unreadHasMore = pagination.end != null && pagination.total_news != null
+            ? pagination.end < pagination.total_news
+            : incomingItems.length >= 10;
+        } else {
+          state.unreadHasMore = incomingItems.length >= 10;
+        }
+        if (page === 1) {
+          state.unreadArticles = incomingItems;
+        } else {
+          const existingIds = new Set(state.unreadArticles.map(i => i.data?._id || i._id));
+          const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+          state.unreadArticles = [...state.unreadArticles, ...unique];
+        }
       })
       .addCase(fetchUnreadNews.rejected, (state, action) => {
         state.isLoadingUnread = false;
+        state.isLoadingMoreUnread = false;
         state.unreadError = action.payload || 'Failed to fetch unread news';
       })
 

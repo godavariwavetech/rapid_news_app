@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
-import {Linking, LogBox, Text, TouchableOpacity} from 'react-native';
+import React, {useEffect} from 'react';
+import {Linking, LogBox, Alert} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -24,7 +24,6 @@ import notifee from '@notifee/react-native';
 LogBox.ignoreAllLogs();
 
 function App() {
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const { CustomNewsNotification } = NativeModules;
 
   const checkAndRequestPermissions = async () => {
@@ -42,30 +41,30 @@ function App() {
     try {
       const res = await VersionCheck.needUpdate();
       if (res?.isNeeded) {
-        setShowUpdateModal(true);
-      } else {
-        setShowUpdateModal(false);
+        Alert.alert(
+          'Update Available',
+          'A new version of the app is available. Please update to continue using all features.',
+          [
+            {
+              text: 'Update Now',
+              onPress: async () => {
+                try {
+                  await Linking.openURL(res.storeUrl);
+                } catch (e) {
+                  console.log('Play Store link error:', e);
+                }
+              },
+            },
+          ],
+          { cancelable: false },
+        );
       }
     } catch (error) {
       console.log('Error checking for updates:', error);
     }
   };
 
-  const handleUpdate = async () => {
-    try {
-      const res = await VersionCheck.needUpdate();
-      const supported = await Linking.canOpenURL(res.storeUrl);
-      if (supported) {
-        await Linking.openURL(res.storeUrl);
-      } else {
-        await Linking.openURL(res.storeUrl);
-      }
-    } catch (error) {
-      console.log('Play Store link error:', error);
-    } finally {
-      setShowUpdateModal(false);
-    }
-  };
+  const handleUpdate = async () => {};
 
     const getToken = async () => { 
     await getFCMToken();
@@ -101,18 +100,8 @@ const newsHtml = '<b><font color="#ffffff">పాలు </font></b>';
         <PersistGate loading={null} persistor={persistorStore}>
           <TabBarProvider>
             <ThemeProvider>
-              {/* <YoutubeTestScreen /> */}
               <AppNavigator />
-              <CustomModal
-                visible={showUpdateModal}
-                title="Update Available"
-                message="A new version of the app is available. Please update to continue using all features."
-                confirmText="Update Now"
-                onConfirm={handleUpdate}
-                cancelText=''
-              />
             </ThemeProvider>
-         {/* <TouchableOpacity style={{width:100, height:70,backgroundColor:"green"}} onPress={testNot}></TouchableOpacity>  */}
           </TabBarProvider>
         </PersistGate>
       </Provider>
