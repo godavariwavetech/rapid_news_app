@@ -299,55 +299,64 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             </View>
 
             {/* SECTION: categories */}
-            <View style={styles.bentoGrid} onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y}>
-                {categories.map((cat, idx) => {
-                    const colors = gradientPairs[idx % gradientPairs.length];
-                    const mod = idx % 6; 
-                    let cardWidth = '49%';
-                    let cardHeight = 120;
-                    let isFullWidth = false;
-                    
-                    if (mod === 0 || mod === 3) { 
-                        cardWidth = '100%'; 
-                        cardHeight = 90; 
-                        isFullWidth = true;
-                    } else { 
-                        cardWidth = '49%'; 
-                        cardHeight = 130; 
-                    } 
-
-                    return (
-                        <TouchableOpacity 
-                            key={cat._id}
-                            activeOpacity={0.9}
-                            style={[styles.bentoCardWrapper, { width: cardWidth }]}
-                            onPress={() => handleSelection(cat._id)}
-                        >
-                            <LinearGradient
-                                colors={colors}
-                                start={{x: 0, y: 0}}
-                                end={{x: 1, y: 1}}
-                                style={[styles.bentoCard, isFullWidth && styles.bentoCardHorizontal, { height: cardHeight }]}
-                            >
-                                <View style={styles.bentoIconFloating}>
-                                    {cat.icon ? (
-                                        <FastImage 
-                                            source={{ uri: cat.icon }} 
-                                            style={styles.floatingImg}
-                                            resizeMode={FastImage.resizeMode.contain}
-                                        />
-                                    ) : (
-                                        <Icon name={getCategoryIcon(cat.name?.en)} size={isFullWidth ? 26 : 30} color="rgba(255,255,255,0.9)" />
-                                    )}
-                                </View>
-                                <View style={[styles.bentoTextContainer, isFullWidth && styles.bentoTextContainerHorizontal]}>
-                                    <Text style={styles.bentoEnLabel}>{cat.name?.en}</Text>
-                                    <Text style={styles.bentoTeLabel}>{cat.name?.te || cat.name?.en}</Text>
-                                </View>
-                            </LinearGradient>
+            <View onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y} style={{ paddingHorizontal: 10, paddingTop: 4 }}>
+                {(() => {
+                  const rows = [];
+                  let i = 0;
+                  let rowIndex = 0;
+                  const cardW = (width - 75 - 20 - 8) / 2;
+                  while (i < categories.length) {
+                    const mod = rowIndex % 3;
+                    if (mod === 0) {
+                      const cat = categories[i];
+                      const colors = gradientPairs[i % gradientPairs.length];
+                      rows.push(
+                        <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ marginBottom: 6, borderRadius: 14, overflow: 'hidden' }} onPress={() => handleSelection(cat._id)}>
+                          <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, gap: 12 }}>
+                              <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 24, height: 24 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={22} color="#fff" />}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{cat.name?.en}</Text>
+                                <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 2 }}>{cat.name?.te || cat.name?.en}</Text>
+                              </View>
+                            </View>
+                          </LinearGradient>
                         </TouchableOpacity>
-                    );
-                })}
+                      );
+                      i += 1;
+                    } else {
+                      const cat1 = categories[i];
+                      const cat2 = categories[i + 1];
+                      rows.push(
+                        <View key={`row-${i}`} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                          {[cat1, cat2].filter(Boolean).map((cat, ci) => {
+                            const colors = gradientPairs[(i + ci) % gradientPairs.length];
+                            return (
+                              <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ width: cardW, borderRadius: 14, overflow: 'hidden', marginBottom: 0 }} onPress={() => handleSelection(cat._id)}>
+                                <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}}>
+                                  <View style={{ padding: 12 }}>
+                                    <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                                      {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 22, height: 22 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={20} color="#fff" />}
+                                    </View>
+                                    <View style={{ paddingTop: 12 }}>
+                                      <Text style={{ fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{cat.name?.en}</Text>
+                                      <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', marginTop: 2 }}>{cat.name?.te || cat.name?.en}</Text>
+                                    </View>
+                                  </View>
+                                </LinearGradient>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      );
+                      i += 2;
+                    }
+                    rowIndex += 1;
+                  }
+                  return rows;
+                })()}
             </View>
 
             {/* SECTION: reporter */}
@@ -420,7 +429,7 @@ const styles = StyleSheet.create({
   overlayWrapper: { ...StyleSheet.absoluteFillObject, elevation: 100 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   absoluteFill: { width: '100%', height: '100%' },
-  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, borderTopLeftRadius: 32, borderTopRightRadius: 32, zIndex: 2, overflow: 'hidden', elevation: 25 },
+  sheetContainer: { position: 'absolute', bottom: 0, width: width, height: SHEET_HEIGHT, borderTopLeftRadius: 32, borderTopRightRadius: 32, zIndex: 2, elevation: 25 },
   handleBarContainer: { width: '100%', alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
   handleBar: { width: 44, height: 5, borderRadius: 2.5 },
   contentWrapper: { flex: 1, flexDirection: 'row' },
@@ -432,8 +441,8 @@ const styles = StyleSheet.create({
   sidebarLabel: { fontSize: responsiveFontSize(2), color: '#A0A0A0', textAlign: 'center',fontFamily:fonts.bold },
   sidebarLabelActive: { color: '#FF6B35' },
   scrollView: { flex: 1 },
-  scrollPadding: { paddingBottom: 100 },
-  section: { padding: 18 },
+  scrollPadding: { paddingBottom: 40 },
+  section: { padding: 12, paddingBottom: 8 },
   searchRow: { marginBottom: 20 },
   premiumSearch: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F5', borderRadius: 16, paddingHorizontal: 16, height: 54, gap: 12 },
   searchPlaceholder: { fontSize: 15, color: '#868E96', fontWeight: '500' },
@@ -445,16 +454,16 @@ const styles = StyleSheet.create({
   glassBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 12 },
   badgeText: { color: '#FFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   mainCardIcon: { opacity: 0.6 },
-  bentoGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, justifyContent: 'space-between' },
-  bentoCardWrapper: { marginBottom: 10 },
-  bentoCard: { borderRadius: 20, padding: 14, justifyContent: 'space-between', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden' },
-  bentoCardHorizontal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 16 },
-  bentoIconFloating: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  bentoGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8 },
+  bentoCardWrapper: { marginBottom: 0 },
+  bentoCard: { borderRadius: 20, padding: 12, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden', justifyContent: 'space-between' },
+  bentoCardHorizontal: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bentoIconFloating: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   floatingImg: { width: 28, height: 28 },
-  bentoTextContainer: { marginTop: 'auto' },
-  bentoTextContainerHorizontal: { marginTop: 0, flex: 1 },
-  bentoEnLabel: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  bentoTeLabel: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+  bentoTextContainer: { flex: 1 },
+  bentoTextContainerHorizontal: { flex: 1 },
+  bentoEnLabel: { fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  bentoTeLabel: { fontSize: 13, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
   menuSection: { paddingHorizontal: 18, marginTop: 30 },
   menuTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A1A', marginBottom: 16, letterSpacing: -0.5 },
   menuCard: { borderRadius: 24, overflow: 'hidden' },

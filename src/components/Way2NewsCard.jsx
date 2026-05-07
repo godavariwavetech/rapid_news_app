@@ -39,8 +39,7 @@ import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe'; 
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-const ACTUAL_HEIGHT = SCREEN_HEIGHT; 
-const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.40;
+const ACTUAL_HEIGHT = SCREEN_HEIGHT;
 
 const getYoutubeId = (url) => {
   if (!url) return null;
@@ -57,7 +56,8 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
 
-  // --- PLAYER STATES ---
+  const cardHeight = ACTUAL_HEIGHT - insets.top;
+  const IMAGE_HEIGHT = cardHeight * 0.40;  // --- PLAYER STATES ---
   const [isVideoPaused, setIsVideoPaused] = useState(true); // always start paused
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -342,8 +342,8 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const isBookmarked = bookmarkIds?.includes(news.id);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.imageSection}>
+    <View style={[styles.card, { height: cardHeight }]}>
+      <View style={[styles.imageSection, { height: IMAGE_HEIGHT }]}>
 
         {(hasVideos || youtubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
@@ -609,10 +609,8 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 });
 
 const styles = StyleSheet.create({
-  card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
-  imageSection: { 
+  card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },  imageSection: { 
     width: SCREEN_WIDTH, 
-    height: IMAGE_HEIGHT, 
     position: 'relative', 
     backgroundColor: '#000',
     justifyContent: 'center',

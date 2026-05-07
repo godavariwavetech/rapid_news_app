@@ -63,5 +63,19 @@ target 'sitinews' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # ==================== FIX FOR fmt consteval ERROR (Xcode 26.4+) ====================
+    # Forces only the fmt pod to compile with C++17 to bypass broken consteval handling
+    # in newer Apple Clang while keeping the rest of React Native on C++20.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+          # Optional: extra safety
+          # config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        end
+      end
+    end
+    # ================================================================================
   end
 end

@@ -5,6 +5,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withSpring,
   interpolate, Extrapolate, runOnJS, withTiming, Easing,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { markNewsAsRead } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
@@ -92,6 +93,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const { bookmarks } = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
   const activeArticles = feedType === 'unread' ? unreadArticles : articles;
   const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
   const activeHasMore = feedType === 'unread' ? false : hasMore;
@@ -460,7 +462,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   return (
     <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
+        <Animated.View style={[styles.container, { backgroundColor: theme.background, marginTop: insets.top, overflow: 'hidden' }]} onLayout={onLayout}>
 
           <Animated.View style={[styles.refreshLoaderContainer, topLoaderStyle]}>
             <ActivityIndicator size="large" color="#4dabf5" />
