@@ -201,24 +201,22 @@ const SurveyCard = ({ survey, onAutoNext }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingHorizontal: 16,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 0,
   },
   card: {
     width: '100%',
-    maxWidth: 450, 
     backgroundColor: '#FFFFFF',
-    borderRadius: 24, 
+    borderRadius: 0,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)', 
-    shadowColor: '#0A2540', 
+    borderWidth: 0,
+    shadowColor: '#0A2540',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 8, 
+    elevation: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -280,11 +278,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     paddingRight: 10,
+    textAlign: 'left',
   },
   optionText: {
     fontSize: 16,
     color: '#0F1419',
     fontWeight: '600',
+    textAlign: 'left',
+    flex: 1,
   },
   optionTextSelected: {
     color: '#1DA1F2',

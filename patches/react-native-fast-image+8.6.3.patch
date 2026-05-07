@@ -1,0 +1,24 @@
+diff --git a/node_modules/react-native-fast-image/ios/FastImage/FFFastImageView.h b/node_modules/react-native-fast-image/ios/FastImage/FFFastImageView.h
+index e52fca7..6e8f14b 100644
+--- a/node_modules/react-native-fast-image/ios/FastImage/FFFastImageView.h
++++ b/node_modules/react-native-fast-image/ios/FastImage/FFFastImageView.h
+@@ -15,6 +15,7 @@
+ @property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
+ @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
+ @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
++@property (nonatomic, copy) RCTDirectEventBlock onClick;
+ @property (nonatomic, assign) RCTResizeMode resizeMode;
+ @property (nonatomic, strong) FFFastImageSource *source;
+ @property (nonatomic, strong) UIImage *defaultSource;
+diff --git a/node_modules/react-native-fast-image/ios/FastImage/FFFastImageViewManager.m b/node_modules/react-native-fast-image/ios/FastImage/FFFastImageViewManager.m
+index 84ca94e..edfd74f 100644
+--- a/node_modules/react-native-fast-image/ios/FastImage/FFFastImageViewManager.m
++++ b/node_modules/react-native-fast-image/ios/FastImage/FFFastImageViewManager.m
+@@ -20,6 +20,7 @@ - (FFFastImageView*)view {
+ RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
+ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
+ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
++RCT_EXPORT_VIEW_PROPERTY(onClick, RCTBubblingEventBlock)
+ RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
+ 
+ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)

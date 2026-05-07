@@ -647,15 +647,15 @@ watermarkLogo: {
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { 
     fontFamily: fonts.medium,
-    fontSize: responsiveFontSize(3.3), 
+    fontSize: responsiveFontSize(2.8), 
     color: '#000000', 
-    lineHeight: responsiveFontSize(4.5), 
+    lineHeight: responsiveFontSize(3.6), 
     includeFontPadding: false,
     paddingTop: 12,
     paddingBottom: 4,
    },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.7), lineHeight: responsiveFontSize(4.0), color: '#666666', flex: 1 },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.3), lineHeight: responsiveFontSize(3.2), color: '#666666', flex: 1 },
   
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
