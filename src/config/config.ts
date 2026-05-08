@@ -1,6 +1,6 @@
 // export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms'; 
-export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
-// export const baseURL="https://godavariwave.in:7777"
+// export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
+export const baseURL="https://godavariwave.in:7777"
 
 
 export const endpoints = {
