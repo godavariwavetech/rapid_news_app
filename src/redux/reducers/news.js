@@ -21,7 +21,9 @@ const initialState = {
   
   // --- Pagination State ---
   currentPage: 1,
+  currentDayOffset: 0,
   hasMore: true,
+  isLocationMode: false,
 
   // --- Interaction State ---
   currentComments: [],
@@ -70,6 +72,7 @@ export const fetchNews = createAsyncThunk(
   async (arg = 'all', { getState, rejectWithValue }) => {
     let category = 'all';
     let page = 1;
+    let current_day_offset = 0;
     let location = {
       village_id: "697d8135322a103bdabf0fc7",
         district_id: "697d8135322a103bdabf0fc5",
@@ -80,6 +83,7 @@ export const fetchNews = createAsyncThunk(
     if (typeof arg === 'object') {
       category = arg.category || 'all';
       page = arg.page || 1;
+      current_day_offset = arg.current_day_offset || 0;
       isLocationMode = arg.isLocationMode || false; 
       location = {
         village_id: arg.currentLocation?.village?._id,
@@ -103,6 +107,7 @@ export const fetchNews = createAsyncThunk(
         page: page,
         limit: 10,
         category_id: category !== 'all' ? category : undefined,
+        // current_day_offset: current_day_offset,
       };
 
 
@@ -124,7 +129,7 @@ export const fetchNews = createAsyncThunk(
 
       console.log(response,">>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>response.data");
 
-      return { data: response.data, page }; 
+      return { data: response.data, page, current_day_offset, isLocationMode }; 
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -484,7 +489,9 @@ const newsSlice = createSlice({
     clearNews: (state) => {
       state.articles = [];
       state.currentPage = 1;
+      state.currentDayOffset = 0;
       state.hasMore = true;
+      state.isLocationMode = false;
     },
     setRefreshing: (state, action) => {
       state.refreshing = action.payload;
@@ -508,16 +515,20 @@ const newsSlice = createSlice({
     builder
       // --- Fetch News ---
       .addCase(fetchNews.pending, (state, action) => {
-        const page = typeof action.meta.arg === 'object' ? action.meta.arg.page : 1;
-        if (page === 1 || !page) state.loading = true;
+        const arg = action.meta.arg;
+        const page = typeof arg === 'object' ? arg.page : 1;
+        const offset = typeof arg === 'object' ? (arg.current_day_offset ?? 0) : 0;
+        // Only a true refresh: page 1 with offset 0 (pull-to-refresh or initial load)
+        const isRefresh = page === 1 && offset === 0;
+
+        if (isRefresh) state.loading = true;
         else state.isLoadingMore = true;
         state.error = null;
       })
       .addCase(fetchNews.fulfilled, (state, action) => {
-        const { data, page } = action.payload;
+        const { data, page, current_day_offset, isLocationMode } = action.payload;
         state.loading = false;
         state.isLoadingMore = false;
-        state.currentPage = page;
 
         const pagination = data?.pagination;
 
@@ -528,17 +539,30 @@ const newsSlice = createSlice({
           if (pagination.total_news != null) {
             state.totalNews = pagination.total_news;
           }
-          state.hasMore = pagination.end != null && pagination.total_news != null
-            ? pagination.end < pagination.total_news
-            : false;
+          if (pagination.current_day_offset != null) {
+            state.currentDayOffset = pagination.current_day_offset;
+          }
+          // Always store the page we actually fetched
+          state.currentPage = page;
+          state.hasMore = true;
         } else {
+          state.currentPage = page;
           state.hasMore = false;
         }
 
-        let incomingItems = Array.isArray(data) ? data : (data.items || []);
-        
-        if (page === 1) {
-          if (state.notificationArticle) {
+        let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
+
+        // Only replace the list on a true refresh: mode switch OR explicit page-1 pull-to-refresh
+        // A day-offset change is NOT a refresh — it's a continuation, items must be appended
+        const modeChanged = isLocationMode !== state.isLocationMode;
+        const isRefresh = modeChanged || (page === 1 && current_day_offset === 0);
+
+        // Track current mode so we can detect future switches
+        state.isLocationMode = isLocationMode;
+
+        if (isRefresh) {
+          // Only prepend notification article on main-feed refreshes, not location feed
+          if (state.notificationArticle && !isLocationMode) {
             const article = state.notificationArticle;
             const filtered = incomingItems.filter(item => 
               (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
@@ -550,10 +574,13 @@ const newsSlice = createSlice({
             } else {
               state.articles = { ...data, items: incomingItems };
             }
+            // Clear after use so it doesn't re-prepend on the next refresh
+            state.notificationArticle = null;
           } else {
             state.articles = data;
           }
         } else {
+          // Append logic — only append if mode hasn't changed
           if (Array.isArray(state.articles)) {
             const existingIds = new Set(state.articles.map(i => i.data?._id || i._id));
             const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
@@ -562,6 +589,9 @@ const newsSlice = createSlice({
             const existingIds = new Set(state.articles.items.map(i => i.data?._id || i._id));
             const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
             state.articles.items = [...state.articles.items, ...unique];
+          } else {
+            // If articles was empty or null
+            state.articles = { ...data, items: incomingItems };
           }
         }
       })
@@ -585,18 +615,25 @@ const newsSlice = createSlice({
 
         state.notificationArticle = article;
 
-        if (Array.isArray(state.articles)) {
-          const filtered = state.articles.filter(item => 
-            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-          );
-          state.articles = [article, ...filtered];
-        } else if (state.articles?.items) {
-          const filtered = state.articles.items.filter(item => 
-            (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-          );
-          state.articles.items = [article, ...filtered];
-        } else {
-          state.articles = [article];
+        // Only prepend to an already-loaded feed. If articles is empty the feed
+        // hasn't loaded yet — fetchNews (page 1) will pick up notificationArticle
+        // and prepend it then, avoiding a double-insert / flash on app open.
+        const existingItems = Array.isArray(state.articles)
+          ? state.articles
+          : (state.articles?.items || []);
+
+        if (existingItems.length > 0) {
+          if (Array.isArray(state.articles)) {
+            const filtered = state.articles.filter(item => 
+              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+            );
+            state.articles = [article, ...filtered];
+          } else if (state.articles?.items) {
+            const filtered = state.articles.items.filter(item => 
+              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
+            );
+            state.articles.items = [article, ...filtered];
+          }
         }
       })
       .addCase(fetchArticleById.rejected, (state, action) => {

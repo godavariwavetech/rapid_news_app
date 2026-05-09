@@ -12,7 +12,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { applogo } from '../assets';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
-import { fetchNews } from '../redux/reducers/news'; 
 
 const SplashScreen = ({ navigation }) => {
   const dispatch = useDispatch()
@@ -32,34 +31,18 @@ const SplashScreen = ({ navigation }) => {
       const position = await LocationService.getLocation();
       
       // 2. Resolve those coordinates to your backend location IDs (Village, District, State)
-      const resolvedLocation = await dispatch(
+      await dispatch(
         resolveLocation({
           latitude: position.coords?.latitude,
           longitude: position.coords?.longitude,
         }),
       ).unwrap(); 
 
-      // 3. Fetch news using the resolved current location
-      const newsResult = await dispatch(
-        fetchNews({ currentLocation: resolvedLocation, isLocationMode: true })
-      ).unwrap();
-
-      // 4. Extract the news items array and check if it's empty
-      const newsItems = Array.isArray(newsResult.data) 
-        ? newsResult.data 
-        : (newsResult.data?.items || []);
-
-      if (newsItems.length === 0) {
-        console.log('No news found for this location. Fetching with default/static location.');
-        // If the array is empty, call fetchNews without arguments.
-        // (This triggers the static fallback location defined in your Redux thunk)
-        dispatch(fetchNews());
-      }
+      // HomeScreen will fetch news once currentLocation is set in Redux
 
     } catch (error) {
       console.log('Location permission denied or an error occurred:', error);
-      // If the user denied permission or GPS is off, fetch default news
-      dispatch(fetchNews());
+      // HomeScreen will fall back to default location news
     }
   };
 

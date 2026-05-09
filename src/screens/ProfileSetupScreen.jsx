@@ -42,9 +42,9 @@ const ProfileSetupScreen = ({navigation, route}) => {
 
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageBase64, setProfileImageBase64] = useState(null);
-  const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('Eshwar');
+  const [fullName, setFullName] = useState('Eshwar vanapalli');
+  const [email, setEmail] = useState('eshwar@gmail.com');
   
   // Selection State
   const [selectedState, setSelectedState] = useState(null);
@@ -139,6 +139,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
 
       try {
         const resultAction = await dispatch(applyReporter(payload));
+        console.log(resultAction,">>>>>>>>>>RESULT ACTION");
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [
             { text: 'OK', onPress: () => navigation.replace('ReporterStatus', { status: 'PENDING' }) }

@@ -75,8 +75,7 @@
     "redux-persist": "^6.0.0",
     "redux-thunk": "^3.1.0",
     "react-native-youtube-iframe":"2.3.0",
-    "react-native-webview":"^13.16.1",
-    "express":"5.2.1"
+    "react-native-webview":"^13.16.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

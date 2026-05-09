@@ -21,23 +21,31 @@ import { lightTheme, darkTheme } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
+// Always computed against current time so it stays accurate
 const formatTimeAgo = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
-  
-  let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + " years ago";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " months ago";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " days ago";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + " hours ago";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + " minutes ago";
-  return Math.floor(seconds) + " seconds ago";
+
+  if (seconds < 60) return Math.floor(seconds) + " seconds ago";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + " minutes ago";
+
+  const hours = Math.floor(seconds / 3600);
+  if (hours < 24) return hours + " hours ago";
+
+  // Use calendar day comparison, not 24h window
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+
+  if (date >= yesterdayStart && date < todayStart) return "Yesterday";
+
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString('en-US', sameYear
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 // --- SKELETON LOADING COMPONENT ---
@@ -139,9 +147,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
-    
-    // Count only real news items for the index display
-    let newsCounter = 0;
+
+    // Determine today's calendar date boundary once
+    const now = new Date(nowTick);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+
+    // Per-day counters keyed by date string "YYYY-MM-DD"
+    const dayCounters = {};
 
     return rawItems.map((item) => {
       if (item.type === 'AD') {
@@ -149,7 +162,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           id: item.data._id,
           type: 'AD',
           isAd: true,
-          image: item.data.image, 
+          image: item.data.image,
           redirectUrl: item.data.redirect_url,
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
@@ -157,11 +170,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           dislikes: 0,
           comments: 0,
           commentsEnabled: false,
-          images: [], 
-          itemIndex: null,   // ads don't count
+          images: [],
+          itemIndex: null,
           totalNews: null,
         };
-      } 
+      }
       else if (item.type === 'SURVEY') {
         return {
           id: item.data._id,
@@ -172,13 +185,35 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           voted_option_id: item.data.voted_option_id,
           user_voted: item.data.user_voted,
           isAd: false,
-          itemIndex: null,   // polls don't count
+          itemIndex: null,
           totalNews: null,
         };
       }
       else {
-        newsCounter += 1;
-        const data = item.data || item; 
+        const data = item.data || item;
+        const publishedAt = data.published_at;
+        const pubDate = publishedAt ? new Date(publishedAt) : null;
+
+        // Build a day key from the publish date so each calendar day gets its own counter
+        let dayKey = 'unknown';
+        if (pubDate) {
+          dayKey = `${pubDate.getFullYear()}-${pubDate.getMonth()}-${pubDate.getDate()}`;
+        }
+        dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
+        const itemIndex = dayCounters[dayKey];
+
+        // Total for this day: use todayTotalNews for today, totalNews for older days
+        const isToday = pubDate && pubDate >= todayStart;
+        const isYesterday = pubDate && pubDate >= yesterdayStart && pubDate < todayStart;
+        let dayTotal;
+        if (feedType === 'unread') {
+          dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        } else if (isToday) {
+          dayTotal = todayTotalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        } else {
+          dayTotal = totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        }
+
         return {
           id: data._id,
           type: 'NEWS',
@@ -187,11 +222,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           body: data.content?.body || '',
           short: data.content?.short || '',
           image: data.images?.length > 0 ? data.images[0] : null,
-          images: data.images || [], 
+          images: data.images || [],
           videos: data.videos || [],
-          external_links: data.external_links || [], 
-          publishedAt: data.published_at,
-          timeAgo: formatTimeAgo(data.published_at),
+          external_links: data.external_links || [],
+          publishedAt,
+          timeAgo: formatTimeAgo(publishedAt),
           likes: data?.reactions?.likes || 0,
           dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
@@ -199,21 +234,17 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           reporter: data.reporter || {
             name: 'Reporter',
             imageUrl: 'https://via.placeholder.com/100',
-            location: 'Andhra Pradesh'
+            location: 'Andhra Pradesh',
           },
           isLiked: data?.reactions?.my_reaction === 'LIKE',
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
-          itemIndex: newsCounter,
-          totalNews: feedType === 'unread'
-            ? (unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length)
-            : (todayTotalNews && newsCounter <= todayTotalNews)
-              ? todayTotalNews
-              : (totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length),
+          itemIndex,
+          totalNews: dayTotal,
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews]);
+  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, nowTick]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
@@ -244,6 +275,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
+  // Tick every 60s so timeAgo labels stay current
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
   
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
