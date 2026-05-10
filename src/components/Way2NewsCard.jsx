@@ -35,6 +35,7 @@ import {reactToNews, getComments, trackAdClick} from '../redux/reducers/news';
 import {fonts, lightTheme, darkTheme} from '../config/theme';
 import ReportModal from './ReportModal';
 import {downloadImageToGallery, handleShare} from '../utils/FileHelpers';
+import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe'; 
 
@@ -111,16 +112,26 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   }, [videoUrls, news.external_links, hasVideos]);
 
   const videoSource = useMemo(() => {
-    if (hasVideos && !youtubeId) return {uri: videoUrls[0]};
+    if (hasVideos && !youtubeId) return {
+      uri: videoUrls[0],
+      bufferConfig: {
+        minBufferMs: 15000,
+        maxBufferMs: 50000,
+        bufferForPlaybackMs: 2500,
+        bufferForPlaybackAfterRebufferMs: 5000,
+        cacheSizeMB: 50,
+      },
+    };
     return null;
   }, [videoUrls, hasVideos, youtubeId]);
 
   const thumbnailUri = useMemo(() => {
     if (news.image) return news.image;
     if (news.images && news.images.length > 0) return news.images[0];
+    if (news.thumbnail) return news.thumbnail;
     if (youtubeId) return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
     return null;
-  }, [news.image, news.images, youtubeId]);
+  }, [news.image, news.images, news.thumbnail, youtubeId]);
 
   // =========================================================
   // --- LIKES & DISLIKES STATE LOGIC FIX ---
@@ -186,19 +197,25 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   useEffect(() => {
     isManuallyPaused.current = true;
-    setIsVideoPaused(true); // always start paused — user must tap to play
+    setIsVideoPaused(true);
     setIsBuffering(false);
+    setVideoReady(false);
     setShowControls(false);
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+    // Fallback: hide skeleton after 4s even if onLoad never fires
+    const t = setTimeout(() => setVideoReady(true), 4000);
+    return () => clearTimeout(t);
   }, [news.id, isActive, isBottomHalf]);
 
   useEffect(() => {
     let timer;
     if (isBuffering) {
-      timer = setTimeout(() => setIsBuffering(false), 5000); 
+      timer = setTimeout(() => setIsBuffering(false), 8000);
     }
+    // Clear buffering state when paused — no point showing spinner on a paused video
+    if (isVideoPaused) setIsBuffering(false);
     return () => clearTimeout(timer);
-  }, [isBuffering]);
+  }, [isBuffering, isVideoPaused]);
 
   const showControlsTemporarily = () => {
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
@@ -237,7 +254,14 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const imageResizeMode = FastImage.resizeMode.cover;
 
   const onVideoReady = useCallback(() => {
-    playerRef.current?.seekTo(0, true)
+    playerRef.current?.seekTo(0, true);
+    setIsBuffering(false);
+    setVideoReady(true);
+  }, []);
+
+  // onLoad fires reliably even while paused — use it to hide the skeleton
+  const onVideoLoad = useCallback(() => {
+    setVideoReady(true);
     setIsBuffering(false);
   }, []);
 
@@ -285,10 +309,21 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
   const displayBody = news.body || news.description || news.content?.te?.body || news.content?.body || '';
 
+  const [screenshotMode, setScreenshotMode] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
   const handleShareNews = async () => {
     const imageUrl = news.images?.[0] || news.image || news.thumbnail;
     const articleId = news._id || news.id;
+    console.log('[Share] Initiating share for article:', articleId, 'Thumbnail:', imageUrl);
+    // Unmount Video (SurfaceView) so screenshot captures the thumbnail underneath
+    setScreenshotMode(true);
+    // Increased delay to 300ms to ensure SurfaceView is gone and Image is rendered
+    await new Promise(r => setTimeout(r, 300));
+    console.log('[Share] screenshotMode active, calling handleShare');
     await handleShare(displayTitle, articleId, imageUrl);
+    setScreenshotMode(false);
+    console.log('[Share] screenshotMode deactivated');
   };
   const handleMenuPress = () => setMenuVisible(true);
 
@@ -348,14 +383,39 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
         {(hasVideos || youtubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             
-            <View style={{ width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 9) / 16 }}>
+            <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
               <View style={StyleSheet.absoluteFillObject}>
-                {isActive && !isBottomHalf ? (
+
+                {/* Thumbnail/shimmer shown until video has its first frame ready */}
+                {!isBottomHalf && !videoReady && (
+                  thumbnailUri ? (
+                    <FastImage
+                      source={{ uri: thumbnailUri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode={FastImage.resizeMode.cover}
+                    />
+                  ) : (
+                    <View style={StyleSheet.absoluteFill}>
+                      <ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} />
+                    </View>
+                  )
+                )}
+
+                {/* Thumbnail shown on top during screenshot (Video SurfaceView can't be captured) */}
+                {screenshotMode && !isBottomHalf && thumbnailUri && (
+                  <FastImage
+                    source={{ uri: thumbnailUri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode={FastImage.resizeMode.cover}
+                  />
+                )}
+
+                {isActive && !isBottomHalf && !screenshotMode ? (
                   youtubeId ? (
                     <YoutubePlayer
                       ref={playerRef}
                       key={youtubeId} 
-                      height={Math.floor((SCREEN_WIDTH * 9) / 16)}
+                      height={IMAGE_HEIGHT}
                       width={SCREEN_WIDTH}
                       play={!isVideoPaused} 
                       videoId={youtubeId}
@@ -392,19 +452,30 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                       volume={1.0}
                       playInBackground={false}
                       playWhenInactive={false}
-                      onBuffer={({isBuffering}) => setIsBuffering(isBuffering)}
-                      onError={() => setIsBuffering(false)}
+                      onBuffer={({isBuffering: b}) => setIsBuffering(b)}
+                      onError={() => { setIsBuffering(false); setVideoReady(true); }}
                       onReadyForDisplay={onVideoReady}
-                      onLoad={onVideoReady} 
+                      onLoad={onVideoLoad}
                       controls={false} 
                     />
                   )
                 ) : (
-                  <FastImage 
-                    source={thumbnailUri ? {uri: thumbnailUri} : applogo} 
-                    style={{width: '100%', height: '100%'}} 
-                    resizeMode={FastImage.resizeMode.cover} 
-                  />
+                  /* Inactive card — pre-buffer Video hidden behind thumbnail */
+                  !isBottomHalf && videoSource && !youtubeId && !screenshotMode && (
+                    <Video
+                      key={videoUrls[0]}
+                      source={videoSource}
+                      style={[StyleSheet.absoluteFill, { opacity: 0 }]}
+                      resizeMode="contain"
+                      repeat={true}
+                      paused={true}
+                      muted={true}
+                      volume={0}
+                      playInBackground={false}
+                      playWhenInactive={false}
+                      controls={false}
+                    />
+                  )
                 )}
               </View>
             </View>
@@ -414,7 +485,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
               style={styles.videoTouchOverlay}
             >
               <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                {isBuffering && isActive && !isBottomHalf && (
+                {isBuffering && isActive && !isBottomHalf && !isVideoPaused && (
                   <View style={styles.loaderOverlay}>
                     <ActivityIndicator size="large" color="#FFFFFF" />
                   </View>
@@ -476,7 +547,16 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <TouchableWithoutFeedback onPress={handleDoubleTap}>
-              <FastImage source={hasImage ? {uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable} : applogo} style={styles.image} resizeMode={imageResizeMode} />
+              <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+                <View style={[StyleSheet.absoluteFill]}>
+                  <ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} />
+                </View>
+                <FastImage
+                  source={hasImage ? {uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable} : applogo}
+                  style={styles.image}
+                  resizeMode={imageResizeMode}
+                />
+              </View>
             </TouchableWithoutFeedback>
           </View>
         )}
@@ -688,11 +768,14 @@ watermarkLogo: {
   imageInfo: { position: 'absolute', bottom: 40, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.7)', padding: 16, borderRadius: 12 },
   imageTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 22 },
   loaderOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
+    position: 'absolute',
+    top: '25%',
+    left: '25%',
+    right: '25%',
+    bottom: '25%',
     zIndex: 10, 
     justifyContent: 'center', 
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)'
   },
   videoTouchOverlay: {
     ...StyleSheet.absoluteFillObject,

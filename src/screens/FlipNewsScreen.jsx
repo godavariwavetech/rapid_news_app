@@ -15,32 +15,49 @@ import { useSelector, useDispatch } from 'react-redux';
 import { markNewsAsRead, fetchUnreadNewsCount } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
+import { preloadVideos, cancelVideoPreloads } from '../utils/mediaPreloader';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
-// Always computed against current time so it stays accurate
-const formatTimeAgo = (dateString) => {
+// Always computed against current time so it stays accurate.
+// dayOffset: if provided and > 0, forces "Yesterday" or a date label
+// regardless of the clock difference (e.g. 17h ago but from yesterday's feed).
+const formatTimeAgo = (dateString, dayOffset) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
 
-  if (seconds < 60) return Math.floor(seconds) + " seconds ago";
+  // If the API says this item is from a previous day's offset, show date label directly
+  if (dayOffset != null && dayOffset > 0) {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDay = new Date(todayStart.getTime() - dayOffset * 86400000);
+    const targetDayEnd = new Date(targetDay.getTime() + 86400000);
+
+    // If the item actually falls in that offset day, label it
+    if (date >= targetDay && date < targetDayEnd) {
+      if (dayOffset === 1) return 'Yesterday';
+      const sameYear = targetDay.getFullYear() === now.getFullYear();
+      return targetDay.toLocaleDateString('en-US', sameYear
+        ? { month: 'short', day: 'numeric' }
+        : { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  }
+
+  const seconds = Math.floor((now - date) / 1000);
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + " minutes ago";
+  if (minutes < 60) return minutes + ' minutes ago';
 
   const hours = Math.floor(seconds / 3600);
-  if (hours < 24) return hours + " hours ago";
+  if (hours < 24) return hours + ' hours ago';
 
-  // Use calendar day comparison, not 24h window
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
-
-  if (date >= yesterdayStart && date < todayStart) return "Yesterday";
+  if (date >= yesterdayStart && date < todayStart) return 'Yesterday';
 
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString('en-US', sameYear
@@ -120,7 +137,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
   // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, todayTotalNews, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
+  const { articles, totalNews, todayTotalNews, currentDayOffset, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -148,12 +165,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
 
-    // Determine today's calendar date boundary once
     const now = new Date(nowTick);
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
 
-    // Per-day counters keyed by date string "YYYY-MM-DD"
     const dayCounters = {};
 
     return rawItems.map((item) => {
@@ -202,9 +216,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
         const itemIndex = dayCounters[dayKey];
 
-        // Total for this day: use todayTotalNews for today, totalNews for older days
         const isToday = pubDate && pubDate >= todayStart;
-        const isYesterday = pubDate && pubDate >= yesterdayStart && pubDate < todayStart;
+
+        // For items from a previous day offset, pass the offset so timeAgo shows
+        // "Yesterday" / date instead of "17 hours ago"
+        const itemDayOffset = isToday ? 0 : currentDayOffset > 0 ? currentDayOffset : null;
         let dayTotal;
         if (feedType === 'unread') {
           dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
@@ -226,7 +242,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           videos: data.videos || [],
           external_links: data.external_links || [],
           publishedAt,
-          timeAgo: formatTimeAgo(publishedAt),
+          timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
           likes: data?.reactions?.likes || 0,
           dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
@@ -244,33 +260,52 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, nowTick]);
+  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, currentDayOffset, nowTick]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
     const adImages = formattedNews
       .filter(item => item.isAd && item.image)
       .map(item => ({ uri: item.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
-    if (adImages.length > 0) {
-      FastImage.preload(adImages);
-    }
+    if (adImages.length > 0) FastImage.preload(adImages);
   }, [formattedNews]);
 
-  // Preload next 3 news images ahead of current index
+  // Preload images + warm video HTTP cache for upcoming items
   useEffect(() => {
-    const toPreload = formattedNews
-      .slice(currIndex, currIndex + 4)
+    // 10 ahead + 2 behind covers fast swipers and back-swipes
+    const window = formattedNews.slice(
+      Math.max(0, currIndex - 2),
+      currIndex + 11,
+    );
+
+    // Images via FastImage cache
+    const imageUris = window
       .flatMap(item => {
         const uris = [];
         if (item.image) uris.push(item.image);
         if (item.images?.length) uris.push(...item.images);
+        if (item.thumbnail) uris.push(item.thumbnail);
+        // YouTube thumbnail
+        if (item.videos?.length) {
+          const ytMatch = item.videos[0]?.match(/(?:youtu\.be\/|v=)([^&?/]+)/);
+          if (ytMatch) uris.push(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
+        }
         return uris;
       })
       .filter(Boolean)
       .map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
-    if (toPreload.length > 0) {
-      FastImage.preload(toPreload);
-    }
+
+    if (imageUris.length > 0) FastImage.preload(imageUris);
+
+    // Warm HTTP cache for next 3 non-YouTube videos
+    const videoUris = formattedNews
+      .slice(currIndex + 1, currIndex + 4)
+      .flatMap(item => item.videos || [])
+      .filter(url => url && !url.includes('youtube') && !url.includes('youtu.be'));
+
+    if (videoUris.length > 0) preloadVideos(videoUris);
+
+    return () => cancelVideoPreloads(videoUris);
   }, [currIndex, formattedNews]);
 
   const [currIndex, setCurrIndex] = useState(0);
