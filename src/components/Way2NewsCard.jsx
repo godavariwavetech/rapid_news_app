@@ -101,10 +101,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
   useEffect(() => {
     console.log('[Thumbnail] Effect triggered | hasVideos:', hasVideos, '| youtubeId:', youtubeId, '| thumbnailUri:', thumbnailUri, '| videoUrl:', videoUrls[0]);
+    let isCancelled = false;
+
     // Only pre-generate in the top half to avoid duplicate processing
     if (hasVideos && !youtubeId && !thumbnailUri && !isBottomHalf) {
       console.log('[Thumbnail] Starting generation for:', videoUrls[0]);
       generateVideoThumbnail(videoUrls[0]).then(path => {
+        if (isCancelled) return;
         console.log('[Thumbnail] Generation result path:', path);
         if (path) {
           setGeneratedThumbnail(path);
@@ -113,11 +116,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           console.log('[Thumbnail] ❌ Generation returned null/undefined');
         }
       }).catch(err => {
-        console.log('[Thumbnail] ❌ Generation threw error:', err?.message);
+        if (!isCancelled) console.log('[Thumbnail] ❌ Generation threw error:', err?.message);
       });
     } else {
       console.log('[Thumbnail] Skipped generation — condition not met (isBottomHalf: ' + isBottomHalf + ')');
     }
+
+    return () => { isCancelled = true; };
   }, [hasVideos, youtubeId, thumbnailUri, videoUrls, isBottomHalf]);
 
   const isOriginallyLiked = news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE';
@@ -132,6 +137,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     setLiked(isOriginallyLiked); setDisliked(isOriginallyDisliked);
     setLikeCount(parseInt(news?.reactions?.likes || news?.likes || 0));
     setDislikeCount(parseInt(news?.reactions?.dislikes || news?.dislikes || 0));
+    setGeneratedThumbnail(null); // Reset generated thumbnail for new news item
   }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes, news.reactions]);
 
   const handleLike = () => {
