@@ -44,8 +44,13 @@ const displayCustomNotification = async (remoteMessage) => {
     const data = remoteMessage.data;
     const title = data?.title
       || data?.content?.title
-      || data?.news_title
-      || 'New Update';
+      || data?.news_title;
+
+    // If no valid title is found, skip the notification entirely
+    if (!title || !title.trim()) {
+      console.log('Skipping notification — no valid title found in payload.');
+      return;
+    }
 
     const newsId = data?.newsId || data?.news_id || data?.id || '';
 
