@@ -131,7 +131,7 @@ const ReporterDashboardScreen = ({navigation}) => {
   };
 
   const renderBlockedBanner = () => (
-    <View style={[styles.blockedBanner, { paddingTop: Math.max(insets.top, 10) }]}>
+    <View style={[styles.blockedBanner]}>
       <Icon name="account-lock" size={18} color="#FFFFFF" />
       <Text style={styles.blockedBannerText}>
         మీ ఖాతా నిలిపివేయబడింది. మీరు కొత్త వార్తలను పోస్ట్ చేయలేరు.
@@ -263,8 +263,8 @@ const ReporterDashboardScreen = ({navigation}) => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: isActive === false ? 0 : insets.top, backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} translucent={true} />
       
       {isActive === false && renderBlockedBanner()}
 
@@ -351,8 +351,8 @@ const styles = StyleSheet.create({
   profileTextContainer: {
     justifyContent: 'center',
   },
-  profileName: { fontSize: responsiveFontSize(2.5), fontFamily: fonts.bold, lineHeight: 20,includeFontPadding:false  },
-  profileRole: {fontSize: responsiveFontSize(2), fontFamily: fonts.medium, textTransform: 'uppercase', marginTop: -2 ,includeFontPadding:false },
+  profileName: { fontSize: responsiveFontSize(2.5), fontFamily: fonts.bold, includeFontPadding: false },
+  profileRole: { fontSize: responsiveFontSize(2), fontFamily: fonts.medium, textTransform: 'uppercase', includeFontPadding: false },
   headerHomeBtn: { padding: 4 },
   content: { flex: 1 },
   locationTabsContainer: { paddingVertical: 12, borderBottomWidth: 1 },

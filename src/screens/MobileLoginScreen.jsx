@@ -20,7 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 import { fonts } from '../config/theme';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
 
 const MobileLoginScreen = ({navigation}) => {
   const dispatch = useDispatch();
@@ -73,7 +73,7 @@ const MobileLoginScreen = ({navigation}) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           
-          <View style={{ marginBottom: 60 }}>
+          <View style={{ marginBottom: 40 }}>
             <Text style={[styles.enterText, { color: theme.textSecondary }]}>Enter your</Text>
             <Text style={[styles.mobileNumberTitle, { color: theme.text }]}>Mobile Number</Text>
           </View>
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 24 },
+  scrollContent: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 24, paddingBottom: 40 },
   enterText: { fontSize: 16, marginBottom: 4 },
   mobileNumberTitle: { fontSize: 36, fontWeight: '700' },
   inputSection: { marginBottom: 20 },
@@ -145,8 +145,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingVertical: 12,
   },
-  termsSection: { marginTop: 24, marginBottom: 32 },
-  termsText: { fontSize: responsiveFontSize(2.5), lineHeight: 20,fontFamily:fonts.bold },
+  termsSection: { marginTop: 24, marginBottom: 32, paddingTop: 4 },
+  termsText: { fontSize: responsiveFontSize(2.5), fontFamily: fonts.bold, includeFontPadding: false },
   linkText: { fontWeight: '600' },
   proceedButton: {
     paddingVertical: 16,
@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'lowercase',
   },
-  descriptionSection: { marginTop: 20 },
-  descriptionText: { fontSize: responsiveFontSize(2.5), lineHeight: 22,fontFamily:fonts.bold },
+  descriptionSection: { marginTop: 20, paddingTop: 4 },
+  descriptionText: { fontSize: responsiveFontSize(2.5), lineHeight: 30, fontFamily: fonts.bold, includeFontPadding: false },
 });
 
 export default MobileLoginScreen;

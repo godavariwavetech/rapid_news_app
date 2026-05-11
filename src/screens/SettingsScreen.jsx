@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ScrollView,
   StatusBar,
   Platform,
-  Switch,
+  Animated,
   Linking,
   AppState,
   Alert,
@@ -22,6 +22,28 @@ import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info'; 
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+
+const CustomSwitch = ({ value, onValueChange }) => {
+  const translateX = useRef(new Animated.Value(value ? 22 : 2)).current;
+
+  useEffect(() => {
+    Animated.spring(translateX, {
+      toValue: value ? 22 : 2,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [value]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => onValueChange(!value)}
+      style={[styles.switchTrack, { backgroundColor: value ? '#9C27B0' : '#CCCCCC' }]}
+    >
+      <Animated.View style={[styles.switchThumb, { transform: [{ translateX }] }]} />
+    </TouchableOpacity>
+  );
+};
 
 const SettingsScreen = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme();
@@ -172,20 +194,19 @@ const SettingsScreen = ({ navigation }) => {
         )}
 
         {/* Night Mode */}
-        <View style={styles.toggleColumn}>
-          <View style={[styles.toggleIconCircle, {backgroundColor: '#F3E5F5'}]}>
-            <Icon name="weather-night" size={28} color="#9C27B0" />
+        <View style={[styles.toggleRow, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', marginHorizontal: 16, marginBottom: 20 }]}>
+          <View style={styles.toggleLeft}>
+            <View style={[styles.toggleIconCircle, { backgroundColor: '#F3E5F5' }]}>
+              <Icon name="weather-night" size={22} color="#9C27B0" />
+            </View>
+            <Text style={[styles.toggleLabel, { color: theme.text }]}>నైట్ మోడ్</Text>
           </View>
-          <Text style={styles.toggleLabel}>నైట్ మోడ్</Text>
-          <Switch
+          <CustomSwitch
             value={nightModeEnabled}
             onValueChange={value => {
               setNightModeEnabled(value);
               dispatch(setDarkMode(value));
             }}
-            trackColor={{false: '#CCCCCC', true: '#FF3B30'}}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor="#CCCCCC"
           />
         </View>
 
@@ -442,27 +463,45 @@ const styles = StyleSheet.create({
     height: 1,
     marginHorizontal: 16,
   },
-  toggleColumn: {
-    width: '100%',
+  toggleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+  },
+  toggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   toggleIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
   toggleLabel: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 14,
+  },
+  switchTrack: {
+    width: 50,
     height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   actionButtons: {
     flexDirection: 'row',

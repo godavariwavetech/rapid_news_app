@@ -269,18 +269,11 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             contentContainerStyle={styles.scrollPadding}>
             
             {/* SECTION: news */}
-            <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={styles.section}>
-              {/* <View style={styles.searchRow}>
-                <TouchableOpacity style={[styles.premiumSearch, { backgroundColor: isDarkMode ? '#222' : '#F1F3F5' }]} onPress={handleSearchNavigation} activeOpacity={0.9}>
-                  <Icon name="magnify" size={22} color={isDarkMode ? '#888' : '#666'} />
-                  <Text style={[styles.searchPlaceholder, { color: isDarkMode ? '#666' : '#868E96' }]}>Discover anything...</Text>
-                </TouchableOpacity>
-              </View> */}
-
-              <TouchableOpacity style={styles.bentoMainCard} onPress={() => handleSelection('all')} activeOpacity={0.9}>
+            <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 0 }}>
+              <TouchableOpacity style={[styles.bentoMainCard, { marginBottom: 8 }]} onPress={() => handleSelection('all')} activeOpacity={0.9}>
                 <LinearGradient
                    colors={['#00BFFF', '#007AFF']}
-                   style={styles.bentoMainGradient}
+                   style={[styles.bentoMainGradient, { borderRadius: 16 }]}
                    start={{x: 0, y: 0}}
                    end={{x: 1, y: 1}}
                 >
@@ -299,27 +292,30 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             </View>
 
             {/* SECTION: categories */}
-            <View onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y} style={{ paddingHorizontal: 10, paddingTop: 4 }}>
+            <View onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y} style={{ paddingHorizontal: 12, paddingTop: 8 }}>
                 {(() => {
                   const rows = [];
                   let i = 0;
                   let rowIndex = 0;
-                  const cardW = (width - 75 - 20 - 8) / 2;
+                  // scrollView width = total width - sidebar width
+                  // card width = (scrollView width - paddingHorizontal*2 - gap between 2 cards) / 2
+                  const scrollW = width - 75;
+                  const cardW = (scrollW - 24 - 6) / 2;
                   while (i < categories.length) {
                     const mod = rowIndex % 3;
                     if (mod === 0) {
                       const cat = categories[i];
                       const colors = gradientPairs[i % gradientPairs.length];
                       rows.push(
-                        <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ marginBottom: 6, borderRadius: 14, overflow: 'hidden' }} onPress={() => handleSelection(cat._id)}>
-                          <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, gap: 12 }}>
-                              <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 24, height: 24 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={22} color="#fff" />}
+                        <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ marginBottom: 8, borderRadius: 16, overflow: 'hidden' }} onPress={() => handleSelection(cat._id)}>
+                          <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}} style={{ borderRadius: 16 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 14 }}>
+                              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 26, height: 26 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={24} color="#fff" />}
                               </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{cat.name?.en}</Text>
-                                <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 2 }}>{cat.name?.te || cat.name?.en}</Text>
+                              <View style={{ flex: 1, justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 14 }}>{cat.name?.en}</Text>
+                                <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 4, lineHeight: 20 }}>{cat.name?.te || cat.name?.en}</Text>
                               </View>
                             </View>
                           </LinearGradient>
@@ -330,19 +326,19 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
                       const cat1 = categories[i];
                       const cat2 = categories[i + 1];
                       rows.push(
-                        <View key={`row-${i}`} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                        <View key={`row-${i}`} style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
                           {[cat1, cat2].filter(Boolean).map((cat, ci) => {
                             const colors = gradientPairs[(i + ci) % gradientPairs.length];
                             return (
-                              <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ width: cardW, borderRadius: 14, overflow: 'hidden', marginBottom: 0 }} onPress={() => handleSelection(cat._id)}>
-                                <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}}>
-                                  <View style={{ padding: 12 }}>
-                                    <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                                      {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 22, height: 22 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={20} color="#fff" />}
+                              <TouchableOpacity key={cat._id} activeOpacity={0.9} style={{ width: cardW, borderRadius: 16, overflow: 'hidden' }} onPress={() => handleSelection(cat._id)}>
+                                <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:1}} style={{ borderRadius: 16 }}>
+                                  <View style={{ padding: 14, height: 120, justifyContent: 'space-between' }}>
+                                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                                      {cat.icon ? <FastImage source={{ uri: cat.icon }} style={{ width: 24, height: 24 }} resizeMode={FastImage.resizeMode.contain} /> : <Icon name={getCategoryIcon(cat.name?.en)} size={22} color="#fff" />}
                                     </View>
-                                    <View style={{ paddingTop: 12 }}>
-                                      <Text style={{ fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{cat.name?.en}</Text>
-                                      <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', marginTop: 2 }}>{cat.name?.te || cat.name?.en}</Text>
+                                    <View>
+                                      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 13 }}>{cat.name?.en}</Text>
+                                      <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '900', color: '#fff', marginTop: 3, lineHeight: 18 }}>{cat.name?.te || cat.name?.en}</Text>
                                     </View>
                                   </View>
                                 </LinearGradient>
@@ -446,7 +442,7 @@ const styles = StyleSheet.create({
   searchRow: { marginBottom: 20 },
   premiumSearch: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F5', borderRadius: 16, paddingHorizontal: 16, height: 54, gap: 12 },
   searchPlaceholder: { fontSize: 15, color: '#868E96', fontWeight: '500' },
-  bentoMainCard: { borderRadius: 24, overflow: 'hidden', elevation: 8, shadowColor: '#007AFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  bentoMainCard: { borderRadius: 16, overflow: 'hidden', elevation: 8, shadowColor: '#007AFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
   bentoMainGradient: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mainCardContent: { flex: 1 },
   mainEditionTitle: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
