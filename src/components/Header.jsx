@@ -23,6 +23,9 @@ function Header({ onProfilePress, onTogglePress, title }) {
     ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8 
     : Math.max(insets.top, 44);
 
+
+    console.log(unreadCount,">>>>>>>>>>>>>>>>>>>>unreadCount");
+
   return (
     <View style={[styles.container,{ paddingTop: dynamicPaddingTop }]}>
       {/* Left - Profile Icon */}
@@ -34,7 +37,7 @@ function Header({ onProfilePress, onTogglePress, title }) {
       </TouchableOpacity>
 
       {/* Center - Title */}
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}  allowFontScaling={false}>{title}</Text>
 
       {/* Right - Hide/Show Toggle Icon with Unread Badge */}
       <TouchableOpacity

@@ -2,10 +2,9 @@ package com.sitinews;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
-import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
-import android.view.PixelCopy;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.view.View;
 import android.view.Window;
 
 import com.facebook.react.bridge.Promise;
@@ -35,44 +34,32 @@ public class ScreenshotModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        try {
-            Window window = activity.getWindow();
-            android.view.View decorView = window.getDecorView();
-            int width = decorView.getWidth();
-            int height = decorView.getHeight();
+        // MUST run on UI thread to draw the View hierarchy
+        activity.runOnUiThread(() -> {
+            try {
+                Window window = activity.getWindow();
+                View decorView = window.getDecorView();
+                int width = decorView.getWidth();
+                int height = decorView.getHeight();
 
-            if (width == 0 || height == 0) {
-                promise.reject("INVALID_SIZE", "Window has zero size");
-                return;
+                if (width == 0 || height == 0) {
+                    promise.reject("INVALID_SIZE", "Window has zero size");
+                    return;
+                }
+
+                // THE FIX: We use a standard Canvas to draw the React Native View Hierarchy.
+                // This guarantees the fallback image is captured and completely prevents 
+                // the "black hardware hole" caused by PixelCopy and SurfaceViews.
+                Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                canvas.drawColor(Color.WHITE); // Prevent transparency issues
+                decorView.draw(canvas);
+
+                saveBitmapAndResolve(bitmap, promise);
+            } catch (Exception e) {
+                promise.reject("CAPTURE_ERROR", e.getMessage());
             }
-
-            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // PixelCopy works with New Architecture / Fabric
-                PixelCopy.request(window, bitmap, copyResult -> {
-                    if (copyResult == PixelCopy.SUCCESS) {
-                        saveBitmapAndResolve(bitmap, promise);
-                    } else {
-                        promise.reject("PIXEL_COPY_FAILED", "PixelCopy failed with code: " + copyResult);
-                    }
-                }, new Handler(Looper.getMainLooper()));
-            } else {
-                // Fallback for Android < 8
-                activity.runOnUiThread(() -> {
-                    try {
-                        decorView.setDrawingCacheEnabled(true);
-                        Bitmap cache = Bitmap.createBitmap(decorView.getDrawingCache());
-                        decorView.setDrawingCacheEnabled(false);
-                        saveBitmapAndResolve(cache, promise);
-                    } catch (Exception e) {
-                        promise.reject("DRAW_CACHE_FAILED", e.getMessage());
-                    }
-                });
-            }
-        } catch (Exception e) {
-            promise.reject("CAPTURE_ERROR", e.getMessage());
-        }
+        });
     }
 
     private void saveBitmapAndResolve(Bitmap bitmap, Promise promise) {

@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
 import { useTheme } from '../../context/ThemeContext';
+import CameraComponent from '../../components/CameraComponent';
 
 const MAX_IMAGES = 5;
 
@@ -56,6 +57,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   // UI State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   useEffect(() => {
     dispatch(getCategories());
@@ -155,16 +157,17 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   const handleCamera = () => {
     setShowMediaOptions(false);
-    launchCamera({ mediaType: 'photo', quality: 0.7, includeBase64: true }, response => {
-      if (response.assets && response.assets[0]) {
-        setImages(prev => {
-          if (prev.length >= MAX_IMAGES) {
-            Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
-            return prev;
-          }
-          return [...prev, response.assets[0]];
-        });
+    setShowCamera(true);
+  };
+
+  const handleCapture = (photo) => {
+    setShowCamera(false);
+    setImages(prev => {
+      if (prev.length >= MAX_IMAGES) {
+        Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+        return prev;
       }
+      return [...prev, photo];
     });
   };
 
@@ -199,7 +202,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   };
 
   const handleNext = async () => {
-    if (headline && description && selectedCategoryObj) {
+    if (headline && description && selectedCategoryObj && (images.length > 0 || video)) {
       const villageId = locationData?.village?._id || existingNews?.village_id || currentLocation?.village?._id;
       const districtId = locationData?.district?._id || existingNews?.district_id || currentLocation?.district?._id;
       const stateId = locationData?.state?._id || existingNews?.state_id || currentLocation?.state?._id;
@@ -233,11 +236,11 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         newsId: existingNews?._id
       });
     } else {
-      Alert.alert('Incomplete Form', 'Please fill all required fields');
+      Alert.alert('Incomplete Form', 'Please fill all required fields and add at least one image or video.');
     }
   };
 
-  const isValid = headline.trim() && description.trim() && selectedCategoryObj;
+  const isValid = headline.trim() && description.trim() && selectedCategoryObj && (images.length > 0 || video);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -256,7 +259,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         {/* Headline */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Headline</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Headline *</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={headlineTranslitEnabled}
@@ -284,7 +287,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         {/* Description */}
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description *</Text>
             <View style={styles.translitToggle}>
               <Switch
                 value={descriptionTranslitEnabled}
@@ -311,7 +314,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         </View>
 
         {/* Category */}
-        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Category</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Category *</Text>
         <TouchableOpacity 
           style={[
             styles.categorySelector, 
@@ -340,7 +343,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         </TouchableOpacity>
 
         {/* Media Upload */}
-        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 4 }]}>Media</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 4 }]}>Media *</Text>
         <Text style={[styles.mediaHint, { color: theme.textSecondary }]}>
           Add up to {MAX_IMAGES} images OR one video (not both)
         </Text>
@@ -388,6 +391,8 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Add Images or Video</Text>
           </TouchableOpacity>
         )}
+        
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       <View style={[styles.footer, {marginBottom: insets.bottom, borderTopColor: isDarkMode ? '#333' : '#E8EAED'}]}>
@@ -448,6 +453,12 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <CameraComponent
+        isVisible={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCapture}
+      />
 
     </SafeAreaView>
   );

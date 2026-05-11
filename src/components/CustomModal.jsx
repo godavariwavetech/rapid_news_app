@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
-import { responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
+import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 const CustomModal = ({
   visible,
@@ -23,20 +15,19 @@ const CustomModal = ({
       visible={visible}
       transparent
       animationType="fade"
+      statusBarTranslucent
       onRequestClose={onCancel}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalMessage}>{message}</Text>
           <View style={styles.buttonContainer}>
-            {cancelText && <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onCancel}>
-              <Text style={styles.cancelButtonText}>{cancelText}</Text>
-            </TouchableOpacity>}
-            <TouchableOpacity
-              style={[styles.button, styles.confirmButton]}
-              onPress={onConfirm}>
+            {cancelText ? (
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onCancel}>
+                <Text style={styles.cancelButtonText}>{cancelText}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity style={[styles.button, styles.confirmButton]} onPress={onConfirm}>
               <Text style={styles.confirmButtonText}>{confirmText}</Text>
             </TouchableOpacity>
           </View>
@@ -49,38 +40,39 @@ const CustomModal = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 15,
-    padding: responsiveWidth(5),
-    width: responsiveWidth(80),
+    padding: 20,
+    width: '80%',
     alignItems: 'center',
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#4D5A16', // updated color
-    marginBottom: responsiveHeight(1),
+    color: '#4D5A16',
+    marginBottom: 10,
   },
   modalMessage: {
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
-    marginBottom: responsiveHeight(2),
+    marginBottom: 20,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    gap: responsiveWidth(2),
+    gap: 10,
   },
   button: {
     flex: 1,
-    paddingVertical: responsiveHeight(1),
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -90,7 +82,7 @@ const styles = StyleSheet.create({
     borderColor: '#A3A3A3',
   },
   confirmButton: {
-    backgroundColor: '#FF0D0D', // updated color
+    backgroundColor: '#FF0D0D',
   },
   cancelButtonText: {
     color: '#A3A3A3',
@@ -104,5 +96,4 @@ const styles = StyleSheet.create({
   },
 });
 
-
-export default CustomModal; 
+export default CustomModal;

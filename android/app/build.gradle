@@ -83,8 +83,8 @@ android {
         applicationId "com.rapidnews"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 7
+        versionName "1.0.7"
     }
     signingConfigs {
         debug {
@@ -125,6 +125,10 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Required for CustomFirebaseMessagingService — version managed by Firebase BOM
+    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }
 
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")

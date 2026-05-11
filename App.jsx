@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
-import {Linking, LogBox} from 'react-native';
+import React, {useEffect,useState} from 'react';
+import {Linking, LogBox, Alert} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -21,6 +21,7 @@ LogBox.ignoreAllLogs();
 
 function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { CustomNewsNotification } = NativeModules;
 
   const checkAndRequestPermissions = async () => {
     try {
@@ -37,30 +38,30 @@ function App() {
     try {
       const res = await VersionCheck.needUpdate();
       if (res?.isNeeded) {
-        setShowUpdateModal(true);
-      } else {
-        setShowUpdateModal(false);
+        Alert.alert(
+          'Update Available',
+          'A new version of the app is available. Please update to continue using all features.',
+          [
+            {
+              text: 'Update Now',
+              onPress: async () => {
+                try {
+                  await Linking.openURL(res.storeUrl);
+                } catch (e) {
+                  console.log('Play Store link error:', e);
+                }
+              },
+            },
+          ],
+          { cancelable: false },
+        );
       }
     } catch (error) {
       console.log('Error checking for updates:', error);
     }
   };
 
-  const handleUpdate = async () => {
-    try {
-      const res = await VersionCheck.needUpdate();
-      const supported = await Linking.canOpenURL(res.storeUrl);
-      if (supported) {
-        await Linking.openURL(res.storeUrl);
-      } else {
-        await Linking.openURL(res.storeUrl);
-      }
-    } catch (error) {
-      console.log('Play Store link error:', error);
-    } finally {
-      setShowUpdateModal(false);
-    }
-  };
+  const handleUpdate = async () => {};
 
   const getToken = async () => { 
     await getFCMToken();
@@ -82,16 +83,11 @@ function App() {
     <GestureHandlerRootView style={{flex: 1}}>
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistorStore}>
-          <ThemeProvider>
-            <TabBarProvider>
+          <TabBarProvider>
+            <ThemeProvider>
               <AppNavigator />
-              <CustomModal
-                visible={showUpdateModal}
-                onClose={() => setShowUpdateModal(false)}
-                onUpdate={handleUpdate}
-              />
-            </TabBarProvider>
-          </ThemeProvider>
+            </ThemeProvider>
+          </TabBarProvider>
         </PersistGate>
       </Provider>
     </GestureHandlerRootView>

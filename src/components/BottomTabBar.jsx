@@ -56,6 +56,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
             </View>
             <Text
               numberOfLines={1}
+               allowFontScaling={false}
               style={[
                 styles.tabLabel,
                 { color: isActive ? '#E0E0E0' : '#888888' },
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: responsiveFontSize(2),
+    fontSize: responsiveFontSize(1.7),
     // fontWeight: '700',
     fontFamily:fonts.bold,
     textAlign: 'center',

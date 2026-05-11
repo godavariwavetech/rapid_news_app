@@ -2,6 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -21,6 +22,21 @@
           android:name="com.google.firebase.messaging.default_notification_channel_id"
           android:value="custom_news_channel"
           tools:replace="android:value" />
+
+      <!-- Our service extends ReactNativeFirebaseMessagingService and replaces it -->
+      <service
+          android:name=".CustomFirebaseMessagingService"
+          android:exported="false">
+          <intent-filter>
+              <action android:name="com.google.firebase.MESSAGING_EVENT" />
+          </intent-filter>
+      </service>
+
+      <!-- Remove the library's original service to prevent duplicate FCM handling -->
+      <service
+          android:name="io.invertase.firebase.messaging.ReactNativeFirebaseMessagingService"
+          android:exported="false"
+          tools:node="remove" />
 
       <provider
         android:name="androidx.core.content.FileProvider"
