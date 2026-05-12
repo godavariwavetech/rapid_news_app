@@ -33,6 +33,32 @@ import { useTheme } from '../context/ThemeContext';
 const STATUS_BAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
+const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage, loading, theme, isDarkMode}) => (
+  <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+      <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+        <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>{title}</Text>
+          <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color={theme.text} /></TouchableOpacity>
+        </View>
+        <FlatList
+          data={data}
+          keyExtractor={item => item._id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{paddingBottom: 20}}
+          renderItem={({item}) => (
+            <TouchableOpacity style={[styles.listItem, { borderBottomColor: isDarkMode ? '#333' : '#F5F5F5' }]} onPress={() => onSelect(item)}>
+              <Text style={[styles.listItemText, { color: theme.text }]}>{item.name?.en || item.name}</Text>
+              <Icon name="chevron-right" size={20} color={isDarkMode ? '#444' : "#ccc"} />
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.textSecondary }]}>{loading ? 'Loading...' : emptyMessage}</Text>}
+        />
+      </View>
+    </TouchableOpacity>
+  </Modal>
+);
+
 const ProfileSetupScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
   const { theme, isDarkMode } = useTheme();
@@ -42,16 +68,15 @@ const ProfileSetupScreen = ({navigation, route}) => {
 
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageBase64, setProfileImageBase64] = useState(null);
-  const [username, setUsername] = useState('Eshwar');
-  const [fullName, setFullName] = useState('Eshwar vanapalli');
-  const [email, setEmail] = useState('eshwar@gmail.com');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   
   // Selection State
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [checkingCapacity, setCheckingCapacity] = useState(false);
 
   // Modals Visibility
   const [showStatePicker, setShowStatePicker] = useState(false);
@@ -188,26 +213,27 @@ const ProfileSetupScreen = ({navigation, route}) => {
   };
 
   const handleVillageSelect = async (item) => {
-    setCheckingCapacity(true);
+    // Close modal immediately so UI never hangs
+    setShowVillagePicker(false);
+    setSelectedVillage(item);
+    if (errors.village) setErrors({...errors, village: null});
+
+    // Check capacity in background — warn user if full but don't block selection
     try {
       const resultAction = await dispatch(checkVillageCapacity(item._id));
       if (checkVillageCapacity.fulfilled.match(resultAction)) {
-        const data = resultAction.payload;
-        if (data) {
-          setSelectedVillage(item);
-          setShowVillagePicker(false);
-          if (errors.village) setErrors({...errors, village: null});
-        } else {
-          Alert.alert("Village Full", "This village has reached its maximum reporter capacity. Please select another village.");
-          setSelectedVillage(null);
+        const available = resultAction.payload;
+        if (!available) {
+          Alert.alert(
+            "Village Full",
+            "This village has reached its maximum reporter capacity. Please select another village.",
+            [{ text: 'OK', onPress: () => setSelectedVillage(null) }]
+          );
         }
-      } else {
-        Alert.alert("Error", "Could not verify village capacity. Please try again.");
       }
     } catch (error) {
-      Alert.alert("Error", "An unexpected error occurred while checking capacity.");
-    } finally {
-      setCheckingCapacity(false);
+      // Silently ignore capacity check errors — don't block the user
+      console.log('Capacity check error:', error);
     }
   };
 
@@ -218,39 +244,6 @@ const ProfileSetupScreen = ({navigation, route}) => {
     selectedState && 
     selectedDistrict &&
     selectedVillage;
-
-  const SelectionModal = ({visible, onClose, title, data, onSelect, emptyMessage}) => (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>{title}</Text>
-            <TouchableOpacity onPress={onClose}><Icon name="close" size={24} color={theme.text} /></TouchableOpacity>
-          </View>
-          {checkingCapacity && title === "Select Village" ? (
-             <View style={{ padding: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={{ marginTop: 10, color: theme.textSecondary }}>Checking availability...</Text>
-             </View>
-          ) : (
-            <FlatList
-              data={data}
-              keyExtractor={item => item._id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{paddingBottom: 20}}
-              renderItem={({item}) => (
-                <TouchableOpacity style={[styles.listItem, { borderBottomColor: isDarkMode ? '#333' : '#F5F5F5' }]} onPress={() => onSelect(item)}>
-                  <Text style={[styles.listItemText, { color: theme.text }]}>{item.name?.en || item.name}</Text>
-                  <Icon name="chevron-right" size={20} color={isDarkMode ? '#444' : "#ccc"} />
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.textSecondary }]}>{locationLoading ? 'Loading...' : emptyMessage}</Text>}
-            />
-          )}
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -373,9 +366,9 @@ const ProfileSetupScreen = ({navigation, route}) => {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} emptyMessage="No states available" />
-      <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} emptyMessage="No districts available" />
-      <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} emptyMessage="No villages available" />
+      <SelectionModal visible={showStatePicker} onClose={() => setShowStatePicker(false)} title="Select State" data={states} onSelect={handleStateSelect} emptyMessage="No states available" loading={locationLoading} theme={theme} isDarkMode={isDarkMode} />
+      <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} emptyMessage="No districts available" loading={locationLoading} theme={theme} isDarkMode={isDarkMode} />
+      <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} emptyMessage="No villages available" loading={locationLoading} theme={theme} isDarkMode={isDarkMode} />
     </SafeAreaView>
   );
 };

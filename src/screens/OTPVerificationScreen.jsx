@@ -9,6 +9,7 @@ import {
   Platform,
   SafeAreaView,
   KeyboardAvoidingView,
+  ScrollView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -157,9 +158,12 @@ const OTPVerificationScreen = ({navigation, route}) => {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}>
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.headerSection}>
             <Text style={[styles.otpTitle, { color: theme.text }]}>Enter OTP</Text>
@@ -235,7 +239,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
               <Text style={[styles.proceedButtonText, { color: isDarkMode && isOtpComplete ? '#000' : '#FFFFFF' }]}>Proceed</Text>
             )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -259,10 +263,11 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     paddingTop: 40,
     paddingHorizontal: 24,
+    paddingBottom: 40,
   },
   headerSection: {
     marginBottom: 50,
