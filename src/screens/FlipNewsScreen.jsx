@@ -10,54 +10,27 @@ import { useSelector, useDispatch } from 'react-redux';
 import { markNewsAsRead } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
-import { preloadVideos, cancelVideoPreloads } from '../utils/mediaPreloader';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-// --- HELPER: TIME AGO CALCULATION ---
-// Always computed against current time so it stays accurate.
-// dayOffset: if provided and > 0, forces "Yesterday" or a date label
-// regardless of the clock difference (e.g. 17h ago but from yesterday's feed).
-const formatTimeAgo = (dateString, dayOffset) => {
+const formatTimeAgo = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-
-  // If the API says this item is from a previous day's offset, show date label directly
-  if (dayOffset != null && dayOffset > 0) {
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const targetDay = new Date(todayStart.getTime() - dayOffset * 86400000);
-    const targetDayEnd = new Date(targetDay.getTime() + 86400000);
-
-    // If the item actually falls in that offset day, label it
-    if (date >= targetDay && date < targetDayEnd) {
-      if (dayOffset === 1) return 'Yesterday';
-      const sameYear = targetDay.getFullYear() === now.getFullYear();
-      return targetDay.toLocaleDateString('en-US', sameYear
-        ? { month: 'short', day: 'numeric' }
-        : { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-  }
-
   const seconds = Math.floor((now - date) / 1000);
-  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + ' minutes ago';
-
-  const hours = Math.floor(seconds / 3600);
-  if (hours < 24) return hours + ' hours ago';
-
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
-  if (date >= yesterdayStart && date < todayStart) return 'Yesterday';
-
-  const sameYear = date.getFullYear() === now.getFullYear();
-  return date.toLocaleDateString('en-US', sameYear
-    ? { month: 'short', day: 'numeric' }
-    : { month: 'short', day: 'numeric', year: 'numeric' });
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + " years ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + " months ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + " days ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + " hours ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + " minutes ago";
+  return Math.floor(seconds) + " seconds ago";
 };
 
 const NewsSkeleton = ({ height, theme }) => {
@@ -116,24 +89,16 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 
 const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main' }, ref) => {
   const dispatch = useDispatch();
-  
-  // DYNAMIC REDUX SELECTION BASED ON feedType PROP
-  // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, todayTotalNews, currentDayOffset, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
-  const {bookmarks} = useSelector(state => state.bookmarks);
+  const { articles, totalNews, unreadArticles, loading, isLoadingMore, isLoadingUnread, hasMore } = useSelector(state => state.news);
+  const { bookmarks } = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
   const activeArticles = feedType === 'unread' ? unreadArticles : articles;
   const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
-  const activeHasMore = feedType === 'unread' ? unreadHasMore : hasMore;
-  const activeIsLoadingMore = feedType === 'unread' ? isLoadingMoreUnread : isLoadingMore;
-  
-  const bookmarkedIds = useMemo(() => {
-    return bookmarks?.map(item => item.news?._id);
-  }, [bookmarks]);
-  
-  // Expose methods to parent
+  const activeHasMore = feedType === 'unread' ? false : hasMore;
+  const bookmarkedIds = useMemo(() => bookmarks?.map(item => item.news?._id), [bookmarks]);
+
   useImperativeHandle(ref, () => ({
     scrollToTop: () => {
       if (formattedNews.length > 0) {
@@ -146,100 +111,45 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
-
-    const now = new Date(nowTick);
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const dayCounters = {};
-
-    return rawItems.map((item) => {
+    return rawItems.map((item, index) => {
       if (item.type === 'AD') {
         return {
-          id: item.data._id,
-          type: 'AD',
-          isAd: true,
-          image: item.data.image,
-          redirectUrl: item.data.redirect_url,
-          label: item.data.label || 'Sponsored',
-          title: item.data.label || 'Advertisement',
-          likes: 0,
-          dislikes: 0,
-          comments: 0,
-          commentsEnabled: false,
-          images: [],
-          itemIndex: null,
-          totalNews: null,
+          id: item.data._id, type: 'AD', isAd: true,
+          image: item.data.image, redirectUrl: item.data.redirect_url,
+          label: item.data.label || 'Sponsored', title: item.data.label || 'Advertisement',
+          likes: 0, dislikes: 0, comments: 0, commentsEnabled: false, images: [],
+          itemIndex: index + 1, totalNews: totalNews || rawItems.length,
         };
-      }
-      else if (item.type === 'SURVEY') {
+      } else if (item.type === 'SURVEY') {
         return {
-          id: item.data._id,
-          type: 'SURVEY',
-          question: item.data.question,
-          options: item.data.options,
-          totalVotes: item.data.total_votes,
-          voted_option_id: item.data.voted_option_id,
-          user_voted: item.data.user_voted,
-          isAd: false,
-          itemIndex: null,
-          totalNews: null,
+          id: item.data._id, type: 'SURVEY',
+          question: item.data.question, options: item.data.options,
+          totalVotes: item.data.total_votes, voted_option_id: item.data.voted_option_id,
+          user_voted: item.data.user_voted, isAd: false,
+          itemIndex: index + 1, totalNews: totalNews || rawItems.length,
         };
-      }
-      else {
+      } else {
         const data = item.data || item;
-        const publishedAt = data.published_at;
-        const pubDate = publishedAt ? new Date(publishedAt) : null;
-
-        // Build a day key from the publish date so each calendar day gets its own counter
-        let dayKey = 'unknown';
-        if (pubDate) {
-          dayKey = `${pubDate.getFullYear()}-${pubDate.getMonth()}-${pubDate.getDate()}`;
-        }
-        dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
-        const itemIndex = dayCounters[dayKey];
-
-        const isToday = pubDate && pubDate >= todayStart;
-
-        // For items from a previous day offset, pass the offset so timeAgo shows
-        // "Yesterday" / date instead of "17 hours ago"
-        const itemDayOffset = isToday ? 0 : currentDayOffset > 0 ? currentDayOffset : null;
-        let dayTotal;
-        if (feedType === 'unread') {
-          dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
-        } else if (isToday) {
-          dayTotal = todayTotalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
-        } else {
-          dayTotal = totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
-        }
-
         return {
           id: data._id, type: 'NEWS', isAd: false,
           title: data.content?.title || '', body: data.content?.body || '',
           short: data.content?.short || '',
           image: data.images?.length > 0 ? data.images[0] : null,
-          images: data.images || [],
-          videos: data.videos || [],
+          images: data.images || [], videos: data.videos || [],
           external_links: data.external_links || [],
-          publishedAt,
-          timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
-          likes: data?.reactions?.likes || 0,
-          dislikes: data?.reactions?.dislikes || 0,
+          publishedAt: data.published_at, timeAgo: formatTimeAgo(data.published_at),
+          likes: data?.reactions?.likes || 0, dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
-          reporter: data.reporter || {
-            name: 'Reporter',
-            imageUrl: 'https://via.placeholder.com/100',
-            location: 'Andhra Pradesh',
-          },
-          isLiked: data?.reactions?.my_reaction === 'LIKE',
-          isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
+          reporter: data.reporter || { name: 'Reporter', imageUrl: 'https://via.placeholder.com/100', location: 'Andhra Pradesh' },
+          isLiked: data?.reactions?.my_reaction == "LIKE",
+          isDisliked: data?.reactions?.my_reaction == "DISLIKE",
           isBookmarked: bookmarkedIds.includes(data._id),
-          itemIndex,
-          totalNews: dayTotal,
+          itemIndex: index + 1, totalNews: totalNews || rawItems.length,
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, currentDayOffset, nowTick]);
+  }, [activeArticles, bookmarkedIds, totalNews]);
 
   useEffect(() => {
     const adImages = formattedNews
@@ -248,56 +158,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (adImages.length > 0) FastImage.preload(adImages);
   }, [formattedNews]);
 
-  // Preload images + warm video HTTP cache for upcoming items
-  useEffect(() => {
-    // 10 ahead + 2 behind covers fast swipers and back-swipes
-    const window = formattedNews.slice(
-      Math.max(0, currIndex - 2),
-      currIndex + 11,
-    );
-
-    // Images via FastImage cache
-    const imageUris = window
-      .flatMap(item => {
-        const uris = [];
-        if (item.image) uris.push(item.image);
-        if (item.images?.length) uris.push(...item.images);
-        if (item.thumbnail) uris.push(item.thumbnail);
-        // YouTube thumbnail
-        if (item.videos?.length) {
-          const ytMatch = item.videos[0]?.match(/(?:youtu\.be\/|v=)([^&?/]+)/);
-          if (ytMatch) uris.push(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
-        }
-        return uris;
-      })
-      .filter(Boolean)
-      .map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
-
-    if (imageUris.length > 0) FastImage.preload(imageUris);
-
-    // Warm HTTP cache for next 3 non-YouTube videos
-    const videoUris = formattedNews
-      .slice(currIndex + 1, currIndex + 4)
-      .flatMap(item => item.videos || [])
-      .filter(url => url && !url.includes('youtube') && !url.includes('youtu.be'));
-
-    if (videoUris.length > 0) preloadVideos(videoUris);
-
-    return () => cancelVideoPreloads(videoUris);
-  }, [currIndex, formattedNews]);
-
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
-  // Tick every 60s so timeAgo labels stay current
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 60000);
-    return () => clearInterval(id);
-  }, []);
-  
-  const [isSwitching, setIsSwitching] = useState(false);
-  const [overrideNews, setOverrideNews] = useState(null);
-  
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const halfHeight = containerHeight / 2;
@@ -321,18 +183,6 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
-  // Pre-fetch next page when user lands on the second-to-last item
-  useEffect(() => {
-    if (!activeHasMore || activeIsLoadingMore || activeLoading) return;
-    const total = formattedNews.length;
-    if (total > 0 && currIndex >= total - 2) {
-      if (!isLoadingMoreRef.current) {
-        isLoadingMoreRef.current = true;
-        if (onEndReached) onEndReached();
-      }
-    }
-  }, [currIndex, formattedNews.length, activeHasMore, activeIsLoadingMore, activeLoading]);
-
   useEffect(() => {
     if (currIndex >= formattedNews.length && formattedNews.length > 0) {
       setCurrIndex(0);
@@ -348,27 +198,17 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     }
   }, [activeLoading, isRefreshing]);
 
-  // --- Impression-based read tracking with batching ---
-  // Strategy: collect IDs in a Set, flush after 5s of inactivity (debounce),
-  // immediately on 10+ IDs, on app background, and on unmount.
   const readBatchRef = useRef(new Set());
-  const debounceTimerRef = useRef(null);
+  const flushTimerRef = useRef(null);
   const impressionTimerRef = useRef(null);
 
   const flushReadBatch = useCallback(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     if (readBatchRef.current.size === 0) return;
     const ids = Array.from(readBatchRef.current);
     readBatchRef.current.clear();
     dispatch(markNewsAsRead(ids));
   }, [dispatch]);
 
-  const scheduleFlush = useCallback(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(flushReadBatch, 2000);
-  }, [flushReadBatch]);
-
-  // Flush on app background or unmount
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       if (state === 'background' || state === 'inactive') flushReadBatch();
@@ -376,38 +216,25 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     return () => {
       sub.remove();
       flushReadBatch();
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
       if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
     };
   }, [flushReadBatch]);
 
-  // Track impression: add ID immediately on swipe-away, or after 1s if still viewing
+  useEffect(() => {
+    flushTimerRef.current = setInterval(flushReadBatch, 2000);
+    return () => clearInterval(flushTimerRef.current);
+  }, [flushReadBatch]);
+
   useEffect(() => {
     if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
-    if (!currentNews?.id || currentNews.isAd) return;
-
-    const newsId = currentNews.id;
-
+    if (!currentNews?.id || currentNews.isAd || feedType === 'unread') return;
     impressionTimerRef.current = setTimeout(() => {
-      readBatchRef.current.add(newsId);
-      if (readBatchRef.current.size >= 10) {
-        flushReadBatch();
-      } else {
-        scheduleFlush();
-      }
+      readBatchRef.current.add(currentNews.id);
+      if (readBatchRef.current.size >= 10) flushReadBatch();
     }, 1000);
-
-    return () => {
-      clearTimeout(impressionTimerRef.current);
-      // Always mark as read on swipe-away, even if < 1s
-      readBatchRef.current.add(newsId);
-      if (readBatchRef.current.size >= 10) {
-        flushReadBatch();
-      } else {
-        scheduleFlush();
-      }
-    };
-  }, [currentNews?.id, currentNews?.isAd, flushReadBatch, scheduleFlush]);
+    return () => clearTimeout(impressionTimerRef.current);
+  }, [currentNews?.id, currentNews?.isAd, feedType, flushReadBatch]);
 
   // commitFlip: called on UI thread via runOnJS after animation completes.
   // scrollY is at 1 (or -1). We update the index, then immediately reset
@@ -454,23 +281,16 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
 
   const isLoadingMoreRef = useRef(false);
-  const [userSwipedPastEnd, setUserSwipedPastEnd] = useState(false);
-
   const triggerLoadMore = () => {
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
-    setUserSwipedPastEnd(true);
     if (onEndReached) onEndReached();
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
 
-  // Reset the guard and swipe flag once loading finishes
   useEffect(() => {
-    if (!activeIsLoadingMore && !activeLoading) {
-      isLoadingMoreRef.current = false;
-      setUserSwipedPastEnd(false);
-    }
-  }, [activeIsLoadingMore, activeLoading]);
+    if (!isLoadingMore && !loading) isLoadingMoreRef.current = false;
+  }, [isLoadingMore, loading]);
 
   // Preload next page when user reaches last 3 items
   useEffect(() => {
@@ -648,8 +468,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <ActivityIndicator size="large" color="#4dabf5" />
           </Animated.View>
 
-          {/* Bottom load-more indicator — only shown when user swipes past last card */}
-          {userSwipedPastEnd && activeIsLoadingMore && !nextNews && (
+          {isLoadingMore && !nextNews && (
             <View style={styles.bottomLoaderContainer}>
               <ActivityIndicator size="small" color="#4dabf5" />
               <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>

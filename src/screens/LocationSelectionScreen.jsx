@@ -224,7 +224,7 @@ const LocationSelectionScreen = ({navigation}) => {
       />
 
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
+      <View style={[styles.header, {paddingTop: 0, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>

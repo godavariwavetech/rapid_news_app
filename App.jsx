@@ -1,5 +1,5 @@
 import React, {useEffect,useState} from 'react';
-import {Linking, LogBox, Alert} from 'react-native';
+import {Linking, LogBox, Alert, NativeModules} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';

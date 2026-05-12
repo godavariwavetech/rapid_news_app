@@ -476,7 +476,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
 const styles = StyleSheet.create({
   card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
-  imageSection: { width: SCREEN_WIDTH, height: IMAGE_HEIGHT, position: 'relative', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  imageSection: { width: SCREEN_WIDTH, position: 'relative', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   bottomContainer: { flex: 1, width: '100%', backgroundColor: '#2C2C2C' },
   image: { width: responsiveWidth(100), height: '100%', justifyContent: 'center', alignItems: 'center' },
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },
@@ -487,9 +487,9 @@ const styles = StyleSheet.create({
   adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
-  title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(2.8), color: '#000000', lineHeight: responsiveFontSize(3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
+  title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(2.8), color: '#000000', lineHeight: responsiveFontSize(3.4), includeFontPadding: false, paddingTop: 16, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(3.5), lineHeight: responsiveFontSize(3.5), color: '#555555', fontWeight: '400' },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.3), lineHeight: responsiveFontSize(3.2), color: '#666666', flex: 1 },
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
