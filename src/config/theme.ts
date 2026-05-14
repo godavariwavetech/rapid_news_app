@@ -19,6 +19,7 @@ export const lightTheme = {
   textSecondary: '#6C757D',
   border: '#DEE2E6',
   tabBar: '#FFFFFF',
+  statusBar: '#2C2C2C',
   shadow: '#000000',
   shimmer: ['#E8E8E8', '#F3F3F3', '#E8E8E8'],
   
@@ -52,6 +53,7 @@ export const darkTheme = {
   textSecondary: '#B0B0B0',
   border: '#2C2C2C',
   tabBar: '#1E1E1E',
+  statusBar: '#2C2C2C',
   shadow: '#FFFFFF',
   shimmer: ['#2C2C2C', '#3A3A3A', '#2C2C2C'],
 

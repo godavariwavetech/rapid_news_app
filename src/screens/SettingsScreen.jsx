@@ -136,8 +136,8 @@ const SettingsScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, {backgroundColor: theme.background}]}>
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.background}
+        barStyle="light-content"
+        backgroundColor={theme.statusBar}
       />
 
       {/* Header */}
@@ -146,19 +146,19 @@ const SettingsScreen = ({ navigation }) => {
           styles.header,
           {
             paddingTop: STATUS_BAR_HEIGHT + 8,
-            backgroundColor: theme.background,
+            backgroundColor: theme.statusBar,
             borderBottomColor: isDarkMode ? '#333' : '#E8EAED',
           },
         ]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={26} color={theme.text} />
+          <Icon name="arrow-left" size={26} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: theme.text}]}>
+        <Text style={[styles.headerTitle, {color: "#FFFFFF"}]}>
           సెట్టింగ్స్
         </Text>
-        <Text style={[styles.versionText, {color: theme.textSecondary}]}>
+        <Text style={[styles.versionText, {color: "#FFFFFF"}]}>
           App Version {appVersion}
         </Text>
       </View>

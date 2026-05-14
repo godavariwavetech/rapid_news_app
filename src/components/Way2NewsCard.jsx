@@ -192,6 +192,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   }, []);
 
   const handleDoubleTap = () => {
+    if (news.isAd) { handleAdPress(); return; }
     const now = Date.now();
     if (lastTap && (now - lastTap) < 300) { setFullScreenImage(true); setLastTap(0); } 
     else { setLastTap(now); if (onPress) onPress(); }
@@ -470,6 +471,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           <View style={styles.imageInfo}><Text style={styles.imageTitle}>{displayTitle}</Text></View>
         </View>
       </Modal>
+      {news.isAd && (
+        <TouchableOpacity
+          style={[StyleSheet.absoluteFill, { zIndex: 999 }]}
+          onPress={handleAdPress}
+          activeOpacity={0.95}
+        />
+      )}
     </ViewShot>
   );
 });

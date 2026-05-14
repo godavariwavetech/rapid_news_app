@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'ios' ? 44 : 8,
     paddingBottom: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: '#2C2C2C',
   },
   iconButton: {
     width: 36,
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.85)', 
+    borderColor: '#2C2C2C', 
   },
   badgeText: {
     color: '#FFFFFF',

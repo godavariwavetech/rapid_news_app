@@ -81,10 +81,10 @@ const LanguageSelectionScreen = ({navigation, route}) => {
   
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.statusBar }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.statusBar} />
       
-      <View style={styles.wrapper}>
+      <View style={[styles.wrapper, { backgroundColor: theme.background }]}>
         <ScrollView 
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}

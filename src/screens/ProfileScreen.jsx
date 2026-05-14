@@ -101,10 +101,10 @@ const ProfileScreen = ({navigation}) => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} translucent={false} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.statusBar} translucent={false} />
 
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top, backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
+      <View style={[styles.header, {paddingTop: insets.top, backgroundColor: theme.statusBar, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerIconButton}>
             <Icon name="cog-outline" size={24} color={theme.textSecondary} />

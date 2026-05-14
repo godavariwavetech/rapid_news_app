@@ -187,7 +187,7 @@ function HomeScreen({navigation}) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="light-content" backgroundColor="#2C2C2C" />
 
      {!shouldShowFallback && (
         <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
