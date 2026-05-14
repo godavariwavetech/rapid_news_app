@@ -86,9 +86,9 @@ export const fetchNews = createAsyncThunk(
       current_day_offset = arg.current_day_offset || 0;
       isLocationMode = arg.isLocationMode || false;
       location = {
-        village_id: arg.currentLocation?.village?._id,
-        district_id: arg.currentLocation?.district?._id,
-        state_id: arg.currentLocation?.state?._id,
+        village_id: arg.currentLocation?.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: arg.currentLocation?.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: arg.currentLocation?.state?._id || "697d8135322a103bdabf0fc3",
       };
     }
 
