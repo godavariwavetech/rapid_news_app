@@ -486,11 +486,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const [userSwipedPastEnd, setUserSwipedPastEnd] = useState(false);
 
   const triggerLoadMore = () => {
+    scrollY.value = withSpring(0, SPRING_CONFIG);
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
     setUserSwipedPastEnd(true);
     if (onEndReached) onEndReached();
-    scrollY.value = withSpring(0, SPRING_CONFIG); 
   };
 
   // Reset the guard and swipe flag once loading finishes
