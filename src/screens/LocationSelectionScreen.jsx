@@ -217,268 +217,36 @@ const LocationSelectionScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: theme.statusBar}]}>
+    <SafeAreaView style={[styles.container, {backgroundColor: theme.background}]}>
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={theme.statusBar}
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.background}
       />
 
       {/* Header */}
-      <View style={[styles.header, {paddingTop: 0, backgroundColor: theme.statusBar, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
+      <View style={[styles.header, {paddingTop: 0, borderBottomColor: isDarkMode ? '#333' : '#F0F0F0'}]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={26} color="#FFFFFF" />
+          <Icon name="arrow-left" size={26} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: "#FFFFFF"}]}>మీ ప్రదేశాన్ని ఎంచుకోండి</Text>
+        <Text style={[styles.headerTitle, {color: theme.text}]}>మీ ప్రదేశాన్ని ఎంచుకోండి</Text>
         <View style={{width: 32}} />
       </View>
 
-      <View style={[styles.mainWrapper, { backgroundColor: theme.background, flex: 1 }]}>
-        {/* Tabs */}
-        <View style={[styles.tabBar, {borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
-          {TABS.map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && {borderBottomColor: theme.primary, borderBottomWidth: 2}]}
-              onPress={() => setActiveTab(tab)}
-              activeOpacity={0.8}>
-              <Text style={[styles.tabText, {color: activeTab === tab ? theme.primary : theme.textSecondary}]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Search Tab */}
-        {activeTab === 'Search' && (
-          <View style={styles.searchContainer}>
-            <View
-              style={[
-                styles.searchBox,
-                {backgroundColor: isDarkMode ? '#1A1A1A' : '#F8F9FA', borderColor: isDarkMode ? '#333' : '#E8EAED'},
-              ]}>
-              <Icon name="magnify" size={22} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.searchInput, {color: theme.text}]}
-                placeholder="Village name or pincode..."
-                placeholderTextColor={isDarkMode ? '#555' : '#AAA'}
-                value={query}
-                onChangeText={handleQueryChange}
-                autoCorrect={false}
-                autoCapitalize="none"
-                returnKeyType="search"
-              />
-              {query.length > 0 && (
-                <TouchableOpacity onPress={handleClearSearch}>
-                  <Icon name="close-circle" size={18} color={theme.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {searchLoading && <ActivityIndicator color={theme.primary} style={{marginTop: 24}} />}
-
-            {!searchLoading && hasSearched && searchResults.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Icon name="map-search-outline" size={48} color={isDarkMode ? '#444' : '#CCC'} />
-                <Text style={[styles.emptyText, {color: theme.textSecondary}]}>No results found</Text>
-                <Text style={[styles.emptyHint, {color: isDarkMode ? '#555' : '#BBB'}]}>
-                  Try a different village name or pincode
-                </Text>
-              </View>
-            )}
-
-            {!hasSearched && query.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Icon name="magnify" size={48} color={isDarkMode ? '#444' : '#CCC'} />
-                <Text style={[styles.emptyHint, {color: isDarkMode ? '#555' : '#BBB'}]}>
-                  Type a village name or 6-digit pincode
-                </Text>
-              </View>
-            )}
-
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item, i) =>
-                (item?.village?._id ? item.village._id + i : String(i))
-              }
-              renderItem={({item}) => <SearchResultItem item={item} />}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.resultsList}
-            />
-          </View>
-        )}
-
-        {/* Browse Tab */}
-        {activeTab === 'Browse' && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-            <Text style={[styles.description, {color: theme.textSecondary}]}>
-              వార్తలను మీ ప్రాంతం ఆధారంగా పొందేందుకు మీ లొకేషన్‌ను ఎంచుకోండి.
+      {/* Tabs */}
+      <View style={[styles.tabBar, {borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && {borderBottomColor: theme.primary, borderBottomWidth: 2}]}
+            onPress={() => setActiveTab(tab)}
+            activeOpacity={0.8}>
+            <Text style={[styles.tabText, {color: activeTab === tab ? theme.primary : theme.textSecondary}]}>
+              {tab}
             </Text>
-            <View style={styles.formContainer}>
-              <LocationField
-                label="రాష్ట్రం (STATE)"
-                value={selectedState ? selectedState.name?.te || selectedState.name?.en : 'రాష్ట్రాన్ని ఎంచుకోండి'}
-                onPress={() => setShowStatePicker(true)}
-                active={!!selectedState}
-              />
-              <LocationField
-                label="జిల్లా (DISTRICT)"
-                value={selectedDistrict ? selectedDistrict.name?.te || selectedDistrict.name?.en : 'జిల్లాను ఎంచుకోండి'}
-                onPress={() => setShowDistrictPicker(true)}
-                disabled={!selectedState}
-                active={!!selectedDistrict}
-              />
-              <LocationField
-                label="గ్రామం / మండలం (VILLAGE / MANDAL)"
-                value={selectedVillage ? selectedVillage.name?.te || selectedVillage.name?.en : 'గ్రామాన్ని ఎంచుకోండి'}
-                onPress={() => setShowVillagePicker(true)}
-                disabled={!selectedDistrict}
-                active={!!selectedVillage}
-              />
-            </View>
-            {loading && <ActivityIndicator color={theme.primary} style={{marginTop: 20}} />}
-            {selectedVillage && (
-              <TouchableOpacity
-                style={[styles.confirmButton, {backgroundColor: theme.primary}]}
-                onPress={handleConfirmBrowse}>
-                <Text style={[styles.confirmButtonText, {color: isDarkMode ? '#000' : '#FFF'}]}>
-                  సమర్పించండి (Confirm)
-                </Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        )}
-      </View>
-
-      {/* Browse modals */}
-      <SelectionModal
-        visible={showStatePicker}
-        onClose={() => setShowStatePicker(false)}
-        title="రాష్ట్రం ఎంచుకోండి"
-        data={states}
-        onSelect={handleStateSelect}
-        theme={theme}
-        isDarkMode={isDarkMode}
-      />
-      <SelectionModal
-        visible={showDistrictPicker}
-        onClose={() => setShowDistrictPicker(false)}
-        title="జిల్లా ఎంచుకోండి"
-        data={districts}
-        onSelect={handleDistrictSelect}
-        theme={theme}
-        isDarkMode={isDarkMode}
-      />
-      <SelectionModal
-        visible={showVillagePicker}
-        onClose={() => setShowVillagePicker(false)}
-        title="గ్రామం ఎంచుకోండి"
-        data={villages}
-        onSelect={handleVillageSelect}
-        theme={theme}
-        isDarkMode={isDarkMode}
-      />
-    </SafeAreaView>
-  );
-};
-
-const SelectionModal = ({visible, onClose, title, data, onSelect, theme, isDarkMode}) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.modalOverlay}>
-      <View style={[styles.modalContent, {backgroundColor: theme.background}]}>
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, {color: theme.text}]}>{title}</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Icon name="close" size={24} color={theme.text} />
           </TouchableOpacity>
-        </View>
-        <FlatList
-          data={Array.isArray(data) ? data : []}
-          keyExtractor={item => item._id}
-          renderItem={({item}) => (
-            <TouchableOpacity
-              style={[styles.modalItem, {borderBottomColor: isDarkMode ? '#333' : '#F5F5F5'}]}
-              onPress={() => onSelect(item)}>
-              <Text style={[styles.modalItemText, {color: theme.text}]}>
-                {item.name?.te || item.name?.en || item.name}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
+        ))}
       </View>
-    </View>
-  </Modal>
-);
 
-const styles = StyleSheet.create({
-  container: {flex: 1},
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {fontSize: 18, fontWeight: '700'},
-  backButton: {padding: 4},
-  tabBar: {flexDirection: 'row', borderBottomWidth: 1},
-  tab: {flex: 1, alignItems: 'center', paddingVertical: 12},
-  tabText: {fontSize: 14, fontWeight: '600'},
-  // Search tab
-  searchContainer: {flex: 1, paddingHorizontal: 16, paddingTop: 16},
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-    marginBottom: 8,
-  },
-  searchInput: {flex: 1, fontSize: 15, paddingVertical: 2},
-  resultsList: {paddingBottom: 20},
-  resultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  resultIcon: {marginRight: 12},
-  resultText: {flex: 1},
-  resultPrimary: {fontSize: 15, fontWeight: '600'},
-  resultSecondary: {fontSize: 12, marginTop: 2},
-  emptyContainer: {alignItems: 'center', marginTop: 48, gap: 8},
-  emptyText: {fontSize: 15, fontWeight: '600', marginTop: 8},
-  emptyHint: {fontSize: 13, textAlign: 'center'},
-  // Browse tab
-  scrollBody: {paddingHorizontal: 20, paddingTop: 20},
-  description: {fontSize: 15, marginBottom: 30, lineHeight: 22},
-  formContainer: {gap: 20},
-  fieldWrapper: {marginBottom: 10},
-  fieldLabel: {fontSize: 12, fontWeight: '700', marginBottom: 8},
-  fieldInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-  },
-  fieldValue: {fontSize: 16, fontWeight: '500'},
-  confirmButton: {marginTop: 40, paddingVertical: 16, borderRadius: 12, alignItems: 'center'},
-  confirmButtonText: {fontSize: 16, fontWeight: '700'},
-  // Modals
-  modalOverlay: {flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'},
-  modalContent: {borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '80%'},
-  modalHeader: {flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20},
-  modalTitle: {fontSize: 18, fontWeight: '700'},
-  modalItem: {paddingVertical: 16, borderBottomWidth: 1},
-  modalItemText: {fontSize: 16},
-});
-
-export default LocationSelectionScreen;
       {/* Search Tab */}
       {activeTab === 'Search' && (
         <View style={styles.searchContainer}>

@@ -70,7 +70,8 @@ function HomeScreen({navigation}) {
       // fetchNews page 1 already replaces articles in the reducer.
       dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab' }));
     } else {
-      // No location yet — fetch with default/fallback location so feed isn't empty
+      // No location (permission denied or not yet resolved) — fetch general news
+      // with default location IDs but without village feed_mode filter
       dispatch(fetchNews({ category: selectedCategory, page: 1, isLocationMode: false }));
     }
 
@@ -187,7 +188,7 @@ function HomeScreen({navigation}) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2C2C2C" />
+      <StatusBar barStyle="light-content" backgroundColor="#2C2C2C" translucent={false} />
 
      {!shouldShowFallback && (
         <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
@@ -253,7 +254,7 @@ function HomeScreen({navigation}) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#2C2C2C' },
   headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
   bottomTabOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
   commentContainer: { ...StyleSheet.absoluteFillObject, zIndex: 200 }

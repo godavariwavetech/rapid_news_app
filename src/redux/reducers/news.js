@@ -8,7 +8,7 @@ import { endpoints } from '../../config/config';
 const initialState = {
   // --- News List State ---
   articles: [], 
-  loading: false,          
+  loading: true,          // Start as true so skeleton shows before first fetch completes
   isLoadingMore: false,    
   error: null,
   
@@ -74,9 +74,9 @@ export const fetchNews = createAsyncThunk(
     let page = 1;
     let current_day_offset = 0;
     let location = {
-      village_id: "697d8135322a103bdabf0fc7",
-        district_id: "697d8135322a103bdabf0fc5",
-        state_id: "697d8135322a103bdabf0fc3",
+      village_id: "699d218506598bc535887c02",
+      district_id: "699d218506598bc535887c00",
+      state_id: "697d8135322a103bdabf0fc3",
     };
     let isLocationMode = false;
 
@@ -85,10 +85,22 @@ export const fetchNews = createAsyncThunk(
       page = arg.page || 1;
       current_day_offset = arg.current_day_offset || 0;
       isLocationMode = arg.isLocationMode || false; 
+      
+      if (arg.currentLocation) {
+        location = {
+          village_id: arg.currentLocation.village?._id || location.village_id,
+          district_id: arg.currentLocation.district?._id || location.district_id,
+          state_id: arg.currentLocation.state?._id || location.state_id,
+        };
+      }
+    }
+
+    // Double check: if for some reason IDs are still missing, use hardcoded defaults
+    if (!location.village_id || !location.district_id || !location.state_id) {
       location = {
-        village_id: arg.currentLocation?.village?._id,
-        district_id: arg.currentLocation?.district?._id,
-        state_id: arg.currentLocation?.state?._id,
+       "village_id": "699d218506598bc535887c02",
+    "district_id": "699d218506598bc535887c00",
+    "state_id": "697d8135322a103bdabf0fc3",
       };
     }
 
@@ -125,12 +137,21 @@ export const fetchNews = createAsyncThunk(
         config.skipAuth = true;
       }
 
+      console.log('Fetching News with config:', JSON.stringify(config, null, 2));
+
       const response = await api.get(endpoints.GET_NEWS_FEED, config);
 
-      console.log(response,">>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>response.data");
+      console.log('News Fetch Success:', response.status);
 
       return { data: response.data, page, current_day_offset, isLocationMode }; 
     } catch (error) {
+      console.error('News Fetch Error Detail:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url,
+        params: error.config?.params
+      });
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -358,8 +379,8 @@ export const fetchUnreadNews = createAsyncThunk(
       const page = typeof arg === 'object' ? (arg?.page || 1) : 1;
 
       const queryParams = {
-        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
-        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        village_id: location.village?._id || "699d218506598bc535887c02",
+        district_id: location.district?._id || "699d218506598bc535887c00",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
         last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         page,
@@ -398,8 +419,8 @@ export const fetchUnreadNewsCount = createAsyncThunk(
 
       const queryParams = {
         last_seen_at: lastSeenAt,
-        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
-        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
+        village_id: location.village?._id || "699d218506598bc535887c02",
+        district_id: location.district?._id || "699d218506598bc535887c00",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
       };
 

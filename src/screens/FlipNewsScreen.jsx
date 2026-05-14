@@ -460,9 +460,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   }
 
   return (
-    <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.background }]}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: '#2C2C2C', paddingTop: insets.top }]}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.container, { backgroundColor: theme.background, marginTop: insets.top, overflow: 'hidden' }]} onLayout={onLayout}>
+        <Animated.View style={[styles.container, { backgroundColor: theme.background, overflow: 'hidden' }]} onLayout={onLayout}>
 
           <Animated.View style={[styles.refreshLoaderContainer, topLoaderStyle]}>
             <ActivityIndicator size="large" color="#4dabf5" />
@@ -529,7 +529,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#2C2C2C' },
   absoluteFill: { ...StyleSheet.absoluteFillObject },
   halfWrapper: { position: 'absolute', left: 0, right: 0, overflow: 'visible', backgroundColor: 'transparent' },
   halfCardContainer: { flex: 1, overflow: 'hidden' },

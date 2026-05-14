@@ -9,6 +9,7 @@ import Animated, {
   withDelay 
 } from 'react-native-reanimated';
 import { responsiveFontSize, responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
+import { fonts } from '../config/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -17,7 +18,7 @@ const OfflineFallback = ({
   title = "No Internet Connection", 
   message = "You seem to be offline. Check your connection and try again.",
   icon = "wifi-off",
-  buttonText = "Reload" // Default text
+  buttonText = "Reload" 
 }) => {
   // Animation Values
   const opacity = useSharedValue(0);
@@ -53,7 +54,6 @@ const OfflineFallback = ({
             style={styles.glowEffect}
           />
           <View style={styles.iconCircle}>
-            {/* The icon dynamically changes based on the error type */}
             <Icon name={icon} size={48} color="#E74C3C" />
           </View>
         </View>
@@ -72,7 +72,7 @@ const OfflineFallback = ({
             colors={['#E74C3C', '#C0392B']}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 0}}
-            style={styles.button}
+            style={styles.gradientButton}
           >
             <Text style={styles.buttonText}>{buttonText}</Text>
             <Icon name="refresh" size={20} color="#FFF" />
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#FFFFFF',
     fontSize: responsiveFontSize(2.8),
-    fontFamily: 'DMSans-Bold',
+    fontFamily: fonts.bold,
     textAlign: 'center',
     marginBottom: 12,
     letterSpacing: 0.5,
@@ -133,33 +133,35 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#9BA1A6', 
     fontSize: responsiveFontSize(1.9),
-    fontFamily: 'DMSans-Regular',
+    fontFamily: fonts.description,
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 24,
     marginBottom: responsiveHeight(5),
   },
   buttonShadow: {
     shadowColor: '#E74C3C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 10,
+    borderRadius: 30,
+    width: '80%',
+    alignSelf: 'center',
   },
-  button: {
+  gradientButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 40,
+    paddingVertical: 16,
     borderRadius: 30,
-    gap: 8,
-    minWidth: responsiveWidth(45),
+    gap: 12,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize(2),
-    fontFamily: 'DMSans-Bold',
+    fontSize: responsiveFontSize(2.2),
+    fontFamily: fonts.bold,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });
 

@@ -264,13 +264,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   if (news.isAd) {
     const imageSource = news.image ? { uri: news.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo;
     return (
-      <TouchableWithoutFeedback onPress={handleAdPress}>
-        <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+      <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+          <Pressable onPress={handleAdPress} style={{flex:1}}>
           <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
           {isBuffering && <View style={styles.adPlaceholder}><ActivityIndicator size="large" color="#CCCCCC" /></View>}
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
+      </Pressable>
         </ViewShot>
-      </TouchableWithoutFeedback>
     );
   }
 

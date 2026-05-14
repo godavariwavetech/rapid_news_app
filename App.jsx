@@ -1,12 +1,13 @@
 import React, {useEffect,useState} from 'react';
-import {Linking, LogBox, Alert, NativeModules} from 'react-native';
+import {Linking, LogBox, Alert, NativeModules, StatusBar, View, Platform} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {store, persistorStore} from './src/redux/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import {TabBarProvider} from './src/context/TabBarContext';
-import {ThemeProvider} from './src/context/ThemeContext';
+import {ThemeProvider} from './src/context/ThemeContext'; // Wait, it was ThemeContext.tsx? Let me check.
 import {
   checkNotifications,
   requestNotifications,
@@ -80,17 +81,20 @@ function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{flex: 1}}>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistorStore}>
-          <TabBarProvider>
-            <ThemeProvider>
-              <AppNavigator />
-            </ThemeProvider>
-          </TabBarProvider>
-        </PersistGate>
-      </Provider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <GestureHandlerRootView style={{flex: 1}}>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistorStore}>
+            <TabBarProvider>
+              <ThemeProvider>
+                <AppNavigator />
+              </ThemeProvider>
+            </TabBarProvider>
+          </PersistGate>
+        </Provider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
