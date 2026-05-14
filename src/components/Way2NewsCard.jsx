@@ -1,32 +1,32 @@
-import React, {useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle} from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, Image, StyleSheet, Dimensions, Modal, Linking, Alert,
-  ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState, 
+  ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import { FlatList } from 'react-native-gesture-handler'; 
+import { FlatList } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import {useSelector, useDispatch} from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { responsiveFontSize, responsiveWidth } from 'react-native-responsive-dimensions';
 import ViewShot from 'react-native-view-shot';
 
 // Assets
-import { applogo } from '../assets'; 
+import { applogo } from '../assets';
 
 // Redux Actions
-import {getBookmarks, toggleBookmarkApi} from '../redux/reducers/bookmarks';
-import {reactToNews, getComments, trackAdClick} from '../redux/reducers/news';
-import {fonts, lightTheme, darkTheme} from '../config/theme';
+import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
+import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
+import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
-import {downloadImageToGallery, handleShare, generateVideoThumbnail} from '../utils/FileHelpers';
+import { downloadImageToGallery, handleShare, generateVideoThumbnail } from '../utils/FileHelpers';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
-import YoutubePlayer from 'react-native-youtube-iframe'; 
+import YoutubePlayer from 'react-native-youtube-iframe';
 
-const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-const ACTUAL_HEIGHT = SCREEN_HEIGHT; 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const ACTUAL_HEIGHT = SCREEN_HEIGHT;
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.40;
 
 const getYoutubeId = (url) => {
@@ -36,14 +36,14 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = true, isBottomHalf = false}, ref) => {
+const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false }, ref) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const {bookmarkIds} = useSelector(state => state.bookmarks);
+  const { bookmarkIds } = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
 
-  const viewShotRef = useRef(null); 
+  const viewShotRef = useRef(null);
 
   const [isVideoPaused, setIsVideoPaused] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
@@ -51,13 +51,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const [showControls, setShowControls] = useState(false);
   const [screenshotMode, setScreenshotMode] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  
+
   const playerRef = useRef(null);
   const videoRef = useRef(null);
   const flatListRef = useRef(null);
   const isManuallyPaused = useRef(false);
   const controlsTimeout = useRef(null);
-  
+
   const [menuVisible, setMenuVisible] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
   const [isVideoFullScreen, setIsVideoFullScreen] = useState(false);
@@ -72,7 +72,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     toggle: () => { handlePlayPauseToggle(); }
   }));
 
-  const videoUrls = useMemo(() => (news.videos && news.videos.length > 0) ? news.videos : [], [news.videos]); 
+  const videoUrls = useMemo(() => (news.videos && news.videos.length > 0) ? news.videos : [], [news.videos]);
   const hasVideos = videoUrls.length > 0; // Removed !isBottomHalf so state is accurate in both halves
 
   const youtubeId = useMemo(() => {
@@ -141,12 +141,12 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes, news.reactions]);
 
   const handleLike = () => {
-    if (liked) { setLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); dispatch(reactToNews({ newsId: news.id, type: 'LIKE' })); } 
+    if (liked) { setLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); dispatch(reactToNews({ newsId: news.id, type: 'LIKE' })); }
     else { setLiked(true); setLikeCount(prev => prev + 1); if (disliked) { setDisliked(false); setDislikeCount(prev => Math.max(0, prev - 1)); } dispatch(reactToNews({ newsId: news.id, type: 'LIKE' })); }
   };
 
   const handleDislike = () => {
-    if (disliked) { setDisliked(false); setDislikeCount(prev => Math.max(0, prev - 1)); dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' })); } 
+    if (disliked) { setDisliked(false); setDislikeCount(prev => Math.max(0, prev - 1)); dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' })); }
     else { setDisliked(true); setDislikeCount(prev => prev + 1); if (liked) { setLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); } dispatch(reactToNews({ newsId: news.id, type: 'DISLIKE' })); }
   };
 
@@ -168,9 +168,9 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
     controlsTimeout.current = setTimeout(() => setShowControls(false), 2000);
   };
 
-  const handlePlayPauseToggle = useCallback(() => { 
+  const handlePlayPauseToggle = useCallback(() => {
     setIsVideoPaused(prev => { const next = !prev; isManuallyPaused.current = next; return next; });
-    showControlsTemporarily(); 
+    showControlsTemporarily();
   }, []);
 
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
@@ -186,18 +186,21 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const onPlayerError = useCallback(() => { setIsBuffering(false); }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
-    if (state === "playing") { setIsBuffering(false); setIsVideoPaused(false); } 
-    else if (state === "paused" || state === "ended") { setIsVideoPaused(true); if(state === "ended") { isManuallyPaused.current = true; setShowControls(true); } } 
+    if (state === "playing") { setIsBuffering(false); setIsVideoPaused(false); }
+    else if (state === "paused" || state === "ended") { setIsVideoPaused(true); if (state === "ended") { isManuallyPaused.current = true; setShowControls(true); } }
     else if (state === "buffering") { setIsBuffering(true); }
   }, []);
 
   const handleDoubleTap = () => {
     const now = Date.now();
-    if (lastTap && (now - lastTap) < 300) { setFullScreenImage(true); setLastTap(0); } 
+    if (lastTap && (now - lastTap) < 300) { setFullScreenImage(true); setLastTap(0); }
     else { setLastTap(now); if (onPress) onPress(); }
   };
-  
-  const handleAdPress = () => { if (news.id) dispatch(trackAdClick(news.id)); if (news.redirectUrl) Linking.openURL(news.redirectUrl).catch(err => console.log(err)); };
+
+  const handleAdPress = () => {
+    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>JJIJIJJIJIJIJIJIJI")
+    if (news.id) dispatch(trackAdClick(news.id)); if (news.redirectUrl) Linking.openURL(news.redirectUrl).catch(err => console.log(err));
+  };
   const handleCommentsPress = () => { dispatch(getComments(news.id)); if (onCommentsPress) onCommentsPress(news); };
 
   const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
@@ -230,7 +233,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       setScreenshotMode(true);
       // Allow image to fully render in place of the video before capture
       await new Promise(resolve => setTimeout(resolve, 600));
-      
+
       if (!viewShotRef.current || !viewShotRef.current.capture) {
         throw new Error("ViewShot reference is missing or library is not linked correctly.");
       }
@@ -239,7 +242,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       // Capture as Base64 String to completely avoid Android file permission errors
       const base64Data = await viewShotRef.current.capture();
       console.log('[Share] ViewShot captured, base64 length:', base64Data?.length);
-      
+
       await handleShare(displayTitle, articleId, base64Data, imageUrl);
       console.log('[Share] ✅ ViewShot share completed');
     } catch (error) {
@@ -253,7 +256,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   const handleMenuPress = () => setMenuVisible(true);
   const handleMenuAction = (action) => {
     setMenuVisible(false);
-    switch(action) {
+    switch (action) {
       case 'bookmark': dispatch(toggleBookmarkApi({ newsId: news.id, isCurrentlyBookmarked: isBookmarked })); break;
       case 'report': setReportModalVisible(true); break;
       case 'download': downloadImageToGallery(news.image || (news.images && news.images[0])); break;
@@ -263,13 +266,13 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
   if (news.isAd) {
     const imageSource = news.image ? { uri: news.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo;
     return (
-      <TouchableWithoutFeedback onPress={handleAdPress}>
-        <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+      <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+        <Pressable onPress={handleAdPress} style={{ flex: 1 }}>
           <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
           {isBuffering && <View style={styles.adPlaceholder}><ActivityIndicator size="large" color="#CCCCCC" /></View>}
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
-        </ViewShot>
-      </TouchableWithoutFeedback>
+        </Pressable>
+      </ViewShot>
     );
   }
 
@@ -280,7 +283,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       </View>
     </TouchableWithoutFeedback>
   );
-  
+
   const isBookmarked = bookmarkIds?.includes(news.id);
 
   // Outer component handles ViewShot Base64 Capture
@@ -316,7 +319,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
                   ) : (
                     <Video
                       key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="contain" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
-                      playInBackground={false} playWhenInactive={false} onBuffer={({isBuffering: b}) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false} 
+                      playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
                     />
                   )
                 )}
@@ -352,7 +355,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <FlatList ref={flatListRef} data={images} renderItem={renderImageItem} keyExtractor={(item, index) => index.toString()} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onViewableItemsChanged={onViewRef.current} viewabilityConfig={viewConfigRef.current} style={{ width: SCREEN_WIDTH, height: '100%' }} />
             <View style={styles.paginationContainer}>
-              {images.map((_, i) => <View key={i} style={[styles.paginationDot, {backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)'}]} />)}
+              {images.map((_, i) => <View key={i} style={[styles.paginationDot, { backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }]} />)}
             </View>
           </View>
         ) : (
@@ -360,7 +363,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
             <TouchableWithoutFeedback onPress={handleDoubleTap}>
               <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
                 <View style={[StyleSheet.absoluteFill]}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
-                <FastImage source={hasImage ? {uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable} : applogo} style={styles.image} resizeMode={imageResizeMode} />
+                <FastImage source={hasImage ? { uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo} style={styles.image} resizeMode={imageResizeMode} />
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -382,7 +385,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
                 <Icon name="clock-outline" size={14} color="#999" />
-                <Text style={styles.timestamp}  allowFontScaling={false}>{news.timeAgo}</Text>
+                <Text style={styles.timestamp} allowFontScaling={false}>{news.timeAgo}</Text>
               </View>
               {news.itemIndex && news.totalNews ? (
                 <View style={styles.timestampContainer}>
@@ -417,7 +420,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
               <Icon name="dots-vertical" size={24} color="#E0E0E0" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionIconButton} onPress={() => handleShareNews()}>
-              <Icon name="share" size={24} color="#2196F3" /> 
+              <Icon name="share" size={24} color="#2196F3" />
             </TouchableOpacity>
           </View>
         </View>
@@ -442,7 +445,7 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.menuOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
+            <TouchableWithoutFeedback onPress={() => { }}>
               <View style={[styles.menuContainer, { backgroundColor: theme.cardBackground }]}>
                 <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('bookmark')}>
                   <Icon name={isBookmarked ? 'bookmark-minus' : 'bookmark-outline'} size={24} color={theme.text} />
@@ -461,11 +464,11 @@ const Way2NewsCard = forwardRef(({news, onPress, onCommentsPress, isActive = tru
 
       <Modal visible={fullScreenImage} transparent animationType="fade" statusBarTranslucent={true} onRequestClose={() => setFullScreenImage(false)}>
         <View style={styles.fullScreenContainer}>
-          <TouchableOpacity style={[styles.closeButton, {top: Math.max(insets.top, 20) + 15}]} onPress={() => setFullScreenImage(false)}>
+          <TouchableOpacity style={[styles.closeButton, { top: Math.max(insets.top, 20) + 15 }]} onPress={() => setFullScreenImage(false)}>
             <Icon name="close" size={28} color="#FFF" />
           </TouchableOpacity>
           <TouchableWithoutFeedback onPress={() => setFullScreenImage(false)}>
-            <FastImage source={hasImage ? {uri: images[activeSlide] || images[0]} : applogo} style={styles.fullScreenImage} resizeMode={FastImage.resizeMode.contain} />
+            <FastImage source={hasImage ? { uri: images[activeSlide] || images[0] } : applogo} style={styles.fullScreenImage} resizeMode={FastImage.resizeMode.contain} />
           </TouchableWithoutFeedback>
           <View style={styles.imageInfo}><Text style={styles.imageTitle}>{displayTitle}</Text></View>
         </View>
@@ -481,7 +484,7 @@ const styles = StyleSheet.create({
   image: { width: responsiveWidth(100), height: '100%', justifyContent: 'center', alignItems: 'center' },
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
-  watermarkLogo: { position: 'absolute', bottom: -10, left: 15, width: 120, height: 60, resizeMode: 'contain', zIndex: 100000, opacity: 0.9, borderRadius: 16 },  
+  watermarkLogo: { position: 'absolute', bottom: -10, left: 15, width: 120, height: 60, resizeMode: 'contain', zIndex: 100000, opacity: 0.9, borderRadius: 16 },
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
@@ -500,7 +503,7 @@ const styles = StyleSheet.create({
   actionIconButton: { padding: 4 },
   actionText: { fontSize: 14, color: '#E0E0E0', fontWeight: '600' },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  menuContainer: { borderRadius: 12, width: '100%', maxWidth: 280, paddingVertical: 8, elevation: 5, shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.25, shadowRadius: 8 },
+  menuContainer: { borderRadius: 12, width: '100%', maxWidth: 280, paddingVertical: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, gap: 16 },
   menuText: { fontSize: 16, fontWeight: '500', flex: 1 },
   menuDivider: { height: 1, marginHorizontal: 16 },
