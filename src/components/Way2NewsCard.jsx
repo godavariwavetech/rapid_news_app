@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(2.8), color: '#000000', lineHeight: responsiveFontSize(3.4), includeFontPadding: false, paddingTop: 16, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(2.3), lineHeight: responsiveFontSize(3.2), color: '#666666', flex: 1 },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(3.5), lineHeight: responsiveFontSize(3.5), color: '#666666', flex: 1 },
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
