@@ -537,6 +537,12 @@ const newsSlice = createSlice({
 
         const pagination = data?.pagination;
 
+        // Snapshot the batch totals BEFORE updating global state so each item
+        // can carry its own total — prevents the counter from jumping on the
+        // currently-visible card when the next page loads in the background.
+        const batchTodayTotal = pagination?.today_total_news ?? null;
+        const batchTotal = pagination?.total_news ?? null;
+
         if (pagination) {
           if (pagination.today_total_news != null) {
             state.todayTotalNews = pagination.today_total_news;
@@ -557,6 +563,17 @@ const newsSlice = createSlice({
 
         let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
 
+        // Stamp each item with the totals from its own API response so that
+        // FlipNewsScreen can use a stable value per card instead of the
+        // ever-updating global Redux totals.
+        if (batchTodayTotal != null || batchTotal != null) {
+          incomingItems = incomingItems.map(item => ({
+            ...item,
+            _batch_today_total: batchTodayTotal,
+            _batch_total: batchTotal,
+          }));
+        }
+
         // Only replace the list on a true refresh: mode switch OR explicit page-1 pull-to-refresh
         // A day-offset change is NOT a refresh — it's a continuation, items must be appended
         const modeChanged = isLocationMode !== state.isLocationMode;
@@ -573,16 +590,12 @@ const newsSlice = createSlice({
               (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
             );
             incomingItems = [article, ...filtered];
-
-            if (Array.isArray(data)) {
-              state.articles = incomingItems;
-            } else {
-              state.articles = { ...data, items: incomingItems };
-            }
+            state.articles = { ...data, items: incomingItems };
             // Clear after use so it doesn't re-prepend on the next refresh
             state.notificationArticle = null;
           } else {
-            state.articles = data;
+            // Store with annotated items so batch totals are preserved
+            state.articles = Array.isArray(data) ? incomingItems : { ...data, items: incomingItems };
           }
         } else {
           // Append logic — only append if mode hasn't changed

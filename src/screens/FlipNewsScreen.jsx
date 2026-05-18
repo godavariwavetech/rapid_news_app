@@ -225,9 +225,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         if (feedType === 'unread') {
           dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
         } else if (isToday) {
-          dayTotal = todayTotalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+          // Use the total stamped on this item at fetch time so the counter
+          // doesn't jump while the user is still viewing the last card.
+          dayTotal = item._batch_today_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
         } else {
-          dayTotal = totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+          dayTotal = item._batch_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
         }
 
         return {
@@ -260,7 +262,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, currentDayOffset, nowTick]);
+  }, [activeArticles, bookmarkedIds, currentDayOffset, nowTick]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
