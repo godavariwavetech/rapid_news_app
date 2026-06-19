@@ -1,5 +1,5 @@
 // export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms'; 
-export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
+export const baseURL = 'https://95q8fjss-7777.inc1.devtunnels.ms';
 // export const baseURL="https://godavariwave.in:7777"
 
 
@@ -10,6 +10,16 @@ export const endpoints = {
   
   RESOLVE_LOCATION: 'location/resolve',
   GET_NEWS_FEED: 'news/feed',
+  GET_TOP_STORIES: 'top-stories',
+  GET_MAGAZINE_FEED: 'magazines/feed',
+  GET_VIRAL_MAGAZINES: 'magazines/viral',
+  GET_MAGAZINE: 'magazines/:id',
+  SHARE_MAGAZINE: 'magazines/:id/share',
+  GET_LIVE_CRICKET: 'cricket/live',
+  GET_CRICKET_MATCH: 'cricket/:matchId',
+  GET_LIVE_EXAMS: 'exams/live',
+  GET_EXAMS: 'exams',
+  GET_EXAM_RESULT: 'exams/:id/result',
   GET_ARTICLE: 'news/article/:id',
   GUEST_REACT_LIKE: 'reactions',
   VIEW_NEWS:'views/news/:id',

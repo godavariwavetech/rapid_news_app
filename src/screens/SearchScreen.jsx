@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
+import TopStoriesRail from '../components/TopStoriesRail';
+import MagazineViralRail from '../components/MagazineViralRail';
+import LiveScoreCard from '../components/LiveScoreCard';
+import LiveExamBanner from '../components/LiveExamBanner';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -76,6 +80,22 @@ const SearchScreen = ({navigation}) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* LIVE exam-results banner (renders nothing when no exam is live) */}
+        <LiveExamBanner navigation={navigation} />
+
+        {/* Live cricket score card (renders nothing when no match is live) */}
+        <LiveScoreCard navigation={navigation} />
+
+        {/* Performance-based Top Stories rail (renders nothing when empty) */}
+        <TopStoriesRail
+          onPressStory={(story) =>
+            navigation.navigate('NewsDetail', { newsId: story?._id })
+          }
+        />
+
+        {/* Viral digital-magazine rail (renders nothing when empty) */}
+        <MagazineViralRail navigation={navigation} />
+
         {/* Last 24 Hours Updates */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
