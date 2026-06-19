@@ -24,7 +24,7 @@ import notifee from '@notifee/react-native';
 function HomeScreen({navigation}) {
   const dispatch = useDispatch();
   
-  const { articles, categories, selectedCategory, loading, hasMore, currentPage, isLoadingMore, error } = useSelector(state => state.news);
+  const { articles, categories, selectedCategory, loading, hasMore, currentPage, currentDayOffset, totalNews, isLoadingMore, error } = useSelector(state => state.news);
   
   // --- ADDED loading: locationLoading HERE ---
   const {currentLocation, loading: locationLoading} = useSelector(state => state.location);
@@ -69,6 +69,9 @@ function HomeScreen({navigation}) {
       // briefly shows articles=[] and triggers the "no news" toast.
       // fetchNews page 1 already replaces articles in the reducer.
       dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab' }));
+    } else {
+      // No location yet — fetch with default/fallback location so feed isn't empty
+      dispatch(fetchNews({ category: selectedCategory, page: 1, isLocationMode: false }));
     }
 
     dispatch(getBookmarks())
@@ -204,8 +207,18 @@ function HomeScreen({navigation}) {
           toggleUI={toggleUI}
           hideUI={hideUI}
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
-          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}))}
-          onEndReached={() => !loading && hasMore && dispatch(fetchNews({currentLocation, category: selectedCategory, page: currentPage + 1, isLocationMode: activeTab === 'LocationTab'}))}
+          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, current_day_offset: 0, isLocationMode: activeTab === 'LocationTab'}))}
+          onEndReached={() => {
+            if (!loading && hasMore) {
+              dispatch(fetchNews({
+                currentLocation, 
+                category: selectedCategory, 
+                page: currentPage + 1, 
+                current_day_offset: currentDayOffset,
+                isLocationMode: activeTab === 'LocationTab'
+              }));
+            }
+          }}
         />
       )}
 

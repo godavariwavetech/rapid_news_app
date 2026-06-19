@@ -6868,6 +6868,11 @@ react-native-contacts@^8.0.5:
   resolved "https://registry.yarnpkg.com/react-native-contacts/-/react-native-contacts-8.0.7.tgz#486fcc1cc267a2c5bceb51f46263a3e10dbb2650"
   integrity sha512-9JyH+3MXZcOD1+Lm+kl1DeQzT24ayZ//LonTSZM2cln66mHgC2MzW1wBQAJ7EL9eu5NSjSav4c4BIWuOsods6Q==
 
+react-native-create-thumbnail@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/react-native-create-thumbnail/-/react-native-create-thumbnail-2.2.0.tgz#d5c99c97c02cd5c51a57983f5d79088e58e986bb"
+  integrity sha512-zrwVYWMpeMEGIYO1jgwUMBpSpIzMR7Z2gkSANVlf9BFZLRw017k7CfjttvDhCHjsxNNDb7+V8uJaNwIGdTpz/g==
+
 react-native-date-picker@^5.0.12:
   version "5.0.13"
   resolved "https://registry.yarnpkg.com/react-native-date-picker/-/react-native-date-picker-5.0.13.tgz#fe05f58652aaeee9e67f73cf7436c32a623ff3a4"
@@ -7070,10 +7075,10 @@ react-native-video@^6.19.0:
   resolved "https://registry.yarnpkg.com/react-native-video/-/react-native-video-6.19.0.tgz#828887010291259fef1367fb53a2de01886876fc"
   integrity sha512-JVojWIxwuH5C3RjVrF4UyuweuOH/Guq/W2xeN9zugePXZI8Xn/j6/oU94gCWHaFzkR/HGeJpqMq+l9aEHSnpIQ==
 
-react-native-view-shot@^3.8.0:
-  version "3.8.0"
-  resolved "https://registry.yarnpkg.com/react-native-view-shot/-/react-native-view-shot-3.8.0.tgz#1aa1905f0e79428ca32bf80c16fd4abc719c600b"
-  integrity sha512-4cU8SOhMn3YQIrskh+5Q8VvVRxQOu8/s1M9NAL4z5BY1Rm0HXMWkQJ4N0XsZ42+Yca+y86ISF3LC5qdLPvPuiA==
+react-native-view-shot@^5.1.0:
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/react-native-view-shot/-/react-native-view-shot-5.1.0.tgz#60c0728d70c941658e40cc965d9d304a8fdd8eb4"
+  integrity sha512-JZgElCD82aO+hejIF/leUzI7JufL9mgJ6ChzGWIcdZ2ajpaEvvSnvIcw0qD32XWkrbId8wfSbyz/4u/ulTQzQA==
   dependencies:
     html2canvas "^1.4.1"
 

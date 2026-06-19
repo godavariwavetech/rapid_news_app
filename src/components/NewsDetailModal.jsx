@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Video from 'react-native-video';
+import { generateVideoThumbnail } from '../utils/FileHelpers';
 
 const { width } = Dimensions.get('window');
 
@@ -19,10 +20,19 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
 
   const [videoPaused, setVideoPaused] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [thumbnail, setThumbnail] = useState(newsItem.thumbnail);
   const imageScrollRef = useRef(null);
 
   const hasVideo = newsItem.videos && newsItem.videos.length > 0;
   const videoUri = hasVideo ? newsItem.videos[0] : null;
+
+  useEffect(() => {
+    if (hasVideo && !newsItem.thumbnail && videoUri) {
+      generateVideoThumbnail(videoUri).then(path => {
+        if (path) setThumbnail(path);
+      });
+    }
+  }, [hasVideo, newsItem.thumbnail, videoUri]);
   const allImages = newsItem.images || [];
   const title = newsItem.content?.te?.title || newsItem.content?.en?.title || newsItem.content?.title || '';
   const body = newsItem.content?.te?.body || newsItem.content?.en?.body || newsItem.content?.body || '';
