@@ -53,8 +53,21 @@ function HomeScreen({navigation}) {
     );
   }, [currentLocation]);
 
+  // One-time startup work — runs once on mount, not on every location/category
+  // change (was previously re-firing, causing duplicate categories/bookmarks/FCM).
   useEffect(() => {
     dispatch(getCategories())
+    dispatch(getBookmarks())
+    sendToken()
+    notifee.requestPermission();
+  }, [dispatch]);
+
+  // Feed fetch driven by location/category. Guarded by a fetch-key so a fresh
+  // `currentLocation` object with identical data (e.g. Splash re-resolving the
+  // same area) doesn't trigger a duplicate page-1 fetch.
+  const lastFetchKeyRef = useRef(null);
+  useEffect(() => {
+    // Header title reflects the selected category (always, even if fetch is deduped).
     if (selectedCategory === 'all') {
       setHeaderTitle('న్యూస్');
     } else {
@@ -63,6 +76,16 @@ function HomeScreen({navigation}) {
         setHeaderTitle(activeCat.name?.te || activeCat.name?.en || 'న్యూస్');
       }
     }
+
+    const fetchKey = [
+      currentLocation?.village?._id || 'def',
+      currentLocation?.district?._id || 'def',
+      currentLocation?.state?._id || 'def',
+      selectedCategory,
+      activeTab === 'LocationTab' ? 'village' : 'main',
+    ].join('|');
+    if (lastFetchKeyRef.current === fetchKey) return;
+    lastFetchKeyRef.current = fetchKey;
 
     if (currentLocation) {
       // Don't clearNews before fetching — it creates a race condition that
@@ -73,15 +96,10 @@ function HomeScreen({navigation}) {
       // No location yet — fetch with default/fallback location so feed isn't empty
       dispatch(fetchNews({ category: selectedCategory, page: 1, isLocationMode: false }));
     }
-
-    dispatch(getBookmarks())
-    sendToken()
-    notifee.requestPermission();
   }, [selectedCategory, currentLocation, dispatch]);
 
   const sendToken = async () =>{
-    const res = await dispatch(postToken())
-    console.log(res,">>>>>>>>>>>>FCM RES");
+    await dispatch(postToken())
     dispatch(registerGuestFCM());
   }
 

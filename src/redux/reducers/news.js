@@ -124,13 +124,7 @@ export const fetchNews = createAsyncThunk(
         config.skipAuth = true;
       }
 
-      console.log(queryParams, ">>>>>>>>>>>>>>QUERY PARAMSSSSSSSS");
-
-      console.log(">>>>>>>>>>>>>>>>CONFIG", config, isLocationMode)
-
       const response = await api.get(endpoints.GET_NEWS_FEED, config);
-
-      console.log(response, ">>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>response.data");
 
       return { data: response.data, page, current_day_offset, isLocationMode };
     } catch (error) {
@@ -206,7 +200,6 @@ export const reactToNews = createAsyncThunk(
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
       const payload = { news_id: newsId, type: type };
-      console.log(payload, ">>>>>>>>>>>>>>>>>>PAYLOADDDDDD><>>>>>>>>>>>>> React TO News");
 
       const config = {};
       if (!hasToken) {
@@ -217,7 +210,6 @@ export const reactToNews = createAsyncThunk(
 
       const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config);
 
-      console.log(response, '>>>>>>>>>>>>>>>>>>>Responseeeeeeee Displain');
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -399,7 +391,6 @@ export const fetchUnreadNewsCount = createAsyncThunk(
 
       let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      console.log(lastSeenAt, ">>>>>>>>>>>>>LAST SEEN");
 
       const queryParams = {
         last_seen_at: lastSeenAt,
@@ -420,7 +411,6 @@ export const fetchUnreadNewsCount = createAsyncThunk(
 
       const response = await api.get('/news/unread/count', config);
 
-      console.log(response, ">>>>>>>>>>>>>>>>>response unread");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -450,7 +440,6 @@ export const submitSurveyVote = createAsyncThunk(
 
       const response = await api.post(`/surveys/${surveyId}/vote`, payload, config);
 
-      console.log(response, ">>>>>>>>>>>>>>SURVEY>>>>>>>>>>>>>>>>>>>");
 
       return { surveyId, optionId, data: response.data };
     } catch (error) {
@@ -472,9 +461,7 @@ export const markNewsAsRead = createAsyncThunk(
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;
       }
-      console.log(newsIds, ">>>>>>>>>>>>>>>>>>NEWS IDDD");
       const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
-      console.log(response, ">>>>>>>>>>>>>Responseeeeeeeeee");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
