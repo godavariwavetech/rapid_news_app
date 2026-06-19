@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,22 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSelector} from 'react-redux';
 import {lightTheme, darkTheme} from '../utils/colors';
+import {generateVideoThumbnail} from '../utils/FileHelpers';
 
 const {width} = Dimensions.get('window');
 
 const VideoCard = ({video, onPress}) => {
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
+  const [thumbnail, setThumbnail] = useState(video.thumbnail);
+
+  useEffect(() => {
+    if (!video.thumbnail && video.url) {
+      generateVideoThumbnail(video.url).then(path => {
+        if (path) setThumbnail(path);
+      });
+    }
+  }, [video.thumbnail, video.url]);
 
   return (
     <TouchableOpacity
@@ -24,7 +34,13 @@ const VideoCard = ({video, onPress}) => {
       onPress={onPress}
       activeOpacity={0.9}>
       <View style={styles.thumbnailContainer}>
-        <Image source={{uri: video.thumbnail}} style={styles.thumbnail} />
+        {thumbnail ? (
+          <Image source={{uri: thumbnail}} style={styles.thumbnail} />
+        ) : (
+          <View style={[styles.thumbnail, {backgroundColor: '#333', justifyContent: 'center', alignItems: 'center'}]}>
+             <Icon name="video" size={50} color="#666" />
+          </View>
+        )}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.gradient}

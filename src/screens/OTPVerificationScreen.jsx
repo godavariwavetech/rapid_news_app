@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
@@ -88,6 +89,9 @@ const OTPVerificationScreen = ({navigation, route}) => {
         
         if (response.type === 'auth/verifyOTP/fulfilled') {
           const { token, user } = response.payload;
+
+          console.log(user,">>>>>>>>>>>>>USERRRR");
+
           if (!user.reporter_profile?.full_name) {
             dispatch(setReporterTempToken(token))
             navigation.replace('ProfileSetup', { token: token });
@@ -95,6 +99,19 @@ const OTPVerificationScreen = ({navigation, route}) => {
             const status = user?.reporter_profile?.status;
             if (status === 'APPROVED') {
               navigation.replace('ReporterApp');
+            } else if (status === 'REJECTED') {
+              dispatch(setReporterTempToken(token));
+              Alert.alert(
+                'Application Rejected',
+                'Your previous submission was rejected. Please update your details and submit again.',
+                [
+                  {
+                    text: 'Submit Again',
+                    onPress: () => navigation.replace('ProfileSetup', { token: token }),
+                  },
+                ],
+                { cancelable: false },
+              );
             } else {
               navigation.replace('ReporterStatus', { status: status });
             }

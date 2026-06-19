@@ -15,29 +15,54 @@ import { useSelector, useDispatch } from 'react-redux';
 import { markNewsAsRead, fetchUnreadNewsCount } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
+import { preloadVideos, cancelVideoPreloads } from '../utils/mediaPreloader';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
-const formatTimeAgo = (dateString) => {
+// Always computed against current time so it stays accurate.
+// dayOffset: if provided and > 0, forces "Yesterday" or a date label
+// regardless of the clock difference (e.g. 17h ago but from yesterday's feed).
+const formatTimeAgo = (dateString, dayOffset) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
+
+  // If the API says this item is from a previous day's offset, show date label directly
+  if (dayOffset != null && dayOffset > 0) {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDay = new Date(todayStart.getTime() - dayOffset * 86400000);
+    const targetDayEnd = new Date(targetDay.getTime() + 86400000);
+
+    // If the item actually falls in that offset day, label it
+    if (date >= targetDay && date < targetDayEnd) {
+      if (dayOffset === 1) return 'Yesterday';
+      const sameYear = targetDay.getFullYear() === now.getFullYear();
+      return targetDay.toLocaleDateString('en-US', sameYear
+        ? { month: 'short', day: 'numeric' }
+        : { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  }
+
   const seconds = Math.floor((now - date) / 1000);
-  
-  let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + " years ago";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " months ago";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " days ago";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + " hours ago";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + " minutes ago";
-  return Math.floor(seconds) + " seconds ago";
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' minutes ago';
+
+  const hours = Math.floor(seconds / 3600);
+  if (hours < 24) return hours + ' hours ago';
+
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+  if (date >= yesterdayStart && date < todayStart) return 'Yesterday';
+
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString('en-US', sameYear
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 // --- SKELETON LOADING COMPONENT ---
@@ -112,7 +137,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
   // <--- ADDED: Extract totalNews from Redux
-  const { articles, totalNews, todayTotalNews, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
+  const { articles, totalNews, todayTotalNews, currentDayOffset, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
   const {bookmarks} = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -139,9 +164,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   const formattedNews = useMemo(() => {
     const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
-    
-    // Count only real news items for the index display
-    let newsCounter = 0;
+
+    const now = new Date(nowTick);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const dayCounters = {};
 
     return rawItems.map((item) => {
       if (item.type === 'AD') {
@@ -149,7 +176,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           id: item.data._id,
           type: 'AD',
           isAd: true,
-          image: item.data.image, 
+          image: item.data.image,
           redirectUrl: item.data.redirect_url,
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
@@ -157,11 +184,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           dislikes: 0,
           comments: 0,
           commentsEnabled: false,
-          images: [], 
-          itemIndex: null,   // ads don't count
+          images: [],
+          itemIndex: null,
           totalNews: null,
         };
-      } 
+      }
       else if (item.type === 'SURVEY') {
         return {
           id: item.data._id,
@@ -172,13 +199,39 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           voted_option_id: item.data.voted_option_id,
           user_voted: item.data.user_voted,
           isAd: false,
-          itemIndex: null,   // polls don't count
+          itemIndex: null,
           totalNews: null,
         };
       }
       else {
-        newsCounter += 1;
-        const data = item.data || item; 
+        const data = item.data || item;
+        const publishedAt = data.published_at;
+        const pubDate = publishedAt ? new Date(publishedAt) : null;
+
+        // Build a day key from the publish date so each calendar day gets its own counter
+        let dayKey = 'unknown';
+        if (pubDate) {
+          dayKey = `${pubDate.getFullYear()}-${pubDate.getMonth()}-${pubDate.getDate()}`;
+        }
+        dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
+        const itemIndex = dayCounters[dayKey];
+
+        const isToday = pubDate && pubDate >= todayStart;
+
+        // For items from a previous day offset, pass the offset so timeAgo shows
+        // "Yesterday" / date instead of "17 hours ago"
+        const itemDayOffset = isToday ? 0 : currentDayOffset > 0 ? currentDayOffset : null;
+        let dayTotal;
+        if (feedType === 'unread') {
+          dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        } else if (isToday) {
+          // Use the total stamped on this item at fetch time so the counter
+          // doesn't jump while the user is still viewing the last card.
+          dayTotal = item._batch_today_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        } else {
+          dayTotal = item._batch_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length;
+        }
+
         return {
           id: data._id,
           type: 'NEWS',
@@ -187,11 +240,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           body: data.content?.body || '',
           short: data.content?.short || '',
           image: data.images?.length > 0 ? data.images[0] : null,
-          images: data.images || [], 
+          images: data.images || [],
           videos: data.videos || [],
-          external_links: data.external_links || [], 
-          publishedAt: data.published_at,
-          timeAgo: formatTimeAgo(data.published_at),
+          external_links: data.external_links || [],
+          publishedAt,
+          timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
           likes: data?.reactions?.likes || 0,
           dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
@@ -199,51 +252,72 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           reporter: data.reporter || {
             name: 'Reporter',
             imageUrl: 'https://via.placeholder.com/100',
-            location: 'Andhra Pradesh'
+            location: 'Andhra Pradesh',
           },
           isLiked: data?.reactions?.my_reaction === 'LIKE',
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
-          itemIndex: newsCounter,
-          totalNews: feedType === 'unread'
-            ? (unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length)
-            : (todayTotalNews && newsCounter <= todayTotalNews)
-              ? todayTotalNews
-              : (totalNews || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY').length),
+          itemIndex,
+          totalNews: dayTotal,
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews]);
+  }, [activeArticles, bookmarkedIds, currentDayOffset, nowTick]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
     const adImages = formattedNews
       .filter(item => item.isAd && item.image)
       .map(item => ({ uri: item.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
-    if (adImages.length > 0) {
-      FastImage.preload(adImages);
-    }
+    if (adImages.length > 0) FastImage.preload(adImages);
   }, [formattedNews]);
 
-  // Preload next 3 news images ahead of current index
+  // Preload images + warm video HTTP cache for upcoming items
   useEffect(() => {
-    const toPreload = formattedNews
-      .slice(currIndex, currIndex + 4)
+    // 10 ahead + 2 behind covers fast swipers and back-swipes
+    const window = formattedNews.slice(
+      Math.max(0, currIndex - 2),
+      currIndex + 11,
+    );
+
+    // Images via FastImage cache
+    const imageUris = window
       .flatMap(item => {
         const uris = [];
         if (item.image) uris.push(item.image);
         if (item.images?.length) uris.push(...item.images);
+        if (item.thumbnail) uris.push(item.thumbnail);
+        // YouTube thumbnail
+        if (item.videos?.length) {
+          const ytMatch = item.videos[0]?.match(/(?:youtu\.be\/|v=)([^&?/]+)/);
+          if (ytMatch) uris.push(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
+        }
         return uris;
       })
       .filter(Boolean)
       .map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
-    if (toPreload.length > 0) {
-      FastImage.preload(toPreload);
-    }
+
+    if (imageUris.length > 0) FastImage.preload(imageUris);
+
+    // Warm HTTP cache for next 3 non-YouTube videos
+    const videoUris = formattedNews
+      .slice(currIndex + 1, currIndex + 4)
+      .flatMap(item => item.videos || [])
+      .filter(url => url && !url.includes('youtube') && !url.includes('youtu.be'));
+
+    if (videoUris.length > 0) preloadVideos(videoUris);
+
+    return () => cancelVideoPreloads(videoUris);
   }, [currIndex, formattedNews]);
 
   const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
+  // Tick every 60s so timeAgo labels stay current
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
   
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
@@ -414,11 +488,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const [userSwipedPastEnd, setUserSwipedPastEnd] = useState(false);
 
   const triggerLoadMore = () => {
+    scrollY.value = withSpring(0, SPRING_CONFIG);
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
     setUserSwipedPastEnd(true);
     if (onEndReached) onEndReached();
-    scrollY.value = withSpring(0, SPRING_CONFIG); 
   };
 
   // Reset the guard and swipe flag once loading finishes
