@@ -58,6 +58,9 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import MagazineViewerScreen from '../screens/MagazineViewerScreen';
+import FullScorecardScreen from '../screens/FullScorecardScreen';
+import ExamResultScreen from '../screens/ExamResultScreen';
 import UnreadNewsScreen from '../screens/UnreadNewsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
 import AboutUsScreen from '../screens/AboutUsScreen';
@@ -383,10 +386,25 @@ function AppNavigator() {
           component={PrivacyPolicyScreen} 
           options={{ headerShown: false }} 
         />
-        <Stack.Screen 
-          name="AboutUs" 
-          component={AboutUsScreen} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="AboutUs"
+          component={AboutUsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MagazineViewer"
+          component={MagazineViewerScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FullScorecard"
+          component={FullScorecardScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ExamResult"
+          component={ExamResultScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

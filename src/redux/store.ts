@@ -9,6 +9,10 @@ import settingsReducer from './reducers/settings';
 import bookmarksReducer from './reducers/bookmarks';
 import locationReducer from './reducers/location';
 import profile from "./reducers/profile"
+import topStoriesReducer from './reducers/topStories';
+import magazineReducer from './reducers/magazine';
+import cricketReducer from './reducers/cricket';
+import examsReducer from './reducers/exams';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -16,7 +20,11 @@ const rootReducer = combineReducers({
   settings: settingsReducer,
   bookmarks: bookmarksReducer,
   location: locationReducer,
-  profile
+  profile,
+  topStories: topStoriesReducer,
+  magazine: magazineReducer,
+  cricket: cricketReducer,
+  exams: examsReducer
 });
 
 const persistConfig = {
