@@ -4,7 +4,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
-import { AppState, Linking, Text, TextInput } from 'react-native'; // <--- ADD Text, TextInput HERE
+import { AppState, Linking, Text, TextInput, InteractionManager } from 'react-native'; // <--- ADD Text, TextInput HERE
 
 // ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
 const customTextProps = {
@@ -120,7 +120,9 @@ function AppNavigator() {
 
   // Handle App State Changes (Background/Foreground)
   useEffect(() => {
-    serviceHandler()
+    // #3: defer the cold-start analytics session off the first-paint path.
+    // The foreground-resume serviceHandler() below stays immediate.
+    const initTask = InteractionManager.runAfterInteractions(() => serviceHandler());
     const subscription = AppState.addEventListener('change', nextAppState => {
       // App comes to Foreground
       if (
@@ -151,6 +153,7 @@ function AppNavigator() {
     });
 
     return () => {
+      initTask.cancel();
       subscription.remove();
     };
   }, [dispatch]);

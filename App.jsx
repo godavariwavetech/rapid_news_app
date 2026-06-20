@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {Linking, LogBox, Alert} from 'react-native';
+import {Linking, LogBox, Alert, InteractionManager} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -73,9 +73,14 @@ function App() {
 
   useEffect(() => {
     // checkAndRequestPermissions();
-    getToken();
-    checkForUpdate();
-    // notifee.requestPermission();
+    // #3: defer non-critical startup work off the first-paint path so it doesn't
+    // compete with the initial feed render. Runs after the first frame/interactions.
+    const task = InteractionManager.runAfterInteractions(() => {
+      getToken();
+      checkForUpdate();
+      // notifee.requestPermission();
+    });
+    return () => task.cancel();
   }, []);
 
 

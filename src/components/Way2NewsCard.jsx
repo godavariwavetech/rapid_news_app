@@ -51,6 +51,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [showControls, setShowControls] = useState(false);
   const [screenshotMode, setScreenshotMode] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  // Aspect ratio of the playing/posted video. Defaults to 16:9 (YouTube + most
+  // footage); direct videos refine it from naturalSize in onVideoLoad. Drives
+  // mediaHeight so the media box matches the video and leaves no black gap.
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
 
   const playerRef = useRef(null);
   const videoRef = useRef(null);
@@ -181,8 +185,29 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const hasImage = images.length > 0;
   const imageResizeMode = FastImage.resizeMode.cover;
 
+  // Height of the media area. For video cards, fit the box to the video's own
+  // aspect ratio (so it fills with no letterbox), capped at IMAGE_HEIGHT so tall
+  // / portrait videos never grow past the original area. Image cards keep
+  // IMAGE_HEIGHT untouched. The text section below is flex:1, so the freed space
+  // just becomes more room for the headline/body — no layout break.
+  const isVideoCard = hasVideos || youtubeId;
+  const mediaHeight = useMemo(() => {
+    if (!isVideoCard) return IMAGE_HEIGHT;
+    const ar = videoAspect > 0 && isFinite(videoAspect) ? videoAspect : 16 / 9;
+    return Math.min(IMAGE_HEIGHT, Math.round(SCREEN_WIDTH / ar));
+  }, [isVideoCard, videoAspect]);
+
   const onVideoReady = useCallback(() => { playerRef.current?.seekTo(0, true); setIsBuffering(false); setVideoReady(true); }, []);
-  const onVideoLoad = useCallback(() => { setVideoReady(true); setIsBuffering(false); }, []);
+  const onVideoLoad = useCallback((data) => {
+    setVideoReady(true);
+    setIsBuffering(false);
+    const ns = data?.naturalSize;
+    if (ns?.width && ns?.height) {
+      let ar = ns.width / ns.height;
+      if (ns.orientation === 'portrait' && ar > 1) ar = 1 / ar; // guard rotated metadata
+      if (ar > 0 && isFinite(ar)) setVideoAspect(ar);
+    }
+  }, []);
   const onPlayerError = useCallback(() => { setIsBuffering(false); }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
@@ -289,11 +314,11 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   // Outer component handles ViewShot Base64 Capture
   return (
     <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
-      <View style={styles.imageSection}>
+      <View style={[styles.imageSection, { height: mediaHeight }]}>
 
         {(hasVideos || youtubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-            <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+            <View style={{ width: SCREEN_WIDTH, height: mediaHeight }}>
               <View style={StyleSheet.absoluteFillObject}>
 
                 {/* --- FALLBACK IMAGE LAYER --- */}
@@ -311,7 +336,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                 {isActive && !isBottomHalf && !screenshotMode && (
                   youtubeId ? (
                     <YoutubePlayer
-                      ref={playerRef} key={youtubeId} height={IMAGE_HEIGHT} width={SCREEN_WIDTH} play={!isVideoPaused} videoId={youtubeId}
+                      ref={playerRef} key={youtubeId} height={mediaHeight} width={SCREEN_WIDTH} play={!isVideoPaused} videoId={youtubeId}
                       onChangeState={onYoutubeStateChange} onError={onPlayerError}
                       initialPlayerParams={{ autoplay: 1, controls: 0, modestbranding: 1, rel: 0, iv_load_policy: 3, cc_load_policy: 0 }}
                       webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}

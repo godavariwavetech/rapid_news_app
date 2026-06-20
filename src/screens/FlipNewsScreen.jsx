@@ -244,6 +244,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           videos: data.videos || [],
           external_links: data.external_links || [],
           publishedAt,
+          _dayOffset: itemDayOffset, // #6: kept so the visible card can re-derive timeAgo without remapping the whole list
           timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
           likes: data?.reactions?.likes || 0,
           dislikes: data?.reactions?.dislikes || 0,
@@ -262,7 +263,9 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         };
       }
     });
-  }, [activeArticles, bookmarkedIds, currentDayOffset, nowTick]);
+    // #6: nowTick deliberately NOT a dep — the 60s tick no longer re-maps the
+    // whole list; only the visible card's timeAgo is refreshed (see currentNews).
+  }, [activeArticles, bookmarkedIds, currentDayOffset]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
@@ -274,10 +277,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   // Preload images + warm video HTTP cache for upcoming items
   useEffect(() => {
+    // #5: trim the initial preload window. On the very first paint (currIndex 0)
+    // only warm 3 ahead so the first visible card's image isn't fighting ~10
+    // high-priority preloads. Once the user swipes (currIndex > 0) the full
+    // 10-ahead window kicks back in — swipe-ahead images load a beat later.
+    const aheadCount = currIndex === 0 ? 3 : 10;
     // 10 ahead + 2 behind covers fast swipers and back-swipes
     const window = formattedNews.slice(
       Math.max(0, currIndex - 2),
-      currIndex + 11,
+      currIndex + 1 + aheadCount,
     );
 
     // Images via FastImage cache
@@ -334,7 +342,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const hasNext = useSharedValue(false);
   const hasPrev = useSharedValue(false);
 
-  const currentNews = useMemo(() => formattedNews[currIndex], [currIndex, formattedNews]);
+  // #6: live-refresh only the visible card's timeAgo on each 60s tick, instead of
+  // re-mapping the entire feed list (which also needlessly re-fired the preload
+  // effects keyed on `formattedNews`). Off-screen next/prev cards get a fresh
+  // label the moment they become current (currIndex change recomputes this memo).
+  const currentNews = useMemo(() => {
+    const item = formattedNews[currIndex];
+    if (!item || item.type !== 'NEWS') return item;
+    return { ...item, timeAgo: formatTimeAgo(item.publishedAt, item._dayOffset) };
+  }, [currIndex, formattedNews, nowTick]);
   
   const nextNews = useMemo(() => {
     const nextIdx = currIndex + 1;

@@ -67,6 +67,12 @@ const initialState = {
 // --- ASYNC THUNKS ---
 
 // 1. Fetch News List
+// #4: feed-specific request timeout. The shared axios instance defaults to 60s
+// (utils/api.js); on bad/no network that leaves the feed spinning for a full
+// minute before the OfflineFallback retry appears. The feed is the first-paint
+// path, so give it a much shorter ceiling and fail fast to the retry UI.
+const FEED_TIMEOUT_MS = 12000;
+
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (arg = 'all', { getState, rejectWithValue }) => {
@@ -118,7 +124,7 @@ export const fetchNews = createAsyncThunk(
         queryParams['feed_mode'] = "village";
       }
 
-      const config = { params: queryParams };
+      const config = { params: queryParams, timeout: FEED_TIMEOUT_MS }; // #4: fail fast on the feed path
       if (!hasToken) {
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;

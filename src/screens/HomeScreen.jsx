@@ -8,6 +8,7 @@ import {
   ToastAndroid,
   Alert,
   BackHandler,
+  InteractionManager,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {fetchNews, getCategories, setSelectedCategory} from '../redux/reducers/news';
@@ -56,10 +57,16 @@ function HomeScreen({navigation}) {
   // One-time startup work — runs once on mount, not on every location/category
   // change (was previously re-firing, causing duplicate categories/bookmarks/FCM).
   useEffect(() => {
+    // getCategories drives header/category-modal labels — keep it on the immediate path.
     dispatch(getCategories())
-    dispatch(getBookmarks())
-    sendToken()
-    notifee.requestPermission();
+    // #3: defer the rest off the first-paint path (bookmarks, FCM register,
+    // notifee permission) so they don't compete with the initial feed render.
+    const task = InteractionManager.runAfterInteractions(() => {
+      dispatch(getBookmarks())
+      sendToken()
+      notifee.requestPermission();
+    });
+    return () => task.cancel();
   }, [dispatch]);
 
   // Feed fetch driven by location/category. Guarded by a fetch-key so a fresh
