@@ -11,7 +11,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, getCategories, setSelectedCategory} from '../redux/reducers/news';
+import {fetchNews, getCategories, setSelectedCategory, clearNews} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
@@ -188,17 +188,24 @@ function HomeScreen({navigation}) {
     } else if (tabId === 'LocationTab') {
       setActiveTab(tabId);
       setHeaderTitle(displayLocationName);
+      // Clear the old tab's news so the existing skeleton shows instantly on
+      // switch (no lingering old news). Safe here: this batches with the
+      // fetchNews.pending below (loading:true) in one render, so the "no news"
+      // fallback (guarded by !loading) doesn't fire on the empty-but-loading state.
+      dispatch(clearNews());
       dispatch(fetchNews({
-        currentLocation, 
-        category: selectedCategory, 
-        page: 1, 
-        isLocationMode: true 
+        currentLocation,
+        category: selectedCategory,
+        page: 1,
+        isLocationMode: true
       }));
       if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
     } else if (tabId === 'HomeTab') {
       setActiveTab(tabId);
       setHeaderTitle('న్యూస్');
       dispatch(setSelectedCategory('all'));
+      // Clear-and-skeleton on switch back too (see LocationTab note above).
+      dispatch(clearNews());
       dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
       if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
     } else {

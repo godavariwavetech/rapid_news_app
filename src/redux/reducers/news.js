@@ -98,6 +98,13 @@ export const fetchNews = createAsyncThunk(
       };
     }
 
+    // Location feed must use the user's REAL village — never the hardcoded
+    // fallback (that would flash a wrong village before location resolves).
+    // Skip until currentLocation is resolved; HomeScreen refetches on change.
+    if (isLocationMode && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
+      return rejectWithValue('LOCATION_NOT_READY');
+    }
+
 
     try {
       const deviceId = await getUniqueId();
@@ -356,18 +363,22 @@ export const fetchUnreadNews = createAsyncThunk(
       const location = state.location?.currentLocation || {};
       const hasToken = userToken || reporterToken;
 
-      // arg can be a lastSeenAt string (legacy) or an object { lastSeenAt, page }
-      const lastSeenAt = typeof arg === 'string' ? arg : arg?.lastSeenAt;
+      // arg may be an object { page }. (Older callers also passed lastSeenAt;
+      // the backend ignores it, so it's no longer sent.)
       const page = typeof arg === 'object' ? (arg?.page || 1) : 1;
 
       const queryParams = {
         village_id: location.village?._id || "697d8135322a103bdabf0fc7",
         district_id: location.district?._id || "697d8135322a103bdabf0fc5",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
-        last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         page,
         limit: 10,
       };
+
+      // Match the feed's scope: in village (location) mode the feed is village-only.
+      if (state.news?.isLocationMode && location.village?._id) {
+        queryParams.feed_mode = 'village';
+      }
 
       const config = { params: queryParams };
 
@@ -391,19 +402,25 @@ export const fetchUnreadNewsCount = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState();
-      const { guestLastActiveDate, userToken, reporterToken } = state.auth;
+      const { userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
       const hasToken = userToken || reporterToken;
 
-      let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      // Cause 6: don't count against the hardcoded fallback location. If the
+      // user's real location hasn't resolved yet, skip the call — Header
+      // refetches once currentLocation lands and on every change after that.
+      const village_id = location.village?._id;
+      const district_id = location.district?._id;
+      const state_id = location.state?._id;
+      if (!village_id || !district_id || !state_id) {
+        return rejectWithValue('LOCATION_NOT_READY');
+      }
 
-
-      const queryParams = {
-        last_seen_at: lastSeenAt,
-        village_id: location.village?._id || "697d8135322a103bdabf0fc7",
-        district_id: location.district?._id || "697d8135322a103bdabf0fc5",
-        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
-      };
+      const queryParams = { village_id, district_id, state_id };
+      // Match the feed's scope: in village (location) mode the feed is village-only.
+      if (state.news?.isLocationMode && village_id) {
+        queryParams.feed_mode = 'village';
+      }
 
       const config = { params: queryParams };
 
@@ -839,6 +856,15 @@ const newsSlice = createSlice({
         state.isLoadingUnread = false;
         state.isLoadingMoreUnread = false;
         state.unreadError = action.payload || 'Failed to fetch unread news';
+      })
+
+      // --- Mark Articles as Read (optimistic badge update) ---
+      .addCase(markNewsAsRead.fulfilled, (state, action) => {
+        // Drop the badge immediately by however many we just marked read so it
+        // feels responsive. Clamped at 0; reconciled by the fetchUnreadNewsCount
+        // refetch FlipNewsScreen fires right after the batch flushes.
+        const markedCount = action.meta.arg?.length || 0;
+        state.unreadCount = Math.max(0, state.unreadCount - markedCount);
       })
 
       // --- Fetch Unread News Count ---

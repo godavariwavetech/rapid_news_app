@@ -9,6 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { fetchTopStories } from '../redux/reducers/topStories';
 import { trackAdClick } from '../redux/reducers/news';
@@ -50,7 +51,23 @@ const StoryCard = ({ data, theme, onPress }) => {
 
 const AdCard = ({ data, onPress }) => (
   <TouchableOpacity style={styles.adCard} activeOpacity={0.9} onPress={() => onPress(data)}>
-    {data.image ? <Image source={{ uri: data.image }} style={styles.adImage} /> : null}
+    {data.media_type === 'video' && data.video ? (
+      // Muted, looping mini-video. The rail holds few items so the cost is
+      // capped; tap opens the redirect like an image ad.
+      <Video
+        source={{ uri: data.video }}
+        style={styles.adImage}
+        resizeMode="cover"
+        repeat
+        muted
+        paused={false}
+        controls={false}
+        playInBackground={false}
+        playWhenInactive={false}
+      />
+    ) : data.image ? (
+      <Image source={{ uri: data.image }} style={styles.adImage} />
+    ) : null}
     <Text style={styles.adLabel}>{data.label || 'Sponsored'}</Text>
   </TouchableOpacity>
 );

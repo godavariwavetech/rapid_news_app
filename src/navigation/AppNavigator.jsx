@@ -27,8 +27,6 @@ if (TextInput.defaultProps) {
   TextInput.defaultProps = customTextProps;
 }
 
-// Import Store to check fresh state inside event listeners
-import { store } from '../redux/store'; 
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -65,7 +63,7 @@ import UnreadNewsScreen from '../screens/UnreadNewsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
 import AboutUsScreen from '../screens/AboutUsScreen';
 
-import { endActivity, startActivity, updateGuestLastActiveDate } from '../redux/reducers/auth';
+import { endActivity, startActivity } from '../redux/reducers/auth';
 import { fetchArticleById } from '../redux/reducers/news';
 
 const Stack = createStackNavigator();
@@ -136,14 +134,7 @@ function AppNavigator() {
         appState.current === 'active' &&
         nextAppState.match(/inactive|background/)
       ) {
-        // --- 1. Track Guest Last Active Date ---
-        // Using store.getState() prevents stale closure issues in the event listener
-        const currentAuthState = store.getState().auth;
-        if (!currentAuthState.userToken && !currentAuthState.reporterToken) {
-           dispatch(updateGuestLastActiveDate());
-        }
-
-        // --- 2. End Tracking Session ---
+        // --- End Tracking Session ---
         if (sessionIdRef.current) {
           dispatch(endActivity({ session_id: sessionIdRef.current }));
           sessionIdRef.current = null;

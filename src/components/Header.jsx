@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchUnreadNewsCount } from '../redux/reducers/news'; 
+import { useFocusEffect } from '@react-navigation/native';
+import { fetchUnreadNewsCount } from '../redux/reducers/news';
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -13,18 +14,27 @@ function Header({ onProfilePress, onTogglePress, title }) {
   
   // Grab the global unread count from Redux
   const unreadCount = useSelector(state => state.news.unreadCount) || 0;
+  const currentLocation = useSelector(state => state.location.currentLocation);
+  const isLocationMode = useSelector(state => state.news.isLocationMode);
 
-  // Fetch the unread count when the component mounts using the new Thunk
+  // Refetch whenever the feed screen regains focus (e.g. returning from the
+  // unread screen) so the badge reflects what was just read.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchUnreadNewsCount());
+    }, [dispatch])
+  );
+
+  // Refetch when the resolved location changes (covers cold start: the count
+  // thunk skips while location is unresolved) or when the feed mode toggles
+  // (village vs all), so the badge's scope matches the feed the user is viewing.
   useEffect(() => {
-    dispatch(fetchUnreadNewsCount());
-  }, [dispatch]);
+    if (currentLocation) dispatch(fetchUnreadNewsCount());
+  }, [dispatch, currentLocation, isLocationMode]);
 
-  const dynamicPaddingTop = Platform.OS === 'android' 
-    ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8 
+  const dynamicPaddingTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8
     : Math.max(insets.top, 44);
-
-
-    console.log(unreadCount,">>>>>>>>>>>>>>>>>>>>unreadCount");
 
   return (
     <View style={[styles.container,{ paddingTop: dynamicPaddingTop }]}>

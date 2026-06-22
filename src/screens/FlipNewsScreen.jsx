@@ -177,6 +177,8 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           type: 'AD',
           isAd: true,
           image: item.data.image,
+          video: item.data.video,
+          mediaType: item.data.media_type || 'image',
           redirectUrl: item.data.redirect_url,
           label: item.data.label || 'Sponsored',
           title: item.data.label || 'Advertisement',
@@ -381,7 +383,13 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   useEffect(() => {
     if (!activeHasMore || activeIsLoadingMore || activeLoading) return;
     const total = formattedNews.length;
-    if (total > 0 && currIndex >= total - 2) {
+    // Prefetch ~5 cards before the end (was 2) so the next page has time to
+    // arrive over the network (~2s) before the user reaches the last card —
+    // no stall for normal scrolling. Dedupe in the reducer prevents duplicates.
+    // currIndex > 0: never auto-fire page-2 while still on the freshly-loaded
+    // first card — otherwise a SHORT feed (total <= 5) would trigger a load-more
+    // the instant a fresh/tab-switch load lands, flashing the bottom toast.
+    if (total > 0 && currIndex > 0 && currIndex >= total - 5) {
       if (!isLoadingMoreRef.current) {
         isLoadingMoreRef.current = true;
         if (onEndReached) onEndReached();
@@ -417,7 +425,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (readBatchRef.current.size === 0) return;
     const ids = Array.from(readBatchRef.current);
     readBatchRef.current.clear();
-    dispatch(markNewsAsRead(ids));
+    // Optimistic decrement happens in the reducer; reconcile the badge with the
+    // server once the read batch is persisted.
+    dispatch(markNewsAsRead(ids))
+      .unwrap()
+      .then(() => dispatch(fetchUnreadNewsCount()))
+      .catch(() => {});
   }, [dispatch]);
 
   const scheduleFlush = useCallback(() => {
@@ -727,8 +740,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <ActivityIndicator size="large" color="#4dabf5" />
           </Animated.View>
 
-          {/* Bottom load-more indicator — only shown when user swipes past last card */}
-          {userSwipedPastEnd && activeIsLoadingMore && !nextNews && (
+          {/* Bottom load-more indicator — shown whenever the next page is
+              loading (prefetch near the end OR a swipe past the last card), so
+              the network wait reads as "loading" instead of a frozen feed. */}
+          {activeIsLoadingMore && !activeLoading && (
             <View style={styles.bottomLoaderContainer}>
               <ActivityIndicator size="small" color="#4dabf5" />
               <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>

@@ -1,8 +1,8 @@
 // export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms';
 // export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
-export const baseURL = 'https://95q8fjss-7777.inc1.devtunnels.ms'; // dev tunnel (LOCAL TESTING — DO NOT COMMIT)
+// export const baseURL = 'https://95q8fjss-7777.inc1.devtunnels.ms'; // dev tunnel (LOCAL TESTING — DO NOT COMMIT)
 // export const baseURL = "https://godavariwave.in:7777";
-// export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
+export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
 
 
 export const endpoints = {

@@ -19,9 +19,9 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="12dp"
-        android:textSize="17sp"
+        android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+        android:textSize="19sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
         android:lineSpacingMultiplier="1.05"
         android:maxLines="3"
         android:ellipsize="end" />

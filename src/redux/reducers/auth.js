@@ -1,4 +1,5 @@
 import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
+import { getUniqueId } from 'react-native-device-info';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 import { fetchFCMToken } from '../../services/NotificationsService';
@@ -12,7 +13,6 @@ const initialState = {
   reporterToken: null,
   userToken: null,
   isActive: true,
-  guestLastActiveDate: null, // <--- ADDED: Store the last active date for guests
 };
 
 export const requestOTP = createAsyncThunk(
@@ -31,7 +31,13 @@ export const verifyOTP = createAsyncThunk(
   'auth/verifyOTP',
   async (payload, {getState, rejectWithValue}) => {
     try {
-      const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload);
+      // Send the guest device id so the backend can merge this device's read
+      // history onto the account (keeps the unread count from jumping at login).
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload, {
+        headers: { 'x-device-id': deviceId },
+        skipAuth: true,
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -202,11 +208,6 @@ const authSlice = createSlice({
       state.reporter = null;
       state.reporterToken = null;
     },
-    // <--- ADDED: Reducer to update guest's last active date
-    updateGuestLastActiveDate: (state, action) => {
-      // If a specific date string is passed, use it. Otherwise, default to current time.
-      state.guestLastActiveDate = action.payload || new Date().toISOString();
-    }
   },
   extraReducers: builder => {
     builder
@@ -249,5 +250,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { completeOnboarding, setUser, logout, clearReporter, updateGuestLastActiveDate } = authSlice.actions; // <--- ADDED EXPORT
+export const { completeOnboarding, setUser, logout, clearReporter } = authSlice.actions;
 export default authSlice.reducer;

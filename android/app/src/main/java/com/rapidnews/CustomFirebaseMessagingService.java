@@ -28,7 +28,10 @@ public class CustomFirebaseMessagingService extends ReactNativeFirebaseMessaging
             if (newsId == null) newsId = data.get("id");
             if (newsId == null) newsId = "";
 
-            String htmlText = "<b><font color=\"#ffffff\">" + title + "</font></b>";
+            // No hardcoded color — the TextView uses TextAppearance.Compat.Notification.Title,
+            // which adapts to the system notification panel theme (dark/light). A <font color>
+            // span here would override it and disappear on light themes (white-on-white).
+            String htmlText = "<b>" + title + "</b>";
             NotificationHelper.showCustomNotification(this, htmlText, newsId);
         }
 

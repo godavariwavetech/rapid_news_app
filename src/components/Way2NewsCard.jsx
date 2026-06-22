@@ -51,11 +51,6 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [showControls, setShowControls] = useState(false);
   const [screenshotMode, setScreenshotMode] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  // Aspect ratio of the playing/posted video. Defaults to 16:9 (YouTube + most
-  // footage); direct videos refine it from naturalSize in onVideoLoad. Drives
-  // mediaHeight so the media box matches the video and leaves no black gap.
-  const [videoAspect, setVideoAspect] = useState(16 / 9);
-
   const playerRef = useRef(null);
   const videoRef = useRef(null);
   const flatListRef = useRef(null);
@@ -185,28 +180,16 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const hasImage = images.length > 0;
   const imageResizeMode = FastImage.resizeMode.cover;
 
-  // Height of the media area. For video cards, fit the box to the video's own
-  // aspect ratio (so it fills with no letterbox), capped at IMAGE_HEIGHT so tall
-  // / portrait videos never grow past the original area. Image cards keep
-  // IMAGE_HEIGHT untouched. The text section below is flex:1, so the freed space
-  // just becomes more room for the headline/body — no layout break.
-  const isVideoCard = hasVideos || youtubeId;
-  const mediaHeight = useMemo(() => {
-    if (!isVideoCard) return IMAGE_HEIGHT;
-    const ar = videoAspect > 0 && isFinite(videoAspect) ? videoAspect : 16 / 9;
-    return Math.min(IMAGE_HEIGHT, Math.round(SCREEN_WIDTH / ar));
-  }, [isVideoCard, videoAspect]);
+  // Media box is always IMAGE_HEIGHT (40%) for BOTH image and video cards, so
+  // every card's media is the same height and the headline below sits in the
+  // same place as you swipe. Video fills this box via resizeMode="cover"
+  // (matching how images fill their box) — no letterbox gap, no shrinking.
+  const mediaHeight = IMAGE_HEIGHT;
 
   const onVideoReady = useCallback(() => { playerRef.current?.seekTo(0, true); setIsBuffering(false); setVideoReady(true); }, []);
-  const onVideoLoad = useCallback((data) => {
+  const onVideoLoad = useCallback(() => {
     setVideoReady(true);
     setIsBuffering(false);
-    const ns = data?.naturalSize;
-    if (ns?.width && ns?.height) {
-      let ar = ns.width / ns.height;
-      if (ns.orientation === 'portrait' && ar > 1) ar = 1 / ar; // guard rotated metadata
-      if (ar > 0 && isFinite(ar)) setVideoAspect(ar);
-    }
   }, []);
   const onPlayerError = useCallback(() => { setIsBuffering(false); }, []);
 
@@ -290,10 +273,34 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   if (news.isAd) {
     const imageSource = news.image ? { uri: news.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo;
+    // Video ads: full-bleed like image ads (ads are full-card, not the 40% news
+    // box). Reuses the same react-native-video player as the feed — cover fill,
+    // muted autoplay, looping, no controls; plays only while this is the active
+    // card (paused otherwise so off-screen ads don't run). Tap opens the
+    // redirect_url, exactly like an image ad.
+    const isVideoAd = news.mediaType === 'video' && !!news.video;
     return (
       <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
         <Pressable onPress={handleAdPress} style={{ flex: 1 }}>
-          <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
+          {isVideoAd ? (
+            <Video
+              source={{ uri: news.video }}
+              style={[styles.image, { height: '100%', width: '100%' }]}
+              resizeMode="cover"
+              repeat={true}
+              muted={true}
+              volume={0}
+              paused={!isActive || isBottomHalf}
+              playInBackground={false}
+              playWhenInactive={false}
+              controls={false}
+              onBuffer={({ isBuffering: b }) => setIsBuffering(b)}
+              onLoad={() => setIsBuffering(false)}
+              onError={() => setIsBuffering(false)}
+            />
+          ) : (
+            <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
+          )}
           {isBuffering && <View style={styles.adPlaceholder}><ActivityIndicator size="large" color="#CCCCCC" /></View>}
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
         </Pressable>
@@ -343,7 +350,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     />
                   ) : (
                     <Video
-                      key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="contain" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
+                      key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
                       playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
                     />
                   )
