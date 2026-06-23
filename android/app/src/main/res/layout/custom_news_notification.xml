@@ -3,9 +3,16 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp"
+    android:paddingTop="1dp"
+    android:paddingBottom="1dp"
     android:gravity="center_vertical">
 
+    <!-- Single full-color brand logo (notification_logo). This is the ONLY logo
+         in the layout; setLargeIcon stays OFF in NotificationHelper so it doesn't
+         duplicate. The small status-bar icon (ic_notification silhouette) is
+         separate and unchanged. -->
     <ImageView
         android:id="@+id/custom_icon"
         android:layout_width="46dp"
@@ -18,9 +25,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="10dp"
         android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-        android:textSize="19sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         android:lineSpacingMultiplier="1.05"
         android:maxLines="3"

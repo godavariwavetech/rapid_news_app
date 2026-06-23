@@ -206,7 +206,6 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   };
 
   const handleAdPress = () => {
-    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>JJIJIJJIJIJIJIJIJI")
     if (news.id) dispatch(trackAdClick(news.id)); if (news.redirectUrl) Linking.openURL(news.redirectUrl).catch(err => console.log(err));
   };
   const handleCommentsPress = () => { dispatch(getComments(news.id)); if (onCommentsPress) onCommentsPress(news); };
@@ -273,31 +272,56 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   if (news.isAd) {
     const imageSource = news.image ? { uri: news.image, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo;
-    // Video ads: full-bleed like image ads (ads are full-card, not the 40% news
-    // box). Reuses the same react-native-video player as the feed — cover fill,
-    // muted autoplay, looping, no controls; plays only while this is the active
-    // card (paused otherwise so off-screen ads don't run). Tap opens the
-    // redirect_url, exactly like an image ad.
+    // Video ads: full-fill the card (explicit pixel size, like the news video) so
+    // the box matches an image ad. Reuses the feed's react-native-video player —
+    // cover fill, looping, no controls; mounts only while this is the active card
+    // (unmounts off-screen for a clean replay on return). Autoplays WITH sound;
+    // a single tap opens redirect_url.
     const isVideoAd = news.mediaType === 'video' && !!news.video;
     return (
       <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
         <Pressable onPress={handleAdPress} style={{ flex: 1 }}>
           {isVideoAd ? (
-            <Video
-              source={{ uri: news.video }}
-              style={[styles.image, { height: '100%', width: '100%' }]}
-              resizeMode="cover"
-              repeat={true}
-              muted={true}
-              volume={0}
-              paused={!isActive || isBottomHalf}
-              playInBackground={false}
-              playWhenInactive={false}
-              controls={false}
-              onBuffer={({ isBuffering: b }) => setIsBuffering(b)}
-              onLoad={() => setIsBuffering(false)}
-              onError={() => setIsBuffering(false)}
-            />
+            <>
+              {/* Poster behind the player so the card is never blank while the
+                  Video is unmounted off-screen (and during its first load). */}
+              <FastImage
+                source={imageSource}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode={imageResizeMode}
+              />
+              {/* Mount the player ONLY while this ad is the active, top-half card
+                  — mirrors the news-video lifecycle (see the NEWS branch below).
+                  Scrolling away unmounts it and releases the surface; scrolling
+                  back remounts a fresh one, so it replays cleanly instead of
+                  resuming a stale/garbled frame. key forces a clean remount per
+                  source. Sizing/resizeMode left as-is (that's Issue 1). */}
+              {isActive && !isBottomHalf && (
+                <Video
+                  key={news.video}
+                  source={{ uri: news.video }}
+                  style={{ width: SCREEN_WIDTH, height: ACTUAL_HEIGHT }}
+                  resizeMode="cover"
+                  repeat={true}
+                  // Autoplays WITH sound. rn-video v6 (Android) won't change audio
+                  // after mount, so the player must be born unmuted to be audible;
+                  // a single tap redirects (see overlay below).
+                  muted={false}
+                  volume={1.0}
+                  paused={false}
+                  playInBackground={false}
+                  playWhenInactive={false}
+                  controls={false}
+                  onBuffer={({ isBuffering: b }) => setIsBuffering(b)}
+                  onLoad={() => setIsBuffering(false)}
+                  onError={() => setIsBuffering(false)}
+                />
+              )}
+              {/* Transparent tap overlay above the native video surface (which
+                  otherwise swallows touches), so a tap anywhere on the video
+                  redirects. */}
+              <Pressable onPress={handleAdPress} style={styles.videoTouchOverlay} />
+            </>
           ) : (
             <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
           )}

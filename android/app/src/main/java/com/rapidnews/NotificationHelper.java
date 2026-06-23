@@ -5,8 +5,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.text.Html;
 import android.widget.RemoteViews;
@@ -30,17 +28,17 @@ public class NotificationHelper {
 
         if (layoutId == 0 || titleId == 0) return;
 
-        // ic_launcher is adaptive (API 26+) and cannot be used as a notification small icon —
-        // it renders as a blank white square. Use ic_launcher_foreground which is a flat PNG.
-        int smallIconId = context.getResources().getIdentifier("ic_launcher_foreground", "mipmap", packageName);
-        if (smallIconId == 0) smallIconId = context.getResources().getIdentifier("ic_launcher", "mipmap", packageName);
+        // Small status icon: the monochrome silhouette (ic_notification, alpha-only
+        // newspaper mark) — the standard Android small-icon, distinct from the
+        // full-color logo so they don't read as duplicated. Falls back to the flat
+        // launcher foreground, then the system info icon.
+        int smallIconId = context.getResources().getIdentifier("ic_notification", "drawable", packageName);
+        if (smallIconId == 0) smallIconId = context.getResources().getIdentifier("ic_launcher_foreground", "mipmap", packageName);
         if (smallIconId == 0) smallIconId = android.R.drawable.ic_dialog_info;
 
-        // Large icon shown as the circle avatar in the expanded notification header
-        int launcherId = context.getResources().getIdentifier("ic_launcher", "mipmap", packageName);
-        Bitmap largeIcon = launcherId != 0
-                ? BitmapFactory.decodeResource(context.getResources(), launcherId)
-                : null;
+        // No setLargeIcon: the custom layout already shows the full-color logo
+        // (notification_logo). Setting a large icon too would render a second
+        // duplicate logo beside it.
 
         RemoteViews collapsedView = new RemoteViews(packageName, layoutId);
         RemoteViews expandedView  = new RemoteViews(packageName, layoutId);
@@ -74,8 +72,6 @@ public class NotificationHelper {
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
-
-        if (largeIcon != null) builder.setLargeIcon(largeIcon);
 
         manager.notify((int) System.currentTimeMillis(), builder.build());
     }
