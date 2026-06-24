@@ -1,9 +1,15 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Dimensions} from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { fonts } from '../config/theme';
+
+// Same wide-screen rule as Way2NewsCard: foldables/tablets (unfolded) are short/wide
+// (aspect < 1.6), normal phones are ~1.8–2.2. On wide screens we shrink the tab bar so
+// it eats less of the limited vertical space. Normal phones keep the original sizing.
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
 
 const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   const insets = useSafeAreaInsets();
@@ -37,7 +43,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
   ];
 
   return (
-    <View style={[styles.bottomTabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.bottomTabBar, { paddingBottom: Math.max(insets.bottom, IS_WIDE_SCREEN ? 4 : 10) }]}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
@@ -49,7 +55,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
             <View style={styles.iconContainer}>
               <Icon
                 name={tab.icon}
-                size={22}
+                size={IS_WIDE_SCREEN ? 16 : 22}
                 // Active: Greyish White | Inactive: Dimmed Grey
                 color={isActive ? '#E0E0E0' : '#888888'}
               />
@@ -75,7 +81,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 10,
+    paddingTop: IS_WIDE_SCREEN ? 3 : 10,
     paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -89,19 +95,19 @@ const styles = StyleSheet.create({
   tabButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: IS_WIDE_SCREEN ? 1 : 4,
     paddingHorizontal: 3,
     flex: 1,
   },
   iconContainer: {
-    width: 28,
-    height: 28,
+    width: IS_WIDE_SCREEN ? 22 : 28,
+    height: IS_WIDE_SCREEN ? 22 : 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 3,
+    marginBottom: IS_WIDE_SCREEN ? 0 : 3,
   },
   tabLabel: {
-    fontSize: responsiveFontSize(1.7),
+    fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 1.3 : 1.7),
     // fontWeight: '700',
     fontFamily:fonts.bold,
     textAlign: 'center',

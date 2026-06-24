@@ -17,7 +17,7 @@
         android:id="@+id/custom_icon"
         android:layout_width="46dp"
         android:layout_height="46dp"
-        android:scaleType="fitCenter"
+        android:scaleType="centerCrop"
         android:src="@drawable/notification_logo" />
 
     <TextView

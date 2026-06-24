@@ -20,7 +20,7 @@
       
       <meta-data
           android:name="com.google.firebase.messaging.default_notification_channel_id"
-          android:value="custom_news_channel"
+          android:value="custom_news_channel_v2"
           tools:replace="android:value" />
 
       <!-- Our service extends ReactNativeFirebaseMessagingService and replaces it -->

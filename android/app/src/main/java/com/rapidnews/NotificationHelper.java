@@ -12,13 +12,28 @@ import androidx.core.app.NotificationCompat;
 
 public class NotificationHelper {
 
+    // Bumped from the original "custom_news_channel". Android locks a channel's
+    // importance at FIRST creation — recreating the old id with IMPORTANCE_HIGH is
+    // silently ignored on devices that first created it at a lower importance. A new
+    // id forces HIGH to actually apply (heads-up banners) without a reinstall.
+    // MUST stay in sync with AndroidManifest.xml default_notification_channel_id.
+    private static final String CHANNEL_ID = "custom_news_channel_v2";
+
+    // All news notifications share this group so the OS-collapsed stack is intentional
+    // (a tidy "N updates" summary, each item still individually visible on expand).
+    private static final String GROUP_KEY = "com.rapidnews.NEWS_GROUP";
+    private static final int GROUP_SUMMARY_ID = 424242; // stable id for the summary
+    private static final long[] VIBRATION_PATTERN = new long[]{0, 250, 250, 250};
+
     public static void showCustomNotification(Context context, String htmlText, String newsId) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        String channelId = "custom_news_channel";
+        String channelId = CHANNEL_ID;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     channelId, "News Alerts", NotificationManager.IMPORTANCE_HIGH);
+            channel.enableVibration(true);
+            channel.setVibrationPattern(VIBRATION_PATTERN);
             manager.createNotificationChannel(channel);
         }
 
@@ -70,9 +85,31 @@ public class NotificationHelper {
                 .setCustomContentView(collapsedView)
                 .setCustomBigContentView(expandedView)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setVibrate(VIBRATION_PATTERN)
+                .setGroup(GROUP_KEY)
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
+        // Unique id (timestamp) so each notification is a distinct entry, never a replace.
         manager.notify((int) System.currentTimeMillis(), builder.build());
+
+        // Group summary: gives the OS-collapsed stack a clean header ("New updates")
+        // and keeps every child individually visible on expand. Silent itself
+        // (GROUP_ALERT_CHILDREN) so only the news items produce the heads-up + sound.
+        NotificationCompat.Builder summary = new NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(smallIconId)
+                .setContentTitle("Rapid News")
+                .setStyle(new NotificationCompat.InboxStyle().setSummaryText("New updates"))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setGroup(GROUP_KEY)
+                .setGroupSummary(true)
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+
+        manager.notify(GROUP_SUMMARY_ID, summary.build());
     }
 }

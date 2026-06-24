@@ -21,13 +21,22 @@ import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
 import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
 import { downloadImageToGallery, handleShare, generateVideoThumbnail } from '../utils/FileHelpers';
+import { getCachedVideo } from '../utils/videoFileCache';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT;
-const IMAGE_HEIGHT = ACTUAL_HEIGHT * 0.40;
+// Foldables/tablets (unfolded) have a wide/short aspect ratio; normal phones are ~1.8–2.2.
+// ONLY on these wide screens do we shrink the media + body text and reserve tab-bar space,
+// so the long article body fits above the bottom tab bar instead of clipping behind it.
+// Normal phones keep the original 0.40 media height and font sizes (untouched).
+const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
+const IMAGE_HEIGHT = ACTUAL_HEIGHT * (IS_WIDE_SCREEN ? 0.30 : 0.40);
+// Dark space reserved below the action bar so the last content lines clear the tabs (wide only).
+// Matches the shrunk BottomTabBar height on wide screens (~40px above the safe-area inset).
+const WIDE_TAB_BAR_CLEARANCE = IS_WIDE_SCREEN ? 42 : 0;
 
 const getYoutubeId = (url) => {
   if (!url) return null;
@@ -82,7 +91,8 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   const videoSource = useMemo(() => {
     if (hasVideos && !youtubeId) return {
-      uri: videoUrls[0],
+      // Use the locally-prefetched file if ready (instant, no buffering); else stream.
+      uri: getCachedVideo(videoUrls[0]) || videoUrls[0],
       bufferConfig: { minBufferMs: 15000, maxBufferMs: 50000, bufferForPlaybackMs: 2500, bufferForPlaybackAfterRebufferMs: 5000, cacheSizeMB: 50 },
     };
     return null;
@@ -278,6 +288,9 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     // (unmounts off-screen for a clean replay on return). Autoplays WITH sound;
     // a single tap opens redirect_url.
     const isVideoAd = news.mediaType === 'video' && !!news.video;
+    // Play the locally-prefetched file if it's ready (instant, no network buffer);
+    // otherwise fall back to the remote URL. Prefetch happens ahead in FlipNewsScreen.
+    const adVideoUri = getCachedVideo(news.video) || news.video;
     return (
       <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
         <Pressable onPress={handleAdPress} style={{ flex: 1 }}>
@@ -299,7 +312,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
               {isActive && !isBottomHalf && (
                 <Video
                   key={news.video}
-                  source={{ uri: news.video }}
+                  source={{ uri: adVideoUri }}
                   style={{ width: SCREEN_WIDTH, height: ACTUAL_HEIGHT }}
                   resizeMode="cover"
                   repeat={true}
@@ -312,6 +325,9 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                   playInBackground={false}
                   playWhenInactive={false}
                   controls={false}
+                  // Start playing with minimal pre-buffer so the ad shows fast even
+                  // when streamed remotely (local cached files ignore this anyway).
+                  bufferConfig={{ minBufferMs: 2000, maxBufferMs: 8000, bufferForPlaybackMs: 800, bufferForPlaybackAfterRebufferMs: 1500, cacheSizeMB: 50 }}
                   onBuffer={({ isBuffering: b }) => setIsBuffering(b)}
                   onLoad={() => setIsBuffering(false)}
                   onError={() => setIsBuffering(false)}
@@ -325,7 +341,14 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
           ) : (
             <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
           )}
-          {isBuffering && <View style={styles.adPlaceholder}><ActivityIndicator size="large" color="#CCCCCC" /></View>}
+          {isBuffering && (
+            // Video ads: keep the poster visible (only a light dim + spinner) so the
+            // ad image shows immediately instead of a black void while it loads.
+            // Image ads: keep the opaque placeholder (there's nothing to show yet).
+            <View style={isVideoAd ? styles.adSpinnerOverlay : styles.adPlaceholder}>
+              <ActivityIndicator size="large" color="#CCCCCC" />
+            </View>
+          )}
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
         </Pressable>
       </ViewShot>
@@ -536,7 +559,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 const styles = StyleSheet.create({
   card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
   imageSection: { width: SCREEN_WIDTH, height: IMAGE_HEIGHT, position: 'relative', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  bottomContainer: { flex: 1, width: '100%', backgroundColor: '#2C2C2C' },
+  bottomContainer: { flex: 1, width: '100%', backgroundColor: '#2C2C2C', paddingBottom: WIDE_TAB_BAR_CLEARANCE },
   image: { width: responsiveWidth(100), height: '100%', justifyContent: 'center', alignItems: 'center' },
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },
   paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
@@ -544,11 +567,12 @@ const styles = StyleSheet.create({
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  adSpinnerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
-  title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(2.8), color: '#000000', lineHeight: responsiveFontSize(3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
+  title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.3 : 2.8), color: '#000000', lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.8 : 3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(3.5), lineHeight: responsiveFontSize(3.5), color: '#555555', fontWeight: '400' },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.5), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.5), color: '#555555', fontWeight: '400' },
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },

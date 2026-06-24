@@ -15,7 +15,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { markNewsAsRead, fetchUnreadNewsCount } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
-import { preloadVideos, cancelVideoPreloads } from '../utils/mediaPreloader';
+import { prefetchVideo } from '../utils/videoFileCache';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import { lightTheme, darkTheme } from '../config/theme';
@@ -309,15 +309,17 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
     if (imageUris.length > 0) FastImage.preload(imageUris);
 
-    // Warm HTTP cache for next 3 non-YouTube videos
-    const videoUris = formattedNews
-      .slice(currIndex + 1, currIndex + 4)
-      .flatMap(item => item.videos || [])
-      .filter(url => url && !url.includes('youtube') && !url.includes('youtu.be'));
-
-    if (videoUris.length > 0) preloadVideos(videoUris);
-
-    return () => cancelVideoPreloads(videoUris);
+    // Download upcoming videos to local disk so they play instantly (no buffering).
+    // News videos live on item.videos[]; ad videos on item.video. YouTube links are
+    // skipped inside prefetchVideo. Look a few cards ahead (and include the current
+    // one so it's cached for replay-on-return).
+    formattedNews.slice(currIndex, currIndex + 6).forEach(item => {
+      if (item.isAd) {
+        if (item.mediaType === 'video' && item.video) prefetchVideo(item.video);
+      } else if (item.videos?.length) {
+        prefetchVideo(item.videos[0]);
+      }
+    });
   }, [currIndex, formattedNews]);
 
   const [currIndex, setCurrIndex] = useState(0);
