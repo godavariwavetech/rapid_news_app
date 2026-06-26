@@ -60,6 +60,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [showControls, setShowControls] = useState(false);
   const [screenshotMode, setScreenshotMode] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  // The native video/YouTube player is NOT mounted until the user starts playback.
+  // Videos never autoplay here, so deferring the mount removes the black native
+  // surface that used to paint over the thumbnail on a freshly-arrived card.
+  const [hasActivatedVideo, setHasActivatedVideo] = useState(false);
   const playerRef = useRef(null);
   const videoRef = useRef(null);
   const flatListRef = useRef(null);
@@ -75,7 +79,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [generatedThumbnail, setGeneratedThumbnail] = useState(null);
 
   useImperativeHandle(ref, () => ({
-    play: () => { setIsVideoPaused(false); isManuallyPaused.current = false; },
+    play: () => { setIsVideoPaused(false); isManuallyPaused.current = false; setHasActivatedVideo(true); },
     pause: () => { setIsVideoPaused(true); isManuallyPaused.current = true; },
     toggle: () => { handlePlayPauseToggle(); }
   }));
@@ -166,6 +170,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   useEffect(() => {
     isManuallyPaused.current = true; setIsVideoPaused(true); setIsBuffering(false); setShowControls(false); setVideoReady(false);
+    setHasActivatedVideo(false); // new card → back to thumbnail-only until the user taps play
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     const t = setTimeout(() => setVideoReady(true), 4000);
     return () => clearTimeout(t);
@@ -178,7 +183,12 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   };
 
   const handlePlayPauseToggle = useCallback(() => {
-    setIsVideoPaused(prev => { const next = !prev; isManuallyPaused.current = next; return next; });
+    setIsVideoPaused(prev => {
+      const next = !prev;
+      isManuallyPaused.current = next;
+      if (!next) setHasActivatedVideo(true); // first play → mount the actual player
+      return next;
+    });
     showControlsTemporarily();
   }, []);
 
@@ -204,7 +214,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const onPlayerError = useCallback(() => { setIsBuffering(false); }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
-    if (state === "playing") { setIsBuffering(false); setIsVideoPaused(false); }
+    if (state === "playing") { setIsBuffering(false); setIsVideoPaused(false); setVideoReady(true); }
     else if (state === "paused" || state === "ended") { setIsVideoPaused(true); if (state === "ended") { isManuallyPaused.current = true; setShowControls(true); } }
     else if (state === "buffering") { setIsBuffering(true); }
   }, []);
@@ -358,6 +368,9 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const renderImageItem = ({ item }) => (
     <TouchableWithoutFeedback onPress={handleDoubleTap}>
       <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+        {/* Shimmer behind the image (parity with the single-image branch) so a
+            not-yet-decoded carousel frame shows a placeholder instead of black. */}
+        <View style={StyleSheet.absoluteFill}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
         <FastImage source={{ uri: item, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }} style={styles.image} resizeMode={imageResizeMode} />
       </View>
     </TouchableWithoutFeedback>
@@ -375,19 +388,12 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             <View style={{ width: SCREEN_WIDTH, height: mediaHeight }}>
               <View style={StyleSheet.absoluteFillObject}>
 
-                {/* --- FALLBACK IMAGE LAYER --- */}
-                {((!isBottomHalf || screenshotMode) && (!videoReady || screenshotMode)) && (
-                  displayThumbnail ? (
-                    <FastImage source={{ uri: displayThumbnail, priority: FastImage.priority.high }} style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />
-                  ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }]}>
-                      <Image source={applogo} style={{ width: 150, height: 150, resizeMode: 'contain' }} />
-                    </View>
-                  )
-                )}
-
-                {/* --- VIDEO LAYER --- */}
-                {isActive && !isBottomHalf && !screenshotMode && (
+                {/* --- VIDEO LAYER ---
+                    Mounted ONLY after the user starts playback (hasActivatedVideo).
+                    Videos never autoplay, so a paused/just-arrived card no longer
+                    mounts the native player and therefore never paints its black
+                    surface — the poster below shows instantly instead. */}
+                {isActive && !isBottomHalf && !screenshotMode && hasActivatedVideo && (
                   youtubeId ? (
                     <YoutubePlayer
                       ref={playerRef} key={youtubeId} height={mediaHeight} width={SCREEN_WIDTH} play={!isVideoPaused} videoId={youtubeId}
@@ -400,6 +406,24 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                       key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
                       playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
                     />
+                  )
+                )}
+
+                {/* --- POSTER / THUMBNAIL LAYER ---
+                    Rendered AFTER the player so it sits ON TOP and hides the black
+                    first-frame gap until the video reports ready (onReadyForDisplay /
+                    onLoad / YouTube "playing"). Always visible while paused or not yet
+                    activated, so the thumbnail is the very first thing drawn. Never the
+                    Rapid News banner — a neutral dark shimmer fills in only when no
+                    thumbnail exists yet (e.g. a pure video whose frame is still being
+                    generated), so the banner→black→thumbnail sequence is gone. */}
+                {((!isBottomHalf || screenshotMode) && (!hasActivatedVideo || !videoReady || screenshotMode)) && (
+                  displayThumbnail ? (
+                    <FastImage source={{ uri: displayThumbnail, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }} style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]}>
+                      <ShimmerLoader height={mediaHeight} borderRadius={0} />
+                    </View>
                   )
                 )}
 

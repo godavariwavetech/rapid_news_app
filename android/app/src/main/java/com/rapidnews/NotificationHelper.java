@@ -19,10 +19,19 @@ public class NotificationHelper {
     // MUST stay in sync with AndroidManifest.xml default_notification_channel_id.
     private static final String CHANNEL_ID = "custom_news_channel_v2";
 
-    // All news notifications share this group so the OS-collapsed stack is intentional
-    // (a tidy "N updates" summary, each item still individually visible on expand).
-    private static final String GROUP_KEY = "com.rapidnews.NEWS_GROUP";
-    private static final int GROUP_SUMMARY_ID = 424242; // stable id for the summary
+    // Each notification gets its OWN unique group key (a "group of one") so the OS
+    // never bundles them into a collapsed stack. Android auto-groups 4+ otherwise-
+    // ungrouped notifications from one app under a system summary; assigning every
+    // notification a distinct group defeats that auto-bundling AND means no summary
+    // is ever shown (a single-child group has nothing to summarize). This makes each
+    // news item a standalone, independent entry — matching the competitor's behavior.
+    private static final String GROUP_KEY_PREFIX = "com.rapidnews.NEWS_";
+
+    // Process-wide monotonically increasing id source. Seeded from the clock so ids
+    // don't repeat across app restarts; incremented per-notification so two posts in
+    // the same millisecond can't collide (which casting currentTimeMillis to int could).
+    private static final java.util.concurrent.atomic.AtomicInteger ID_COUNTER =
+            new java.util.concurrent.atomic.AtomicInteger((int) (System.currentTimeMillis() & 0x7FFFFFFF));
     private static final long[] VIBRATION_PATTERN = new long[]{0, 250, 250, 250};
 
     public static void showCustomNotification(Context context, String htmlText, String newsId) {
@@ -73,11 +82,19 @@ public class NotificationHelper {
             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         }
 
+        // Unique id per notification so each is a distinct entry, never a replace, and
+        // never collides (incremented, not a possibly-duplicate same-ms timestamp).
+        int notificationId = ID_COUNTER.incrementAndGet();
+
+        // Unique group per notification ("group of one") so Android never bundles these
+        // into a collapsed stack or posts an auto-generated summary at 4+ notifications.
+        String uniqueGroup = GROUP_KEY_PREFIX + notificationId;
+
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
 
         PendingIntent pendingIntent = PendingIntent.getActivity(
-                context, (int) System.currentTimeMillis(), intent, flags);
+                context, notificationId, intent, flags);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(smallIconId)
@@ -87,29 +104,13 @@ public class NotificationHelper {
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setVibrate(VIBRATION_PATTERN)
-                .setGroup(GROUP_KEY)
-                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                // Unique group + GROUP_ALERT_ALL keeps each item standalone AND lets every
+                // one produce its own heads-up banner + sound (no summary suppresses them).
+                .setGroup(uniqueGroup)
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_ALL)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        // Unique id (timestamp) so each notification is a distinct entry, never a replace.
-        manager.notify((int) System.currentTimeMillis(), builder.build());
-
-        // Group summary: gives the OS-collapsed stack a clean header ("New updates")
-        // and keeps every child individually visible on expand. Silent itself
-        // (GROUP_ALERT_CHILDREN) so only the news items produce the heads-up + sound.
-        NotificationCompat.Builder summary = new NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(smallIconId)
-                .setContentTitle("Rapid News")
-                .setStyle(new NotificationCompat.InboxStyle().setSummaryText("New updates"))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setGroup(GROUP_KEY)
-                .setGroupSummary(true)
-                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true);
-
-        manager.notify(GROUP_SUMMARY_ID, summary.build());
+        manager.notify(notificationId, builder.build());
     }
 }
