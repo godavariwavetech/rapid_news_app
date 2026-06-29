@@ -34,7 +34,13 @@ public class NotificationHelper {
             new java.util.concurrent.atomic.AtomicInteger((int) (System.currentTimeMillis() & 0x7FFFFFFF));
     private static final long[] VIBRATION_PATTERN = new long[]{0, 250, 250, 250};
 
+    // Back-compat overload (e.g. CustomNewsModule's JS bridge): no separate
+    // title/body, so the lockscreen fallback fields stay empty.
     public static void showCustomNotification(Context context, String htmlText, String newsId) {
+        showCustomNotification(context, htmlText, null, null, newsId);
+    }
+
+    public static void showCustomNotification(Context context, String htmlText, String title, String body, String newsId) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         String channelId = CHANNEL_ID;
 
@@ -86,6 +92,11 @@ public class NotificationHelper {
         // never collides (incremented, not a possibly-duplicate same-ms timestamp).
         int notificationId = ID_COUNTER.incrementAndGet();
 
+        // Real arrival time, captured once for both setWhen and the sort key below so
+        // they agree. This is the actual post time (NOT a backend publish timestamp),
+        // so the shade ranks our newest at the top of the importance bucket.
+        long postTime = System.currentTimeMillis();
+
         // Unique group per notification ("group of one") so Android never bundles these
         // into a collapsed stack or posts an auto-generated summary at 4+ notifications.
         String uniqueGroup = GROUP_KEY_PREFIX + notificationId;
@@ -99,9 +110,26 @@ public class NotificationHelper {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(smallIconId)
                 .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+                // Standard title/body so the secure lockscreen (and any surface that
+                // doesn't render our custom RemoteViews) has real content to show
+                // instead of the generic "New notification" placeholder.
+                .setContentTitle(title)
+                .setContentText(body)
+                // PUBLIC so the lockscreen shows the content un-redacted even when the
+                // device is set to "hide sensitive notifications" — the default PRIVATE
+                // gets redacted to a contentless public version ("New notification").
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setCustomContentView(collapsedView)
                 .setCustomBigContentView(expandedView)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
+                // Explicit post time = real arrival time, and show it, so users can see
+                // recency and the OS sorts by a definite timestamp within the bucket.
+                .setWhen(postTime)
+                .setShowWhen(true)
+                // Deterministic newest-first tiebreaker among OUR OWN notifications:
+                // Android sorts sortKey ascending, so newest (largest postTime) → smallest
+                // key → ranks highest. (Cross-app order vs other apps is system-controlled.)
+                .setSortKey(String.format(java.util.Locale.US, "%020d", Long.MAX_VALUE - postTime))
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setVibrate(VIBRATION_PATTERN)
                 // Unique group + GROUP_ALERT_ALL keeps each item standalone AND lets every

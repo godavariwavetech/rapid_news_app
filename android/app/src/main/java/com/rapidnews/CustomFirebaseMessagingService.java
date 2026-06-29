@@ -32,7 +32,10 @@ public class CustomFirebaseMessagingService extends ReactNativeFirebaseMessaging
             // which adapts to the system notification panel theme (dark/light). A <font color>
             // span here would override it and disappear on light themes (white-on-white).
             String htmlText = "<b>" + title + "</b>";
-            NotificationHelper.showCustomNotification(this, htmlText, newsId);
+            // Lockscreen should show ONLY the headline (like Way2News) — pass the title
+            // as the content text and leave contentTitle null (generic header). The
+            // description body is intentionally NOT forwarded, so no paragraph renders.
+            NotificationHelper.showCustomNotification(this, htmlText, null, title, newsId);
         }
 
         // Call super so the library's JS event bridge still fires

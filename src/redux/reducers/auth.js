@@ -161,7 +161,13 @@ export const startActivity = createAsyncThunk(
   'auth/startActivity',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.START_ACTIVITY, payload);
+      // Send x-device-id so GUESTS (no auth token) also get a session created;
+      // the backend prefers the token's user when present, else falls back to
+      // device_id. Without this header guest startSession returns null (no doc).
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.START_ACTIVITY, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
       return response.data;
     } catch (error) {
       console.log(error, "ERROR Starting Activity");
@@ -175,7 +181,13 @@ export const endActivity = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       console.log(">>>>>>>>>>>Responseee>>>>>>>>>>>>>>>PAYLOAD",payload);
-      const response = await api.post(endpoints.END_ACTIVITY, payload);
+      // Match startActivity: send x-device-id so the guest end-session path
+      // resolves the same actor. endSession itself looks up by session_id, so
+      // this is for consistency.
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.END_ACTIVITY, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
       console.log(response,">>>RESP");
       return response.data;
     } catch (error) {

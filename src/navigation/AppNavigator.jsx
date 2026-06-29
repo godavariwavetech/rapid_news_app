@@ -97,9 +97,14 @@ function AppNavigator() {
   const sessionIdRef = useRef(null);
 
   const serviceHandler = async () =>{
-    const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
-    if (response?.meta?.requestId) {
-      sessionIdRef.current = response.meta.requestId;
+    const action = await dispatch(startActivity({ district_id: districtIdRef.current }));
+    // The backend (usersSession.controller.start) returns the created session's
+    // real _id as payload.session_id. Use THAT — meta.requestId is the
+    // Redux-Toolkit thunk id (a nanoid), not a Mongo ObjectId, so sending it to
+    // /activity/end fails ObjectId.isValid() and the session never closes.
+    const sessionId = action?.payload?.session_id;
+    if (sessionId) {
+      sessionIdRef.current = sessionId;
     }
   }
 
