@@ -1,5 +1,5 @@
 import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
-import { getUniqueId } from 'react-native-device-info';
+import { getUniqueId, getVersion } from 'react-native-device-info';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 import { fetchFCMToken } from '../../services/NotificationsService';
@@ -116,6 +116,46 @@ export const postToken = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+// Fire-and-forget launch ping: records this device the moment the app opens,
+// independent of location selection, login, or FCM/push. Drives the "Total
+// Reach" metric (≈ activated installs), capturing devices that abandon onboarding
+// or deny notifications — which the feed-based tracking never saw. Never blocks
+// or surfaces errors; a failed ping must not affect app startup.
+export const registerDevice = createAsyncThunk(
+  'auth/registerDevice',
+  async (_, { getState }) => {
+    try {
+      const deviceId = await getUniqueId();
+      if (!deviceId) return;
+
+      const state = getState();
+      const currentLocation = state.location?.currentLocation;
+
+      const payload = {
+        platform: Platform.OS?.toUpperCase(),
+        app_version: getVersion(),
+        // Best-effort — absent on first launch before a location is picked.
+        ...(currentLocation && {
+          location: {
+            state_id: currentLocation?.state?._id,
+            district_id: currentLocation?.district?._id,
+            village_id: currentLocation?.village?._id,
+          },
+        }),
+      };
+
+      // auth.optional on the backend links user_id when a token is attached
+      // by the api interceptor; guests go through without one.
+      await api.post(endpoints.REGISTER_DEVICE, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
+    } catch (error) {
+      // Swallow — launch ping is non-critical.
+      console.log('registerDevice ping failed:', error?.message);
     }
   },
 );

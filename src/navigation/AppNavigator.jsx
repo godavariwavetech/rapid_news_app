@@ -63,7 +63,7 @@ import UnreadNewsScreen from '../screens/UnreadNewsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
 import AboutUsScreen from '../screens/AboutUsScreen';
 
-import { endActivity, startActivity } from '../redux/reducers/auth';
+import { endActivity, startActivity, registerDevice } from '../redux/reducers/auth';
 import { fetchArticleById } from '../redux/reducers/news';
 
 const Stack = createStackNavigator();
@@ -125,7 +125,12 @@ function AppNavigator() {
   useEffect(() => {
     // #3: defer the cold-start analytics session off the first-paint path.
     // The foreground-resume serviceHandler() below stays immediate.
-    const initTask = InteractionManager.runAfterInteractions(() => serviceHandler());
+    const initTask = InteractionManager.runAfterInteractions(() => {
+      serviceHandler();
+      // Launch ping — records this device for the "Total Reach" metric,
+      // independent of onboarding/login/FCM.
+      dispatch(registerDevice());
+    });
     const subscription = AppState.addEventListener('change', nextAppState => {
       // App comes to Foreground
       if (
@@ -133,7 +138,8 @@ function AppNavigator() {
         nextAppState === 'active'
       ) {
        serviceHandler()
-      } 
+       dispatch(registerDevice())
+      }
       // App goes to Background
       else if (
         appState.current === 'active' &&

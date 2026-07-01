@@ -55,6 +55,7 @@ export const endpoints = {
   FEEDBACK: 'feedback',
   START_ACTIVITY: 'activity/start',
   END_ACTIVITY: 'activity/end',
+  REGISTER_DEVICE: 'devices/register',
   REGISTER_GUEST: 'users/register-guest',
   APP_CONFIG: 'app-config',
 };
