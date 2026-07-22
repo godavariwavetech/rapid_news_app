@@ -11,7 +11,6 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-import com.sitinews.CustomNewsPackage
 
 // IMPORTANT: If your CustomNewsPackage is NOT in the "com.rapidnews" 
 // folder, you will need to import it here. For example:

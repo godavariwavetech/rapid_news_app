@@ -1,4 +1,4 @@
-package com.sitinews;
+package com.rapidnews;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

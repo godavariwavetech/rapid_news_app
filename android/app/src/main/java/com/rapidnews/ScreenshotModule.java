@@ -1,4 +1,4 @@
-package com.sitinews;
+package com.rapidnews;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
