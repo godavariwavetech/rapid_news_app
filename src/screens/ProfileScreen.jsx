@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Alert,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { userLogin } from '../redux/reducers/auth';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
 import { useTheme } from '../context/ThemeContext';
@@ -86,16 +87,25 @@ const ProfileScreen = ({navigation}) => {
      await GoogleSignin.signOut();
      await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
-     
-     const userInfo = response.data;
-     const payload = {
-      idToken:userInfo?.idToken
-     }
 
-     const resp = await dispatch(userLogin(payload))
-     
+     const idToken = response.data?.idToken;
+     if (!idToken) throw new Error('Google returned no idToken');
+
+     // .unwrap() so a rejected backend call throws here instead of failing silently
+     await dispatch(userLogin({ idToken })).unwrap();
+
    } catch (error) {
-    console.log(error,">>>>>>>>>>>>>>>>ERROR");
+    if (error?.code === statusCodes.SIGN_IN_CANCELLED) return;
+
+    const detail =
+      error?.code === statusCodes.DEVELOPER_ERROR
+        ? "DEVELOPER_ERROR (10) — this build's signing certificate isn't registered in the Google Cloud project."
+        : error?.code
+          ? `Google sign-in failed (code ${error.code})`
+          : error?.message || JSON.stringify(error);
+
+    console.log('[GoogleLogin]', detail, error);
+    Alert.alert('Sign-in failed', detail);
    }
   }
 
