@@ -211,7 +211,7 @@ function HomeScreen({navigation}) {
     } else {
       setActiveTab(tabId);
       if (tabId === 'ReloadTab') {
-        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab'}));
+        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab', userRefresh: true}));
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
       }
     }
@@ -239,7 +239,7 @@ function HomeScreen({navigation}) {
           toggleUI={toggleUI}
           hideUI={hideUI}
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
-          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, current_day_offset: 0, isLocationMode: activeTab === 'LocationTab'}))}
+          onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, current_day_offset: 0, isLocationMode: activeTab === 'LocationTab', userRefresh: true}))}
           onEndReached={() => {
             if (!loading && hasMore) {
               dispatch(fetchNews({

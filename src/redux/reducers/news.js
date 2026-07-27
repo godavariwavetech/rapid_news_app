@@ -507,6 +507,8 @@ const newsSlice = createSlice({
       state.currentDayOffset = 0;
       state.hasMore = true;
       state.isLocationMode = false;
+      // Tab switches clear the feed — the pinned notification article goes with it
+      state.notificationArticle = null;
     },
     setRefreshing: (state, action) => {
       state.refreshing = action.payload;
@@ -592,6 +594,12 @@ const newsSlice = createSlice({
         // Track current mode so we can detect future switches
         state.isLocationMode = isLocationMode;
 
+        // A user-initiated refresh means "give me the current feed" — unpin the
+        // notification article. Anything else (the extra page-1 fetch HomeScreen
+        // fires once currentLocation resolves) must keep it pinned, otherwise the
+        // article the user tapped gets swapped out from under them on cold start.
+        if (action.meta.arg?.userRefresh) state.notificationArticle = null;
+
         if (isRefresh) {
           // Only prepend notification article on main-feed refreshes, not location feed
           if (state.notificationArticle && !isLocationMode) {
@@ -601,8 +609,6 @@ const newsSlice = createSlice({
             );
             incomingItems = [article, ...filtered];
             state.articles = { ...data, items: incomingItems };
-            // Clear after use so it doesn't re-prepend on the next refresh
-            state.notificationArticle = null;
           } else {
             // Store with annotated items so batch totals are preserved
             state.articles = Array.isArray(data) ? incomingItems : { ...data, items: incomingItems };
