@@ -164,6 +164,15 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
               <Text style={styles.dateText}>{formatTime(newsItem.createdAt)}</Text>
             </View>
 
+            {/* Why an editor rejected it. Absent for anything rejected before
+                the reason field existed, so render only when there is one. */}
+            {newsItem.status?.toUpperCase() === 'REJECTED' && newsItem.rejection_reason ? (
+              <View style={styles.rejectionBox}>
+                <Text style={styles.rejectionLabel}>తిరస్కరణ కారణం</Text>
+                <Text style={styles.rejectionText}>{newsItem.rejection_reason}</Text>
+              </View>
+            ) : null}
+
             {/* Full Body */}
             <View style={styles.bodyContainer}>
               <Text style={styles.bodyText}>{body}</Text>
@@ -280,6 +289,26 @@ const styles = StyleSheet.create({
   dateText: {
     color: '#666',
     fontSize: 13,
+  },
+  rejectionBox: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FDECEC',
+    borderLeftWidth: 3,
+    borderLeftColor: '#DC3545',
+  },
+  rejectionLabel: {
+    color: '#DC3545',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  rejectionText: {
+    color: '#333',
+    fontSize: 14,
+    lineHeight: 20,
   },
   bodyContainer: {
     padding: 16,

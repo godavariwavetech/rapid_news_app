@@ -252,11 +252,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
-          reporter: data.reporter || {
-            name: 'Reporter',
-            imageUrl: 'https://via.placeholder.com/100',
-            location: 'Andhra Pradesh',
-          },
+          // Backend sends { _id, name, role, photo }; photo is null until the
+          // reporter uploads one, so the card falls back to an initial avatar.
+          reporter: data.reporter || { name: 'Reporter', photo: null },
+          tags: data.tags || [],
           isLiked: data?.reactions?.my_reaction === 'LIKE',
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),

@@ -113,9 +113,14 @@ const NewsDetailScreen = ({route, navigation}) => {
 
           <View style={[styles.contentBody, {backgroundColor: theme.background}]}>
             <View style={styles.metaRow}>
-              <Text style={[styles.reporter, {color: theme.primary}]}>
-                By {news.reporter?.name || 'Admin'}
-              </Text>
+              <View style={styles.reporterRow}>
+                {news.reporter?.photo ? (
+                  <Image source={{uri: news.reporter.photo}} style={styles.reporterAvatar} />
+                ) : null}
+                <Text style={[styles.reporter, {color: theme.primary}]}>
+                  By {news.reporter?.name || 'Admin'}
+                </Text>
+              </View>
               <Text style={[styles.date, {color: theme.textSecondary}]}>
                 {new Date(news.published_at).toLocaleDateString()}
               </Text>
@@ -152,6 +157,8 @@ const styles = StyleSheet.create({
   },
   contentBody: {padding: 20, marginTop: -20, borderTopLeftRadius: 25, borderTopRightRadius: 25},
   metaRow: {flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15},
+  reporterRow: {flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1},
+  reporterAvatar: {width: 22, height: 22, borderRadius: 11},
   reporter: {fontWeight: 'bold', fontSize: 14},
   date: {fontSize: 12},
   title: {fontSize: 22, fontWeight: '800', lineHeight: 30, marginBottom: 15},

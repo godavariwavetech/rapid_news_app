@@ -485,6 +485,37 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
               </Text>
             </View>
 
+            {/* Tags (C15). Editorial keywords; absent on most articles, so the
+                row disappears entirely rather than leaving a gap. */}
+            {news.tags?.length > 0 ? (
+              <View style={styles.tagRow}>
+                {news.tags.slice(0, 4).map((tag) => (
+                  <View key={tag} style={styles.tagChip}>
+                    <Text style={styles.tagText} numberOfLines={1} allowFontScaling={false}>#{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {/* Reporter byline. photo is null until the reporter uploads one,
+                so fall back to an initial avatar rather than a broken image. */}
+            {news.reporter?.name ? (
+              <View style={styles.bylineRow}>
+                {news.reporter.photo ? (
+                  <FastImage source={{ uri: news.reporter.photo }} style={styles.bylineAvatar} />
+                ) : (
+                  <View style={[styles.bylineAvatar, styles.bylineAvatarFallback]}>
+                    <Text style={styles.bylineInitial} allowFontScaling={false}>
+                      {news.reporter.name.trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.bylineName} numberOfLines={1} allowFontScaling={false}>
+                  {news.reporter.name}
+                </Text>
+              </View>
+            ) : null}
+
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
                 <Icon name="clock-outline" size={14} color="#999" />
@@ -597,6 +628,16 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.3 : 2.8), color: '#000000', lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.8 : 3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
   body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.5), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.5), color: '#555555', fontWeight: '400' },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 10 },
+  tagChip: { backgroundColor: '#EEF2F7', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '48%' },
+  tagText: { fontSize: responsiveFontSize(1.4), color: '#41618A', fontWeight: '600' },
+  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 8 },
+  bylineAvatar: { width: 20, height: 20, borderRadius: 10 },
+  bylineAvatarFallback: { backgroundColor: '#3a3a3a', alignItems: 'center', justifyContent: 'center' },
+  bylineInitial: { color: '#E0E0E0', fontSize: responsiveFontSize(1.2), fontWeight: '700' },
+  // contentSection is hardcoded white (not themed), so these are light-mode
+  // colours. #555 matches the body text — #999 (the timestamp) is too faint for a byline.
+  bylineName: { fontSize: responsiveFontSize(1.5), color: '#555555', fontWeight: '600', flexShrink: 1 },
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
