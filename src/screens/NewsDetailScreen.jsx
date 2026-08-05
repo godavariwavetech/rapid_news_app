@@ -113,14 +113,19 @@ const NewsDetailScreen = ({route, navigation}) => {
 
           <View style={[styles.contentBody, {backgroundColor: theme.background}]}>
             <View style={styles.metaRow}>
-              <View style={styles.reporterRow}>
-                {news.reporter?.photo ? (
-                  <Image source={{uri: news.reporter.photo}} style={styles.reporterAvatar} />
-                ) : null}
-                <Text style={[styles.reporter, {color: theme.primary}]}>
-                  By {news.reporter?.name || 'Admin'}
-                </Text>
-              </View>
+              {/* Editor/admin stories come back with reporter: null and are
+                  published as the paper itself — no byline at all, not "By Admin". */}
+              {news.reporter?.name ? (
+                <View style={styles.reporterRow}>
+                  {news.reporter.photo ? (
+                    <Image source={{uri: news.reporter.photo}} style={styles.reporterAvatar} />
+                  ) : null}
+                  <Text style={[styles.reporter, {color: theme.primary}]}>
+                    By {news.reporter.name}
+                    {news.reporter.village ? `, ${news.reporter.village}` : ''}
+                  </Text>
+                </View>
+              ) : <View />}
               <Text style={[styles.date, {color: theme.textSecondary}]}>
                 {new Date(news.published_at).toLocaleDateString()}
               </Text>

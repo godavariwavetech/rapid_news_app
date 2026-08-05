@@ -471,7 +471,40 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             </TouchableWithoutFeedback>
           </View>
         )}
-        <Image source={applogo} style={styles.watermarkLogo} />
+        {/* Bottom-left of the image is one slot: a reporter's byline when the
+            story has one, otherwise the app watermark. The backend returns
+            reporter: null for editor/admin-authored stories (most of the feed),
+            so those keep the plain watermark and carry no attribution at all. */}
+        {news.reporter?.name ? (
+          <>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.75)']}
+              style={styles.bylineGradient}
+              pointerEvents="none"
+            />
+            <View style={styles.bylineRow} pointerEvents="none">
+              {news.reporter.photo ? (
+                <FastImage source={{ uri: news.reporter.photo }} style={styles.bylineAvatar} />
+              ) : (
+                <View style={[styles.bylineAvatar, styles.bylineAvatarFallback]}>
+                  <Text style={styles.bylineInitial} allowFontScaling={false}>
+                    {news.reporter.name.trim().charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.bylineText}>
+                <Text style={styles.bylineName} numberOfLines={1} allowFontScaling={false}>
+                  {news.reporter.name}
+                </Text>
+                <Text style={styles.bylineMeta} numberOfLines={1} allowFontScaling={false}>
+                  {news.reporter.village ? `Reporter, ${news.reporter.village}` : 'Reporter'}
+                </Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <Image source={applogo} style={styles.watermarkLogo} />
+        )}
       </View>
 
       <View style={styles.bottomContainer}>
@@ -494,25 +527,6 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     <Text style={styles.tagText} numberOfLines={1} allowFontScaling={false}>#{tag}</Text>
                   </View>
                 ))}
-              </View>
-            ) : null}
-
-            {/* Reporter byline. photo is null until the reporter uploads one,
-                so fall back to an initial avatar rather than a broken image. */}
-            {news.reporter?.name ? (
-              <View style={styles.bylineRow}>
-                {news.reporter.photo ? (
-                  <FastImage source={{ uri: news.reporter.photo }} style={styles.bylineAvatar} />
-                ) : (
-                  <View style={[styles.bylineAvatar, styles.bylineAvatarFallback]}>
-                    <Text style={styles.bylineInitial} allowFontScaling={false}>
-                      {news.reporter.name.trim().charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                <Text style={styles.bylineName} numberOfLines={1} allowFontScaling={false}>
-                  {news.reporter.name}
-                </Text>
               </View>
             ) : null}
 
@@ -631,13 +645,16 @@ const styles = StyleSheet.create({
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 10 },
   tagChip: { backgroundColor: '#EEF2F7', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '48%' },
   tagText: { fontSize: responsiveFontSize(1.4), color: '#41618A', fontWeight: '600' },
-  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 8 },
-  bylineAvatar: { width: 20, height: 20, borderRadius: 10 },
-  bylineAvatarFallback: { backgroundColor: '#3a3a3a', alignItems: 'center', justifyContent: 'center' },
-  bylineInitial: { color: '#E0E0E0', fontSize: responsiveFontSize(1.2), fontWeight: '700' },
-  // contentSection is hardcoded white (not themed), so these are light-mode
-  // colours. #555 matches the body text — #999 (the timestamp) is too faint for a byline.
-  bylineName: { fontSize: responsiveFontSize(1.5), color: '#555555', fontWeight: '600', flexShrink: 1 },
+  // Byline sits ON the image, so it is white on a bottom gradient rather than
+  // themed — same zIndex as the watermark it replaces, or the video layer covers it.
+  bylineGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, zIndex: 99999 },
+  bylineRow: { position: 'absolute', left: 14, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: SCREEN_WIDTH * 0.72, zIndex: 100000 },
+  bylineAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)' },
+  bylineAvatarFallback: { backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  bylineInitial: { color: '#FFFFFF', fontSize: responsiveFontSize(1.7), fontWeight: '700' },
+  bylineText: { flexShrink: 1 },
+  bylineName: { fontSize: responsiveFontSize(1.7), color: '#FFFFFF', fontWeight: '700', flexShrink: 1 },
+  bylineMeta: { fontSize: responsiveFontSize(1.35), color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },

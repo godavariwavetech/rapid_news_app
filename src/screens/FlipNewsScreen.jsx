@@ -252,9 +252,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
-          // Backend sends { _id, name, role, photo }; photo is null until the
-          // reporter uploads one, so the card falls back to an initial avatar.
-          reporter: data.reporter || { name: 'Reporter', photo: null },
+          // Backend sends { _id, name, role, photo, village } for reporter-authored
+          // stories and null for editor/admin ones — pass the null straight through,
+          // a synthesized "Reporter" here would put a byline on every admin story.
+          reporter: data.reporter || null,
           tags: data.tags || [],
           isLiked: data?.reactions?.my_reaction === 'LIKE',
           isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
