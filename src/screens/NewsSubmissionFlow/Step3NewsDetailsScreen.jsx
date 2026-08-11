@@ -43,6 +43,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   // Form State
   const [headline, setHeadline] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
   const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
   const [images, setImages] = useState([]); // array of image assets
   const [video, setVideo] = useState(null); // single video asset
@@ -80,6 +81,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       previousDescriptionRef.current = body;
       setHeadlineTranslitEnabled(isTeTitle);
       setDescriptionTranslitEnabled(isTeBody);
+      setTags(Array.isArray(existingNews.tags) ? existingNews.tags.join(', ') : '');
       
       if (imgUrl) setImages([{ uri: imgUrl }]);
 
@@ -221,6 +223,9 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         },
         "images": images.filter(img => img.uri && !img.base64).map(img => img.uri),
         "videos": video?.uri ? [video.uri] : [],
+        // Raw comma-separated string; the backend's normalizeTags splits and
+        // cleans it. Omitted when blank so an edit can't wipe existing tags.
+        ...(tags.trim() && { tags: tags.trim() }),
       };
 
       navigation.navigate('NewsSubmissionStep4', {
@@ -310,6 +315,23 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
               textAlignVertical="top"
             />
             <Text style={[styles.charCount, { color: theme.textSecondary }]}>{description.length} / 450</Text>
+          </View>
+        </View>
+
+        {/* Tags — optional keywords, searchable alongside headline and body */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Tags</Text>
+          </View>
+          <View style={[styles.inputBox, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <TextInput
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="cyclone, amaravati (comma separated)"
+              placeholderTextColor={isDarkMode ? '#666' : '#999'}
+              value={tags}
+              onChangeText={setTags}
+              maxLength={200}
+            />
           </View>
         </View>
 
