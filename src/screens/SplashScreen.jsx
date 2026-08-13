@@ -13,15 +13,28 @@ import { applogo } from '../assets';
 import LocationService from '../utils/LocationService';
 import { resolveLocation } from '../redux/reducers/location';
 
+// The logo animation needs a beat to be seen rather than flash past; beyond that,
+// holding the splash is pure waiting.
+const MIN_SPLASH_MS = 700;
+// Hard ceiling for a first-ever launch, where there is no stored location and GPS
+// is genuinely worth a short wait. Never longer than this, whatever happens.
+const MAX_LOCATION_WAIT_MS = 2500;
+
 const SplashScreen = ({ navigation }) => {
   const dispatch = useDispatch()
   const isOnboardingComplete = useSelector(state => state.auth.isOnboardingComplete);
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  // Location is redux-persist'ed, so on every launch after the first we already
+  // know which feed to load and don't have to wait for GPS at all.
+  const hasStoredLocation = useSelector(state => !!state.location.currentLocation);
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const watchIdRef = useRef(null);
+  const navigatedRef = useRef(false);
 
   const handleNavigation = () => {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
     navigation.replace('Main');
   };
 
@@ -53,15 +66,32 @@ const SplashScreen = ({ navigation }) => {
       withSpring(1, { damping: 10, stiffness: 100 })
     );
     opacity.value = withTiming(1, { duration: 800 });
-    
-    // Navigate away after 2.5 seconds
-    const timer = setTimeout(() => {
-      handleNavigation();
-    }, 2500);
 
-    fetchLocationAreas()
+    const startedAt = Date.now();
+    let minTimer;
 
-    return () => clearTimeout(timer);
+    // Leave as soon as we're ready, never before the animation has been seen.
+    // This used to be a flat 2500ms setTimeout — a fixed 2.5s tax on every cold
+    // start even when the feed could have been fetched immediately.
+    const goWhenReady = () => {
+      minTimer = setTimeout(handleNavigation, Math.max(0, MIN_SPLASH_MS - (Date.now() - startedAt)));
+    };
+
+    // Location resolution keeps running either way; with a stored location we
+    // just don't block Home on it — HomeScreen refetches if the area changed.
+    const resolving = fetchLocationAreas();
+    if (hasStoredLocation) {
+      goWhenReady();
+    } else {
+      resolving.finally(goWhenReady);
+    }
+
+    const cap = setTimeout(handleNavigation, MAX_LOCATION_WAIT_MS);
+
+    return () => {
+      clearTimeout(cap);
+      clearTimeout(minTimer);
+    };
   }, []);
 
   // Animated Styles

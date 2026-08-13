@@ -294,6 +294,15 @@ const authSlice = createSlice({
         state.isActive = action.payload?.is_active;
         state.reporter = action.payload;
       })
+      // Merge, don't replace: the update response is a subset of the profile
+      // (no phone / is_active / createdAt). Without this the new avatar only
+      // appeared after the next getProfile.
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.user) {
+          state.reporter = { ...state.reporter, ...action.payload.user };
+        }
+      })
       .addCase(userLogin.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker'; 
 import { CommonActions } from '@react-navigation/native'; // <-- Added CommonActions import
 import { updateProfile } from '../redux/reducers/auth';
+import uploadMedia from '../utils/uploadMedia';
 
 // 1. DEFINED OUTSIDE TO PREVENT KEYBOARD CLOSING
 const InputField = ({ label, value, onChangeText, placeholder, icon, keyboardType = "default" }) => (
@@ -51,14 +52,19 @@ const EditProfileScreen = ({ navigation }) => {
     email: reporter?.email || '',
     image: reporter?.profile_image || 'https://png.pngtree.com/png-vector/20190710/ourmid/pngtree-user-vector-avatar-png-image_1541962.jpg',
   });
+  // The picked file itself — the preview uri above is only good on this device, so
+  // the asset has to survive until save, when it gets uploaded for a real URL.
+  const [pickedImage, setPickedImage] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // 2. IMAGE PICKER FUNCTIONALITY
   const handlePickImage = () => {
     const options = {
       mediaType: 'photo',
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
+      includeBase64: true,   // uploadMedia PUTs the bytes; without this there are none
+      quality: 0.8,
+      maxHeight: 1024,
+      maxWidth: 1024,
     };
 
     launchImageLibrary(options, (response) => {
@@ -66,6 +72,7 @@ const EditProfileScreen = ({ navigation }) => {
       if (response.errorCode) {
         Alert.alert('Error', response.errorMessage);
       } else if (response.assets && response.assets.length > 0) {
+        setPickedImage(response.assets[0]);
         setFormData({ ...formData, image: response.assets[0].uri });
       }
     });
@@ -80,14 +87,22 @@ const EditProfileScreen = ({ navigation }) => {
     const payload = {
       name: formData.name,
       email: formData.email,
-      image: formData.image,
       reporter_profile: {
         full_name: formData.fullName,
         username: formData.name,
       }
     };
 
-    console.log(payload, ">>>>>>>>>>>>PAYLOADDDD");
+    if (pickedImage) {
+      setUploading(true);
+      const url = await uploadMedia(pickedImage, { reporterId: reporter?._id });
+      setUploading(false);
+      if (!url) {
+        Alert.alert('Upload Failed', 'Could not upload the profile picture. Please try again.');
+        return;
+      }
+      payload.profile_image = url;
+    }
 
     try {
       await dispatch(updateProfile(payload)).unwrap();
@@ -129,11 +144,11 @@ const EditProfileScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Edit Profile</Text>
         
         <TouchableOpacity 
-          onPress={handleSave} 
-          disabled={loading}
+          onPress={handleSave}
+          disabled={loading || uploading}
           style={styles.primarySaveButton}
         >
-          {loading ? (
+          {loading || uploading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
