@@ -93,6 +93,11 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     return null;
   }, [videoUrls, news.external_links, hasVideos]);
 
+  // True only while a video is actually rolling. Image cards keep isVideoPaused
+  // at its initial true, so they never match. Drives both the video controls and
+  // the byline/logo strip they'd otherwise sit on top of.
+  const isVideoPlaying = (hasVideos || !!youtubeId) && hasActivatedVideo && !isVideoPaused;
+
   const videoSource = useMemo(() => {
     if (hasVideos && !youtubeId) return {
       // Use the locally-prefetched file if ready (instant, no buffering); else stream.
@@ -441,7 +446,9 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                 {(!isActive || isBottomHalf) && (
                   <View style={styles.playPauseIconContainer}><Icon name="play" size={50} color="#FFFFFF" /></View>
                 )}
-                {isActive && !isBottomHalf && !youtubeId && (
+                {/* Controls show only while the video rolls — paused/first-view
+                    cards keep the bottom strip clear for the byline + logo. */}
+                {isActive && !isBottomHalf && !youtubeId && isVideoPlaying && (
                   <View style={styles.videoControls}>
                     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setIsMuted(m => !m); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.videoControlBtn}>
                       <Icon name={isMuted ? 'volume-off' : 'volume-high'} size={22} color="#FFFFFF" />
@@ -471,17 +478,21 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             </TouchableWithoutFeedback>
           </View>
         )}
-        {/* Bottom-left of the image is one slot: a reporter's byline when the
-            story has one, otherwise the app watermark. The backend returns
-            reporter: null for editor/admin-authored stories (most of the feed),
-            so those keep the plain watermark and carry no attribution at all. */}
-        {news.reporter?.name ? (
+        {/* Bottom strip of the image. A reporter's story gets the byline on the
+            left AND the RapidNews logo on the right; everything else keeps the
+            plain bottom-left watermark. The backend returns reporter: null for
+            editor/admin-authored stories (most of the feed), so those carry no
+            attribution at all.
+            While a video is actually playing the strip is hidden so the video
+            controls own the bottom-right corner (see the videoControls block). */}
+        {isVideoPlaying ? null : news.reporter?.name ? (
           <>
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.75)']}
               style={styles.bylineGradient}
               pointerEvents="none"
             />
+            <Image source={applogo} style={styles.bylineLogo} pointerEvents="none" />
             <View style={styles.bylineRow} pointerEvents="none">
               {news.reporter.photo ? (
                 <FastImage source={{ uri: news.reporter.photo }} style={styles.bylineAvatar} />
@@ -518,17 +529,9 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
               </Text>
             </View>
 
-            {/* Tags (C15). Editorial keywords; absent on most articles, so the
-                row disappears entirely rather than leaving a gap. */}
-            {news.tags?.length > 0 ? (
-              <View style={styles.tagRow}>
-                {news.tags.slice(0, 4).map((tag) => (
-                  <View key={tag} style={styles.tagChip}>
-                    <Text style={styles.tagText} numberOfLines={1} allowFontScaling={false}>#{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
+            {/* Tags are editorial/search metadata only — never rendered in the
+                feed. They still ride along on news.tags for search + the
+                dashboard. */}
 
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
@@ -642,13 +645,12 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.3 : 2.8), color: '#000000', lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.8 : 3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
   body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.5), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.5), color: '#555555', fontWeight: '400' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 10 },
-  tagChip: { backgroundColor: '#EEF2F7', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '48%' },
-  tagText: { fontSize: responsiveFontSize(1.4), color: '#41618A', fontWeight: '600' },
   // Byline sits ON the image, so it is white on a bottom gradient rather than
   // themed — same zIndex as the watermark it replaces, or the video layer covers it.
   bylineGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, zIndex: 99999 },
-  bylineRow: { position: 'absolute', left: 14, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: SCREEN_WIDTH * 0.72, zIndex: 100000 },
+  // maxWidth leaves room for bylineLogo on the right — widen only if that goes.
+  bylineRow: { position: 'absolute', left: 14, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: SCREEN_WIDTH * 0.6, zIndex: 100000 },
+  bylineLogo: { position: 'absolute', right: 10, bottom: 10, width: 96, height: 44, resizeMode: 'contain', zIndex: 100000, opacity: 0.95 },
   bylineAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)' },
   bylineAvatarFallback: { backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   bylineInitial: { color: '#FFFFFF', fontSize: responsiveFontSize(1.7), fontWeight: '700' },
