@@ -5,6 +5,11 @@ bold: 'Ramabhadra',
   description: 'Abn',
 };
 
+// Chrome (header + bottom tab bar) is always dark regardless of the app theme —
+// it frames full-bleed news imagery. These two are its only colors.
+export const chromeInk = '#0B0B0D';
+export const brandGold = '#F0A92B'; // from the Rapid News masthead bolt
+
 export const lightTheme = {
   // Brand Colors
   primary: '#007AFF',          // Sleek Electric Blue (Fits B&W theme)

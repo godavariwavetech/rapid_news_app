@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchUnreadNewsCount } from '../redux/reducers/news';
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { fonts, chromeInk, brandGold } from '../config/theme';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -33,7 +34,7 @@ function Header({ onProfilePress, onTogglePress, title }) {
   }, [dispatch, currentLocation, isLocationMode]);
 
   const dynamicPaddingTop = Platform.OS === 'android'
-    ? Math.max(insets.top, StatusBar.currentHeight || 0) + 8
+    ? Math.max(insets.top, StatusBar.currentHeight || 0) + 1
     : Math.max(insets.top, 44);
 
   return (
@@ -47,7 +48,9 @@ function Header({ onProfilePress, onTogglePress, title }) {
       </TouchableOpacity>
 
       {/* Center - Title */}
-      <Text style={styles.title}  allowFontScaling={false}>{title}</Text>
+      {/* clip, not ellipsis: Ramabhadra draws "…" on the descender, which reads
+          as underscores. Same reason as the tab labels. */}
+      <Text style={styles.title} numberOfLines={1} ellipsizeMode="clip" allowFontScaling={false}>{title}</Text>
 
       {/* Right - Hide/Show Toggle Icon with Unread Badge */}
       <TouchableOpacity
@@ -74,23 +77,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 44 : 8,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingBottom: 12,
+    // Opaque, not a veil — the masthead is a frame around the photo, not a tint on it.
+    backgroundColor: chromeInk,
+    borderBottomWidth: 2,
+    borderBottomColor: brandGold,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative', 
+    position: 'relative',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
   title: {
-    fontSize: 20,
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 12,
+    fontSize: 19,
+    fontFamily: fonts.bold,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   badge: {
     position: 'absolute',
@@ -103,8 +115,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.85)', 
+    borderWidth: 2,
+    borderColor: chromeInk,
   },
   badgeText: {
     color: '#FFFFFF',

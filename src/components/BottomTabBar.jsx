@@ -3,7 +3,18 @@ import {View, Text, TouchableOpacity, StyleSheet, Dimensions} from 'react-native
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { fonts } from '../config/theme';
+import { fonts, chromeInk, brandGold } from '../config/theme';
+
+const INACTIVE = '#8B8B93';
+
+// Ramabhadra draws both "..." and U+2026 down on the descender, so any tail
+// ellipsis on an overflowing label reads as underscores ("Rajamahendra___").
+// Verified on device. Cut to a clean word instead and show no ellipsis at all —
+// a tab label only has to identify the place, not spell it out.
+// ponytail: fixed char cap, not measured text width. Fine while labels are place
+// names at one font size; measure with onTextLayout if either stops being true.
+const MAX_LABEL = 12;
+const truncate = s => (s.length > MAX_LABEL ? s.slice(0, MAX_LABEL).trimEnd() : s);
 
 // Same wide-screen rule as Way2NewsCard: foldables/tablets (unfolded) are short/wide
 // (aspect < 1.6), normal phones are ~1.8–2.2. On wide screens we shrink the tab bar so
@@ -28,7 +39,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
     {
       id: 'LocationTab',
       icon: 'map-marker',
-      label: locationName || 'రాజమండ్రి',
+      label: truncate(locationName || 'రాజమండ్రి'),
     },
     // {
     //   id: 'TrendingTab',
@@ -52,20 +63,20 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
             style={styles.tabButton}
             onPress={() => onTabPress(tab.id)}
             activeOpacity={0.7}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
               <Icon
                 name={tab.icon}
                 size={IS_WIDE_SCREEN ? 16 : 22}
-                // Active: Greyish White | Inactive: Dimmed Grey
-                color={isActive ? '#E0E0E0' : '#888888'}
+                color={isActive ? brandGold : INACTIVE}
               />
             </View>
             <Text
               numberOfLines={1}
+              ellipsizeMode="clip"
                allowFontScaling={false}
               style={[
                 styles.tabLabel,
-                { color: isActive ? '#E0E0E0' : '#888888' },
+                { color: isActive ? brandGold : INACTIVE },
               ]}>
               {tab.label}
             </Text>
@@ -79,18 +90,21 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
 const styles = StyleSheet.create({
   bottomTabBar: {
     flexDirection: 'row',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: IS_WIDE_SCREEN ? 3 : 10,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingTop: IS_WIDE_SCREEN ? 4 : 10,
     paddingHorizontal: 6,
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#2C2C2C', // Fixed Greyish Black Background
-    elevation: 15, // Slightly higher elevation for a floating look
+    // Same ink as the header — the two bars frame the feed as one system.
+    backgroundColor: chromeInk,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.10)',
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
   },
   tabButton: {
     alignItems: 'center',
@@ -100,11 +114,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: IS_WIDE_SCREEN ? 22 : 28,
+    width: IS_WIDE_SCREEN ? 34 : 46,
     height: IS_WIDE_SCREEN ? 22 : 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: IS_WIDE_SCREEN ? 0 : 3,
+    marginBottom: IS_WIDE_SCREEN ? 1 : 4,
+  },
+  iconContainerActive: {
+    backgroundColor: 'rgba(240, 169, 43, 0.16)',
   },
   tabLabel: {
     fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 1.3 : 1.7),
