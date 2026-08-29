@@ -42,6 +42,11 @@ export const generateVideoThumbnail = async (url) => {
   }
 };
 
+// Returns true only if the user actually completed a share (RNShare's
+// `success` flag) — `failOnCancel: false` means opening the sheet and then
+// cancelling still resolves rather than throwing, so callers that need to
+// know whether a share really happened (e.g. counting it server-side) must
+// check this return value rather than just whether the call didn't throw.
 export const handleShare = async (title, newsId, base64Data, imageUrl) => {
   const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
   const message = `${title}\n\n${appUrl}`;
@@ -55,12 +60,12 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
     if (base64Data) {
       console.log('[FileHelpers/Share] Trying: ViewShot base64 -> File -> RNShare...');
       const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_screenshot_${Date.now()}.jpg`;
-      
+
       try {
         await RNFetchBlob.fs.writeFile(destPath, base64Data, 'base64');
         console.log('[FileHelpers/Share] ViewShot written to:', destPath);
-        
-        await RNShare.open({
+
+        const result = await RNShare.open({
           title,
           message,
           url: `file://${destPath}`,
@@ -70,7 +75,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
         console.log('[FileHelpers/Share] ✅ ViewShot file share succeeded');
         // Clean up the temp file after share
         RNFetchBlob.fs.unlink(destPath).catch(() => {});
-        return; // Stop here if successful
+        return !!result?.success; // Stop here if successful
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ ViewShot file share failed:', err?.message);
       }
@@ -87,10 +92,10 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
       try {
         await RNFetchBlob.config({ path: destPath, trusty: true }).fetch('GET', imageUrl);
         console.log('[FileHelpers/Share] Downloaded to:', destPath);
-        await RNShare.open({ title, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
+        const result = await RNShare.open({ title, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
         console.log('[FileHelpers/Share] ✅ remote image share succeeded');
         RNFetchBlob.fs.unlink(destPath).catch(() => { });
-        return;
+        return !!result?.success;
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ remote image share failed:', err?.message);
       }
@@ -99,7 +104,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
       const localUrl = imageUrl.startsWith('file://') ? imageUrl : `file://${imageUrl}`;
       console.log('[FileHelpers/Share] Trying: local file share:', localUrl);
       try {
-        await RNShare.open({
+        const result = await RNShare.open({
           title,
           message,
           url: localUrl,
@@ -107,7 +112,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
           failOnCancel: false
         });
         console.log('[FileHelpers/Share] ✅ local file share succeeded');
-        return;
+        return !!result?.success;
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ local file share failed:', err?.message);
       }
@@ -116,7 +121,12 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
 
   // 3. Last resort: text only
   console.log('[FileHelpers/Share] Falling back to text-only share...');
-  try { await RNShare.open({ title, message, failOnCancel: false }); } catch (_) { }
+  try {
+    const result = await RNShare.open({ title, message, failOnCancel: false });
+    return !!result?.success;
+  } catch (_) {
+    return false;
+  }
 };
 
 export const downloadImageToGallery = async (imageUrl) => {

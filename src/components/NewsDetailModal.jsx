@@ -19,6 +19,11 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   if (!newsItem) return null;
 
   const [videoPaused, setVideoPaused] = useState(true);
+  // The player isn't mounted until this flips true (see the tap handler below) —
+  // react-native-video starts loading/buffering as soon as it's mounted, even
+  // while paused, so mounting it eagerly meant the video started downloading the
+  // instant the modal opened instead of waiting for the user to tap play.
+  const [videoActivated, setVideoActivated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [thumbnail, setThumbnail] = useState(newsItem.thumbnail);
   const imageScrollRef = useRef(null);
@@ -102,15 +107,26 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
                 <TouchableOpacity
                   activeOpacity={1}
                   style={styles.videoWrapper}
-                  onPress={() => setVideoPaused(p => !p)}>
-                  <Video
-                    source={{ uri: videoUri }}
-                    style={styles.fullMedia}
-                    resizeMode="cover"
-                    paused={videoPaused}
-                    repeat={false}
-                    onEnd={() => setVideoPaused(true)}
-                  />
+                  onPress={() => {
+                    if (!videoActivated) setVideoActivated(true);
+                    setVideoPaused(p => !p);
+                  }}>
+                  {videoActivated ? (
+                    <Video
+                      source={{ uri: videoUri }}
+                      style={styles.fullMedia}
+                      resizeMode="cover"
+                      paused={videoPaused}
+                      repeat={false}
+                      onEnd={() => setVideoPaused(true)}
+                    />
+                  ) : thumbnail ? (
+                    <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.fullMedia, styles.placeholderImage]}>
+                      <Icon name="video" size={40} color="#C2C2C2" />
+                    </View>
+                  )}
                   {videoPaused && (
                     <View style={styles.playOverlay}>
                       <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />

@@ -38,7 +38,11 @@ const Step1LocationScreen = ({navigation}) => {
 
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
-  const [selectedVillage, setSelectedVillage] = useState(null);
+  // Multiple villages/mandals can be targeted by one news post — the backend
+  // already supports this (see the dashboard's AddNews.jsx, which posts the
+  // same news/create payload as `locations: [{state_id, district_id,
+  // village_id}, ...]`), the mobile flow just wasn't sending more than one.
+  const [selectedVillages, setSelectedVillages] = useState([]);
 
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
@@ -60,7 +64,7 @@ const Step1LocationScreen = ({navigation}) => {
       if (districtId) dispatch(getVillages(districtId));
     }
     if (assignedVillage && typeof assignedVillage === 'object' && assignedVillage.name) {
-      setSelectedVillage(assignedVillage);
+      setSelectedVillages([assignedVillage]);
     }
 
     // If they are plain ID strings, fetch states list to resolve names
@@ -98,34 +102,39 @@ const Step1LocationScreen = ({navigation}) => {
   const handleStateSelect = (item) => {
     setSelectedState(item);
     setSelectedDistrict(null);
-    setSelectedVillage(null);
+    setSelectedVillages([]);
     setShowStatePicker(false);
     dispatch(getDistrict(item._id));
   };
 
   const handleDistrictSelect = (item) => {
     setSelectedDistrict(item);
-    setSelectedVillage(null);
+    setSelectedVillages([]);
     setShowDistrictPicker(false);
     dispatch(getVillages(item._id));
   };
 
-  const handleVillageSelect = (item) => {
-    setSelectedVillage(item);
-    setShowVillagePicker(false);
+  // Toggle a village in/out of the selection — the modal stays open so the
+  // user can pick several before closing it.
+  const handleVillageToggle = (item) => {
+    setSelectedVillages(prev =>
+      prev.some(v => v._id === item._id)
+        ? prev.filter(v => v._id !== item._id)
+        : [...prev, item]
+    );
   };
 
   const canProceed = isReporter
-    ? !!selectedVillage
-    : !!(selectedState && selectedDistrict && selectedVillage);
+    ? selectedVillages.length > 0
+    : !!(selectedState && selectedDistrict) && selectedVillages.length > 0;
 
   const handleNext = () => {
     if (!canProceed) {
-      Alert.alert('Required', isReporter ? 'Please select a village.' : 'Please complete all location fields.');
+      Alert.alert('Required', isReporter ? 'Please select at least one village.' : 'Please complete all location fields.');
       return;
     }
     navigation.navigate('NewsSubmissionStep3', {
-      locationData: { state: selectedState, district: selectedDistrict, village: selectedVillage },
+      locationData: { state: selectedState, district: selectedDistrict, villages: selectedVillages },
       reachData: {
         id: 'medium',
         label: 'మధ్యస్థ అవకాశాలు',
@@ -221,12 +230,12 @@ const Step1LocationScreen = ({navigation}) => {
             locked={isReporter && !!assignedDistrict}
           />
 
-          <LocationField 
+          <LocationField
             label="VILLAGE / MANDAL"
-            value={selectedVillage ? getDisplayName(selectedVillage) : 'Select Village'}
+            value={selectedVillages.length > 0 ? selectedVillages.map(getDisplayName).join(', ') : 'Select Village(s)'}
             onPress={() => setShowVillagePicker(true)}
             disabled={!selectedDistrict}
-            active={!!selectedVillage}
+            active={selectedVillages.length > 0}
             locked={false}
           />
         </View>
@@ -249,7 +258,15 @@ const Step1LocationScreen = ({navigation}) => {
           <SelectionModal visible={showDistrictPicker} onClose={() => setShowDistrictPicker(false)} title="Select District" data={districts} onSelect={handleDistrictSelect} theme={theme} isDarkMode={isDarkMode} />
         </>
       )}
-      <SelectionModal visible={showVillagePicker} onClose={() => setShowVillagePicker(false)} title="Select Village" data={villages} onSelect={handleVillageSelect} theme={theme} isDarkMode={isDarkMode} />
+      <VillageMultiSelectModal
+        visible={showVillagePicker}
+        onClose={() => setShowVillagePicker(false)}
+        data={villages}
+        selected={selectedVillages}
+        onToggle={handleVillageToggle}
+        theme={theme}
+        isDarkMode={isDarkMode}
+      />
     </View>
   );
 };
@@ -272,6 +289,52 @@ const SelectionModal = ({visible, onClose, title, data, onSelect, theme, isDarkM
             </TouchableOpacity>
           )}
         />
+      </View>
+    </View>
+  </Modal>
+);
+
+// Same look as SelectionModal but checkbox-style: tapping a row toggles it
+// in/out of `selected` instead of immediately closing the modal, so the user
+// can pick several villages/mandals before tapping Done.
+const VillageMultiSelectModal = ({visible, onClose, data, selected, onToggle, theme, isDarkMode}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Select Village(s)</Text>
+          <TouchableOpacity onPress={onClose}><Icon name="close" size={22} color={theme.text} /></TouchableOpacity>
+        </View>
+        <FlatList
+          data={data}
+          keyExtractor={item => item._id}
+          showsVerticalScrollIndicator={false}
+          renderItem={({item}) => {
+            const isChecked = selected.some(v => v._id === item._id);
+            return (
+              <TouchableOpacity
+                style={[styles.modalItem, styles.modalItemRow, { borderBottomColor: isDarkMode ? '#333' : '#F5F5F5' }]}
+                onPress={() => onToggle(item)}
+              >
+                <Icon
+                  name={isChecked ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={22}
+                  color={isChecked ? theme.primary : (isDarkMode ? '#666' : '#B0B0B0')}
+                />
+                <Text style={[styles.modalItemText, { color: theme.text }]}>{item.name?.en || item.name}</Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+        <TouchableOpacity
+          style={[styles.modalDoneButton, { backgroundColor: isDarkMode ? theme.primary : '#000000' }, selected.length === 0 && { opacity: 0.4 }]}
+          onPress={onClose}
+          disabled={selected.length === 0}
+        >
+          <Text style={[styles.modalDoneText, { color: isDarkMode ? '#000' : '#FFFFFF' }]}>
+            Done{selected.length > 0 ? ` (${selected.length})` : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   </Modal>
@@ -326,7 +389,10 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { fontSize: 18, fontFamily: fonts.bold },
   modalItem: { paddingVertical: 15, borderBottomWidth: 1 },
-  modalItemText: { fontSize: 16, fontFamily: fonts.medium }
+  modalItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modalItemText: { fontSize: 16, fontFamily: fonts.medium },
+  modalDoneButton: { marginTop: 16, paddingVertical: 14, borderRadius: 4, alignItems: 'center' },
+  modalDoneText: { fontSize: 15, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 1 },
 });
 
 export default Step1LocationScreen;

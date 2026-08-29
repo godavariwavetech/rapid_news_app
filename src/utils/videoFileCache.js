@@ -28,7 +28,13 @@ const CACHE_DIR = `${fs.dirs.CacheDir}/video-cache`;
 
 // Tuning knob. Videos are megabytes each, so this is the dominant term in the
 // app's cache footprint — raise it for smoother swiping, lower it for less disk.
-const MAX_CACHE_BYTES = 40 * 1024 * 1024;
+// Must comfortably fit FlipNewsScreen's prefetch window (6 videos ahead, fetched
+// in parallel) plus a couple behind for replay-on-return, or trimCache() below
+// evicts oldest-first — which tends to be the CURRENT video, since it's kicked
+// off first in that loop and so is usually also the first to finish downloading.
+// At the old 40MB cap that meant: downloaded, then deleted before it was ever
+// watched, silently forcing a slow network re-stream anyway.
+const MAX_CACHE_BYTES = 150 * 1024 * 1024;
 
 const memo = new Map(); // url -> local file:// uri (download complete)
 const inflight = new Map(); // url -> Promise (download in progress)

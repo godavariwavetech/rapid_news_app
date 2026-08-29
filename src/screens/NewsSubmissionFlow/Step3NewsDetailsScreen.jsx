@@ -205,14 +205,27 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   const handleNext = async () => {
     if (headline && description && selectedCategoryObj && (images.length > 0 || video)) {
-      const villageId = locationData?.village?._id || existingNews?.village_id || currentLocation?.village?._id;
       const districtId = locationData?.district?._id || existingNews?.district_id || currentLocation?.district?._id;
       const stateId = locationData?.state?._id || existingNews?.state_id || currentLocation?.state?._id;
+      // Step1 now supports picking several villages/mandals for the same
+      // post. Fall back to the single legacy village (old callers / editing
+      // an existing article) so this still works when only one is known.
+      const villages = locationData?.villages?.length
+        ? locationData.villages
+        : (locationData?.village || existingNews?.village_id || currentLocation?.village
+            ? [locationData?.village || { _id: existingNews?.village_id || currentLocation?.village?._id }]
+            : []);
+
+      // The backend's news create/update endpoint takes a `locations` array —
+      // one {state_id, district_id, village_id} entry per targeted village,
+      // sharing the same (locked) state/district. Matches what the admin
+      // dashboard's AddNews.jsx already sends for multi-location posts.
+      const locations = villages
+        .map(v => ({ state_id: stateId || null, district_id: districtId || null, village_id: v?._id || null }))
+        .filter(loc => loc.village_id);
 
       const payload = {
-        "village_id": villageId || null,
-        "district_id": districtId || null,
-        "state_id": stateId || null,
+        locations,
         "category_id": selectedCategoryObj._id,
         "content": {
           "te": { 
@@ -236,7 +249,9 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         images,
         video,
         apiPayload: payload,
-        location: locationData ? `${locationData.village?.name?.en}, ${locationData.district?.name?.en}` : "Current Location",
+        location: locationData
+          ? `${villages.map(v => v?.name?.en).filter(Boolean).join(', ')}, ${locationData.district?.name?.en}`
+          : "Current Location",
         isEditing: !!existingNews,
         newsId: existingNews?._id
       });

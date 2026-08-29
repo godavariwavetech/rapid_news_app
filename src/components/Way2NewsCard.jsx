@@ -17,7 +17,7 @@ import { applogo } from '../assets';
 
 // Redux Actions
 import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
-import { reactToNews, getComments, trackAdClick } from '../redux/reducers/news';
+import { reactToNews, getComments, trackAdClick, shareNews } from '../redux/reducers/news';
 import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
 import { downloadImageToGallery, handleShare, generateVideoThumbnail } from '../utils/FileHelpers';
@@ -34,6 +34,11 @@ const ACTUAL_HEIGHT = SCREEN_HEIGHT;
 // Normal phones keep the original 0.40 media height and font sizes (untouched).
 const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
 const IMAGE_HEIGHT = ACTUAL_HEIGHT * (IS_WIDE_SCREEN ? 0.30 : 0.40);
+// react-native-youtube-iframe hard-codes its internal HTML to a 16:9 box (padding-bottom: 56.25%)
+// that isn't vertically centered inside the WebView. Sizing the player to the true 16:9 height and
+// centering it ourselves (see imageSection/mediaLayer styles) avoids it being pinned to the top of
+// the media box with dead space below whenever mediaHeight isn't already 16:9.
+const YOUTUBE_PLAYER_HEIGHT = Math.round(SCREEN_WIDTH * 9 / 16);
 // Dark space reserved below the action bar so the last content lines clear the tabs (wide only).
 // Matches the shrunk BottomTabBar height on wide screens (~40px above the safe-area inset).
 const WIDE_TAB_BAR_CLEARANCE = IS_WIDE_SCREEN ? 42 : 0;
@@ -105,7 +110,13 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
       bufferConfig: { minBufferMs: 15000, maxBufferMs: 50000, bufferForPlaybackMs: 2500, bufferForPlaybackAfterRebufferMs: 5000, cacheSizeMB: 50 },
     };
     return null;
-  }, [videoUrls, hasVideos, youtubeId]);
+    // hasActivatedVideo is a dep on purpose: the player only mounts once it flips
+    // true (see the VIDEO LAYER below), and the prefetch download often finishes
+    // AFTER this card first mounts. Without it here, this stayed frozen at the
+    // mount-time remote URL forever, so the local cached file was never picked up
+    // and every video streamed over the network regardless of how early it was
+    // prefetched — re-check right before the player actually needs the source.
+  }, [videoUrls, hasVideos, youtubeId, hasActivatedVideo]);
 
   const thumbnailUri = useMemo(() => {
     if (news.image) return news.image;
@@ -123,8 +134,12 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
     // Only pre-generate in the top half to avoid duplicate processing
     if (hasVideos && !youtubeId && !thumbnailUri && !isBottomHalf) {
-      console.log('[Thumbnail] Starting generation for:', videoUrls[0]);
-      generateVideoThumbnail(videoUrls[0]).then(path => {
+      // Prefer the locally-prefetched file: extracting the poster frame from it
+      // is local disk I/O instead of a second network fetch/seek into the remote
+      // video just to grab a frame.
+      const thumbnailSource = getCachedVideo(videoUrls[0]) || videoUrls[0];
+      console.log('[Thumbnail] Starting generation for:', thumbnailSource);
+      generateVideoThumbnail(thumbnailSource).then(path => {
         if (isCancelled) return;
         console.log('[Thumbnail] Generation result path:', path);
         if (path) {
@@ -275,8 +290,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
       const base64Data = await viewShotRef.current.capture();
       console.log('[Share] ViewShot captured, base64 length:', base64Data?.length);
 
-      await handleShare(displayTitle, articleId, base64Data, imageUrl);
-      console.log('[Share] ✅ ViewShot share completed');
+      const shared = await handleShare(displayTitle, articleId, base64Data, imageUrl);
+      console.log('[Share] ✅ ViewShot share completed | counted:', shared);
+      // Only record a share once the user actually completed it (not on cancel).
+      if (shared && articleId) dispatch(shareNews(articleId));
     } catch (error) {
       console.log('[Share] ❌ ViewShot Share error:', error);
       Alert.alert("Share Failed", "Could not process screenshot: " + error.message);
@@ -391,7 +408,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
         {(hasVideos || youtubeId) ? (
           <View style={{ flex: 1, backgroundColor: '#000', width: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             <View style={{ width: SCREEN_WIDTH, height: mediaHeight }}>
-              <View style={StyleSheet.absoluteFillObject}>
+              <View style={[StyleSheet.absoluteFillObject, youtubeId && styles.youtubePlayerLayer]}>
 
                 {/* --- VIDEO LAYER ---
                     Mounted ONLY after the user starts playback (hasActivatedVideo).
@@ -401,7 +418,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                 {isActive && !isBottomHalf && !screenshotMode && hasActivatedVideo && (
                   youtubeId ? (
                     <YoutubePlayer
-                      ref={playerRef} key={youtubeId} height={mediaHeight} width={SCREEN_WIDTH} play={!isVideoPaused} videoId={youtubeId}
+                      ref={playerRef} key={youtubeId} height={YOUTUBE_PLAYER_HEIGHT} width={SCREEN_WIDTH} play={!isVideoPaused} videoId={youtubeId}
                       onChangeState={onYoutubeStateChange} onError={onPlayerError}
                       initialPlayerParams={{ autoplay: 1, controls: 0, modestbranding: 1, rel: 0, iv_load_policy: 3, cc_load_policy: 0 }}
                       webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
@@ -631,6 +648,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 const styles = StyleSheet.create({
   card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
   imageSection: { width: SCREEN_WIDTH, height: IMAGE_HEIGHT, position: 'relative', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  youtubePlayerLayer: { justifyContent: 'center', alignItems: 'center' },
   bottomContainer: { flex: 1, width: '100%', backgroundColor: '#2C2C2C', paddingBottom: WIDE_TAB_BAR_CLEARANCE },
   image: { width: responsiveWidth(100), height: '100%', justifyContent: 'center', alignItems: 'center' },
   paginationContainer: { position: 'absolute', bottom: 20, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 15 },

@@ -101,7 +101,8 @@ export const fetchNews = createAsyncThunk(
     // Location feed must use the user's REAL village — never the hardcoded
     // fallback (that would flash a wrong village before location resolves).
     // Skip until currentLocation is resolved; HomeScreen refetches on change.
-    if (isLocationMode && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
+    // Viral News (below) is location-independent, so it's exempt from this gate.
+    if (isLocationMode && category !== 'viral' && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
       return rejectWithValue('LOCATION_NOT_READY');
     }
 
@@ -110,6 +111,31 @@ export const fetchNews = createAsyncThunk(
       const deviceId = await getUniqueId();
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+
+      // Viral News: a separate, location-independent endpoint (no village/
+      // district/state/category_id — just lang + paging). Its response is
+      // flatter than the normal feed (news objects directly, no {type, data}
+      // envelope, and no reactions/comments/views yet) but that shape already
+      // works with FlipNewsScreen's `item.data || item` fallback, so it's
+      // normalized here into the same {items, pagination} envelope the
+      // fulfilled reducer below expects and returned early.
+      if (category === 'viral') {
+        const limit = 10;
+        const config = { params: { lang: 'te', page, limit }, timeout: FEED_TIMEOUT_MS };
+        if (!hasToken) {
+          config.headers = { 'x-device-id': deviceId };
+          config.skipAuth = true;
+        }
+        const response = await api.get(endpoints.GET_VIRAL_NEWS, config);
+        const { items = [], total = 0 } = response.data || {};
+        const data = {
+          items,
+          // Only claim another page exists while there's actually more to
+          // fetch — this endpoint reports `total`, not a pagination block.
+          pagination: (page * limit < total) ? { total_news: total } : undefined,
+        };
+        return { data, page, current_day_offset, isLocationMode: false };
+      }
 
       // Prepare base parameters
       const queryParams = {
@@ -222,6 +248,33 @@ export const reactToNews = createAsyncThunk(
       }
 
       const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config);
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 5.1 Record a share (fired once the native share sheet actually completes —
+// see Way2NewsCard's handleShareNews, which checks RNShare's `success` flag
+// before dispatching this). Public/no-auth on the backend, rate-limited.
+export const shareNews = createAsyncThunk(
+  'news/shareNews',
+  async (newsId, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const url = endpoints.SHARE_NEWS.replace(':id', newsId);
+      const response = await api.post(url, {}, config);
 
       return response.data;
     } catch (error) {

@@ -70,11 +70,11 @@ test('evicts oldest-first once over the cap, and forgets what it deleted', async
   const oldPath = pathFor(oldUrl);
   jest.clearAllMocks();
 
-  // Next download pushes the directory to 60MB against a 40MB cap.
+  // Next download pushes the directory to 160MB against a 150MB cap.
   const newUrl = 'https://media.example.com/new.mp4';
   fs.lstat.mockResolvedValue([
-    { path: oldPath, size: 30 * MB, lastModified: 1000 },
-    { path: '/cache/video-cache/vid_new.mp4', size: 30 * MB, lastModified: 2000 },
+    { path: oldPath, size: 80 * MB, lastModified: 1000 },
+    { path: '/cache/video-cache/vid_new.mp4', size: 80 * MB, lastModified: 2000 },
   ]);
 
   await prefetchVideo(newUrl);

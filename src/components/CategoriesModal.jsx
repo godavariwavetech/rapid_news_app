@@ -300,6 +300,33 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
             {/* SECTION: categories */}
             <View style={styles.bentoGrid} onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y}>
+                {/* Viral News — special pseudo-category (id 'viral'), not from the
+                    backend /categories list. Routed to the news/viral endpoint in
+                    the fetchNews thunk (see redux/reducers/news.js). That endpoint
+                    is live on the dev backend but not yet deployed to production
+                    (api.rapidnewsnetwork.in/news/viral still 404s as of writing). */}
+                <TouchableOpacity
+                    key="viral"
+                    activeOpacity={0.9}
+                    style={[styles.bentoCardWrapper, { width: '100%' }]}
+                    onPress={() => handleSelection('viral')}
+                >
+                    <LinearGradient
+                        colors={['#FF416C', '#FF4B2B']}
+                        start={{x: 0, y: 0}}
+                        end={{x: 1, y: 1}}
+                        style={[styles.bentoCard, styles.bentoCardHorizontal, { height: 90 }]}
+                    >
+                        <View style={styles.bentoIconFloating}>
+                            <Icon name="fire" size={26} color="rgba(255,255,255,0.9)" />
+                        </View>
+                        <View style={[styles.bentoTextContainer, styles.bentoTextContainerHorizontal]}>
+                            <Text style={styles.bentoEnLabel}>VIRAL</Text>
+                            <Text style={styles.bentoTeLabel}>Viral News</Text>
+                        </View>
+                    </LinearGradient>
+                </TouchableOpacity>
+
                 {categories.map((cat, idx) => {
                     const colors = gradientPairs[idx % gradientPairs.length];
                     const mod = idx % 6; 

@@ -3,8 +3,14 @@ import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 
 const initialState = {
-  currentLocation: null, 
-  states: [], 
+  currentLocation: null,
+  // True once the user has explicitly picked a location via the location picker.
+  // Gates resolveLocation.fulfilled below so GPS-based auto-detection (run on every
+  // app launch from SplashScreen, plus onboarding screens) never silently overwrites
+  // a manual choice — e.g. selecting Rajahmundry must not flip back to Vijayawada
+  // just because the device is physically there on the next launch.
+  isManuallySet: false,
+  states: [],
   districts: [], 
   villages: [],
   searchResults: [],
@@ -122,6 +128,7 @@ const locationSlice = createSlice({
   reducers: {
     setManualLocation: (state, action) => {
       state.currentLocation = action.payload;
+      state.isManuallySet = true;
     },
     setReporterTempToken:(state,action)=>{
       state.tempReporterToken = action.payload
@@ -136,7 +143,10 @@ const locationSlice = createSlice({
       })
       .addCase(resolveLocation.fulfilled, (state, action) => {
         state.loading = false;
-        state.currentLocation = action.payload;
+        // Never let GPS auto-detection clobber a location the user picked themselves.
+        if (!state.isManuallySet) {
+          state.currentLocation = action.payload;
+        }
       })
       .addCase(resolveLocation.rejected, (state, action) => {
         state.loading = false;

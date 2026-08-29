@@ -150,7 +150,20 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const bookmarkedIds = useMemo(() => {
     return bookmarks?.map(item => item.news?._id);
   }, [bookmarks]);
-  
+
+  // Declared here (not further below) because the preload/prefetch effects
+  // below reference currIndex in their dependency array, which is evaluated
+  // immediately when useEffect() is called — referencing it before this
+  // declaration ran threw "Cannot access 'currIndex' before initialization".
+  const [currIndex, setCurrIndex] = useState(0);
+  // Same reason: formattedNews (a useMemo, whose factory runs synchronously
+  // during render, unlike useEffect) reads nowTick — it must exist first.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     scrollToTop: () => {
@@ -313,24 +326,31 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     // News videos live on item.videos[]; ad videos on item.video. YouTube links are
     // skipped inside prefetchVideo. Look a few cards ahead (and include the current
     // one so it's cached for replay-on-return).
-    formattedNews.slice(currIndex, currIndex + 6).forEach(item => {
+    //
+    // The current card's download must NOT share bandwidth with the "ahead" ones —
+    // firing all 6 in parallel (the old behavior) meant the video the user is about
+    // to watch was competing with 5 they haven't scrolled to yet, which is what
+    // made first-play loading feel slow even though playback itself was smooth
+    // once buffered. So: kick off the current item alone, and only start the ahead
+    // batch once that download has settled (or failed).
+    const prefetchItem = (item) => {
+      if (!item) return Promise.resolve();
       if (item.isAd) {
-        if (item.mediaType === 'video' && item.video) prefetchVideo(item.video);
+        if (item.mediaType === 'video' && item.video) return prefetchVideo(item.video);
       } else if (item.videos?.length) {
-        prefetchVideo(item.videos[0]);
+        return prefetchVideo(item.videos[0]);
       }
+      return Promise.resolve();
+    };
+
+    const [current, ...ahead] = formattedNews.slice(currIndex, currIndex + 6);
+    prefetchItem(current).finally(() => {
+      ahead.forEach(prefetchItem);
     });
   }, [currIndex, formattedNews]);
 
-  const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
-  // Tick every 60s so timeAgo labels stay current
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 60000);
-    return () => clearInterval(id);
-  }, []);
-  
+
   const [isSwitching, setIsSwitching] = useState(false);
   const [overrideNews, setOverrideNews] = useState(null);
   

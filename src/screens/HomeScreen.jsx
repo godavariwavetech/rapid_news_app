@@ -77,6 +77,8 @@ function HomeScreen({navigation}) {
     // Header title reflects the selected category (always, even if fetch is deduped).
     if (selectedCategory === 'all') {
       setHeaderTitle('న్యూస్');
+    } else if (selectedCategory === 'viral') {
+      setHeaderTitle('వైరల్ న్యూస్');
     } else {
       const activeCat = categories.find(c => c._id === selectedCategory);
       if (activeCat) {

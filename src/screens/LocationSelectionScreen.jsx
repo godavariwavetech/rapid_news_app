@@ -208,7 +208,7 @@ const LocationSelectionScreen = ({navigation}) => {
         <View style={styles.resultText}>
           <Text style={[styles.resultPrimary, {color: theme.text}]}>{villageName} (V)</Text>
           <Text style={[styles.resultSecondary, {color: theme.textSecondary}]}>
-            {districtName} (M), {stateName} (D) - {pincode}
+            {districtName} (D), {stateName} (S) - {pincode}
           </Text>
         </View>
         <Icon name="chevron-right" size={18} color={theme.textSecondary} />

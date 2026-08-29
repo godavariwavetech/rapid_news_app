@@ -1,5 +1,5 @@
 import {configureStore} from '@reduxjs/toolkit';
-import {persistStore, persistReducer} from 'redux-persist';
+import {persistStore, persistReducer, createMigrate} from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {combineReducers} from 'redux';
 
@@ -27,10 +27,35 @@ const rootReducer = combineReducers({
   exams: examsReducer
 });
 
+// v1: `location.isManuallySet` didn't exist before this migration. Devices that
+// already had a `currentLocation` persisted from an older build rehydrate that
+// flag as `false` (the initial-state default), which made GPS auto-detection on
+// every splash launch silently keep overwriting a location the user had already
+// settled on. Since any pre-existing currentLocation predates the "auto vs
+// manual" distinction, treat it as sticky so it isn't clobbered by the next
+// GPS resolve — the user can still change it explicitly at any time via
+// LocationSelectionScreen, which always sets this flag itself.
+const migrations = {
+  1: (state: any) => {
+    if (state?.location?.currentLocation && !state.location.isManuallySet) {
+      return {
+        ...state,
+        location: {
+          ...state.location,
+          isManuallySet: true,
+        },
+      };
+    }
+    return state;
+  },
+};
+
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
   whitelist: ['auth', 'settings', 'location'],
+  version: 1,
+  migrate: createMigrate(migrations, {debug: false}),
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

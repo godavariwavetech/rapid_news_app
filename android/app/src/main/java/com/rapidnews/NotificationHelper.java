@@ -34,6 +34,39 @@ public class NotificationHelper {
             new java.util.concurrent.atomic.AtomicInteger((int) (System.currentTimeMillis() & 0x7FFFFFFF));
     private static final long[] VIBRATION_PATTERN = new long[]{0, 250, 250, 250};
 
+    // Every push gets its own unique id/group (see GROUP_KEY_PREFIX above) so Android
+    // never auto-collapses them — but that also means nothing ever cancels old ones,
+    // so they pile up in the shade forever. We persist the ids we've posted (oldest
+    // first) in SharedPreferences (survives the FCM service's process being killed
+    // between pushes) and cancel the oldest ones once more than MAX_VISIBLE are active,
+    // keeping only the latest 5 notifications visible.
+    private static final String HISTORY_PREFS = "notification_history";
+    private static final String HISTORY_KEY_IDS = "posted_ids";
+    private static final String HISTORY_DELIMITER = ",";
+    private static final int MAX_VISIBLE = 5;
+
+    private static void trackAndTrimHistory(Context context, NotificationManager manager, int newNotificationId) {
+        android.content.SharedPreferences prefs =
+                context.getSharedPreferences(HISTORY_PREFS, Context.MODE_PRIVATE);
+        String stored = prefs.getString(HISTORY_KEY_IDS, "");
+
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        if (!stored.isEmpty()) {
+            java.util.Collections.addAll(ids, stored.split(HISTORY_DELIMITER));
+        }
+        ids.add(String.valueOf(newNotificationId));
+
+        while (ids.size() > MAX_VISIBLE) {
+            String oldestId = ids.remove(0);
+            try {
+                manager.cancel(Integer.parseInt(oldestId));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        prefs.edit().putString(HISTORY_KEY_IDS, android.text.TextUtils.join(HISTORY_DELIMITER, ids)).apply();
+    }
+
     // Back-compat overload (e.g. CustomNewsModule's JS bridge): no separate
     // title/body, so the lockscreen fallback fields stay empty.
     public static void showCustomNotification(Context context, String htmlText, String newsId) {
@@ -140,5 +173,6 @@ public class NotificationHelper {
                 .setAutoCancel(true);
 
         manager.notify(notificationId, builder.build());
+        trackAndTrimHistory(context, manager, notificationId);
     }
 }
