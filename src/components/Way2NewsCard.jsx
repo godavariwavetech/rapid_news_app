@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, Image, StyleSheet, Dimensions, Modal, Linking, Alert,
-  ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState,
+  ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState, PanResponder,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import { FlatList } from 'react-native-gesture-handler';
@@ -82,6 +82,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [activeSlide, setActiveSlide] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [generatedThumbnail, setGeneratedThumbnail] = useState(null);
+  const [videoDurationSec, setVideoDurationSec] = useState(0);
+  const [videoCurrentTimeSec, setVideoCurrentTimeSec] = useState(0);
+  const [seekBarWidth, setSeekBarWidth] = useState(0);
+  const wasPlayingBeforeScrub = useRef(false);
 
   useImperativeHandle(ref, () => ({
     play: () => { setIsVideoPaused(false); isManuallyPaused.current = false; setHasActivatedVideo(true); },
@@ -107,7 +111,14 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     if (hasVideos && !youtubeId) return {
       // Use the locally-prefetched file if ready (instant, no buffering); else stream.
       uri: getCachedVideo(videoUrls[0]) || videoUrls[0],
-      bufferConfig: { minBufferMs: 15000, maxBufferMs: 50000, bufferForPlaybackMs: 2500, bufferForPlaybackAfterRebufferMs: 5000, cacheSizeMB: 50 },
+      // bufferForPlaybackAfterRebufferMs was 5000 — every drag-seek on the red
+      // seek bar counts as a rebuffer, so playback sat frozen for a full 5s
+      // after every scrub. Also tightened minBufferMs/maxBufferMs/
+      // bufferForPlaybackMs (were 15000/50000/2500) — ExoPlayer was targeting
+      // a huge buffer window before calling itself "ready" post-seek, which
+      // adds to the stall on top of bufferForPlaybackAfterRebufferMs. These
+      // still leave enough cushion for smooth normal playback.
+      bufferConfig: { minBufferMs: 8000, maxBufferMs: 25000, bufferForPlaybackMs: 1000, bufferForPlaybackAfterRebufferMs: 1000, cacheSizeMB: 50 },
     };
     return null;
     // hasActivatedVideo is a dep on purpose: the player only mounts once it flips
@@ -191,6 +202,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   useEffect(() => {
     isManuallyPaused.current = true; setIsVideoPaused(true); setIsBuffering(false); setShowControls(false); setVideoReady(false);
     setHasActivatedVideo(false); // new card → back to thumbnail-only until the user taps play
+    setVideoDurationSec(0); setVideoCurrentTimeSec(0);
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     const t = setTimeout(() => setVideoReady(true), 4000);
     return () => clearTimeout(t);
@@ -227,10 +239,49 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const mediaHeight = IMAGE_HEIGHT;
 
   const onVideoReady = useCallback(() => { playerRef.current?.seekTo(0, true); setIsBuffering(false); setVideoReady(true); }, []);
-  const onVideoLoad = useCallback(() => {
+  const onVideoLoad = useCallback((data) => {
     setVideoReady(true);
     setIsBuffering(false);
+    if (data?.duration) setVideoDurationSec(data.duration);
   }, []);
+
+  // Dragging the red duration line under the mute/fullscreen row: while
+  // scrubbing we only move the fill visually and pause playback, then seek
+  // the real player once the finger lifts (seeking every pixel is what
+  // makes native scrubbers stutter). Before the video has ever been played
+  // there's nothing to seek yet, so a drag there just starts playback.
+  const scrubVideoToLocationX = (x) => {
+    if (!seekBarWidth || !videoDurationSec) return;
+    const clampedX = Math.max(0, Math.min(seekBarWidth, x));
+    setVideoCurrentTimeSec((clampedX / seekBarWidth) * videoDurationSec);
+  };
+
+  // Recreated every render (not memoized in a ref) so its callbacks always
+  // close over the current seekBarWidth/videoDurationSec/isVideoPaused — a
+  // useRef-memoized PanResponder would freeze those at their first-render
+  // values and the drag would never move anything.
+  const seekPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderGrant: (evt) => {
+      if (!hasActivatedVideo) setHasActivatedVideo(true);
+      wasPlayingBeforeScrub.current = !isVideoPaused;
+      setIsVideoPaused(true);
+      scrubVideoToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderMove: (evt) => {
+      scrubVideoToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderRelease: (evt) => {
+      const clampedX = Math.max(0, Math.min(seekBarWidth, evt.nativeEvent.locationX));
+      const target = seekBarWidth && videoDurationSec ? (clampedX / seekBarWidth) * videoDurationSec : videoCurrentTimeSec;
+      setVideoCurrentTimeSec(target);
+      videoRef.current?.seek(target);
+      if (wasPlayingBeforeScrub.current) { setIsVideoPaused(false); isManuallyPaused.current = false; }
+    },
+  });
   const onPlayerError = useCallback(() => { setIsBuffering(false); }, []);
 
   const onYoutubeStateChange = useCallback((state) => {
@@ -427,6 +478,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     <Video
                       key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
                       playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
+                      onProgress={(data) => setVideoCurrentTimeSec(data.currentTime)}
                     />
                   )
                 )}
@@ -473,6 +525,30 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setIsVideoFullScreen(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.videoControlBtn}>
                       <Icon name="fullscreen" size={22} color="#FFFFFF" />
                     </TouchableOpacity>
+                  </View>
+                )}
+                {/* Red duration/seek line pinned to the very bottom edge of the
+                    video. Shown as soon as the video has ever been played (not
+                    just while actively rolling) so the duration stays visible
+                    even if the user pauses again. Drag anywhere on it to scrub
+                    backward/forward. */}
+                {isActive && !isBottomHalf && !youtubeId && hasActivatedVideo && (
+                  <View
+                    style={styles.videoSeekBarHitArea}
+                    onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width)}
+                    {...seekPanResponder.panHandlers}>
+                    <View style={styles.videoSeekBarTrack}>
+                      <View
+                        style={[
+                          styles.videoSeekBarFill,
+                          {
+                            width: videoDurationSec
+                              ? `${Math.min(100, (videoCurrentTimeSec / videoDurationSec) * 100)}%`
+                              : 0,
+                          },
+                        ]}
+                      />
+                    </View>
                   </View>
                 )}
               </View>
@@ -697,8 +773,13 @@ const styles = StyleSheet.create({
   loaderOverlay: { position: 'absolute', top: '25%', left: '25%', right: '25%', bottom: '25%', zIndex: 10, justifyContent: 'center', alignItems: 'center' },
   videoTouchOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 100, elevation: 20, justifyContent: 'center', alignItems: 'center' },
   playPauseIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  videoControls: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8 },
+  // bottom raised from 12 to 26 (was overlapping the new seek bar's hit area
+  // pinned at the very bottom edge — see videoSeekBarHitArea below).
+  videoControls: { position: 'absolute', bottom: 26, right: 12, flexDirection: 'row', gap: 8 },
   videoControlBtn: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  videoSeekBarHitArea: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 16, justifyContent: 'flex-end' },
+  videoSeekBarTrack: { width: '100%', height: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
+  videoSeekBarFill: { height: 3, backgroundColor: '#FF0000' },
 });
 
 export default Way2NewsCard;

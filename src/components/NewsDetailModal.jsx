@@ -8,6 +8,7 @@ import {
   Image,
   Modal,
   Dimensions,
+  PanResponder,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Video from 'react-native-video';
@@ -26,7 +27,12 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   const [videoActivated, setVideoActivated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [thumbnail, setThumbnail] = useState(newsItem.thumbnail);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [seekBarWidth, setSeekBarWidth] = useState(0);
   const imageScrollRef = useRef(null);
+  const videoRef = useRef(null);
+  const wasPlayingBeforeScrub = useRef(false);
 
   const hasVideo = newsItem.videos && newsItem.videos.length > 0;
   const videoUri = hasVideo ? newsItem.videos[0] : null;
@@ -50,8 +56,55 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   const handleClose = () => {
     setVideoPaused(true);
     setActiveIndex(0);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
     onClose();
   };
+
+  const formatPlaybackTime = (seconds) => {
+    if (!seconds || !isFinite(seconds) || seconds < 0) seconds = 0;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // Dragging the red duration line: while scrubbing we only move the fill
+  // visually (setVideoCurrentTime) and pause playback, then seek the actual
+  // player once the finger lifts — seeking on every pixel of movement is
+  // what makes native scrubbers stutter. Before the video is activated there
+  // is nothing to seek yet, so a drag there just starts playback instead.
+  const scrubToLocationX = (x) => {
+    if (!seekBarWidth || !videoDuration) return;
+    const clampedX = Math.max(0, Math.min(seekBarWidth, x));
+    setVideoCurrentTime((clampedX / seekBarWidth) * videoDuration);
+  };
+
+  // Recreated every render (not memoized in a ref) so its callbacks always
+  // close over the current seekBarWidth/videoDuration/videoPaused — a
+  // useRef-memoized PanResponder would freeze those at their first-render
+  // values (seekBarWidth stuck at 0) and the drag would never move anything.
+  const seekPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderGrant: (evt) => {
+      if (!videoActivated) setVideoActivated(true);
+      wasPlayingBeforeScrub.current = !videoPaused;
+      setVideoPaused(true);
+      scrubToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderMove: (evt) => {
+      scrubToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderRelease: (evt) => {
+      const clampedX = Math.max(0, Math.min(seekBarWidth, evt.nativeEvent.locationX));
+      const target = seekBarWidth && videoDuration ? (clampedX / seekBarWidth) * videoDuration : videoCurrentTime;
+      setVideoCurrentTime(target);
+      videoRef.current?.seek(target);
+      if (wasPlayingBeforeScrub.current) setVideoPaused(false);
+    },
+  });
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -104,35 +157,66 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
             {/* Media: video takes priority, then image pager */}
             <View style={styles.mediaContainer}>
               {hasVideo ? (
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.videoWrapper}
-                  onPress={() => {
-                    if (!videoActivated) setVideoActivated(true);
-                    setVideoPaused(p => !p);
-                  }}>
-                  {videoActivated ? (
-                    <Video
-                      source={{ uri: videoUri }}
-                      style={styles.fullMedia}
-                      resizeMode="cover"
-                      paused={videoPaused}
-                      repeat={false}
-                      onEnd={() => setVideoPaused(true)}
-                    />
-                  ) : thumbnail ? (
-                    <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.fullMedia, styles.placeholderImage]}>
-                      <Icon name="video" size={40} color="#C2C2C2" />
+                <>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.videoWrapper}
+                    onPress={() => {
+                      if (!videoActivated) setVideoActivated(true);
+                      setVideoPaused(p => !p);
+                    }}>
+                    {videoActivated ? (
+                      <Video
+                        ref={videoRef}
+                        source={{ uri: videoUri }}
+                        style={styles.fullMedia}
+                        resizeMode="cover"
+                        paused={videoPaused}
+                        repeat={false}
+                        onEnd={() => setVideoPaused(true)}
+                        onLoad={(data) => setVideoDuration(data.duration)}
+                        onProgress={(data) => setVideoCurrentTime(data.currentTime)}
+                      />
+                    ) : thumbnail ? (
+                      <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.fullMedia, styles.placeholderImage]}>
+                        <Icon name="video" size={40} color="#C2C2C2" />
+                      </View>
+                    )}
+                    {videoPaused && (
+                      <View style={styles.playOverlay}>
+                        <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {/* Red duration/seek line, directly under the video (matches the
+                      reference: not overlaid on the picture). Shown immediately —
+                      even before the video has been played — so the duration is
+                      visible on screen right away. Reads 00:00/--:-- until the
+                      player actually mounts and reports its real length; dragging
+                      before that point just starts playback. */}
+                  <View
+                    style={styles.seekBarHitArea}
+                    onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width)}
+                    {...seekPanResponder.panHandlers}>
+                    <View style={styles.seekBarTrack}>
+                      <View
+                        style={[
+                          styles.seekBarFill,
+                          {
+                            width: videoDuration
+                              ? `${Math.min(100, (videoCurrentTime / videoDuration) * 100)}%`
+                              : 0,
+                          },
+                        ]}
+                      />
                     </View>
-                  )}
-                  {videoPaused && (
-                    <View style={styles.playOverlay}>
-                      <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
-                    </View>
-                  )}
-                </TouchableOpacity>
+                    <Text style={styles.durationText}>
+                      {formatPlaybackTime(videoCurrentTime)} / {videoDuration ? formatPlaybackTime(videoDuration) : '--:--'}
+                    </Text>
+                  </View>
+                </>
               ) : allImages.length > 0 ? (
                 <>
                   <ScrollView
@@ -234,7 +318,6 @@ const styles = StyleSheet.create({
   },
   mediaContainer: {
     width: '100%',
-    height: 250,
     backgroundColor: '#000',
   },
   imagePager: {
@@ -243,13 +326,37 @@ const styles = StyleSheet.create({
   },
   videoWrapper: {
     width: '100%',
-    height: '100%',
+    height: 250,
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  seekBarHitArea: {
+    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#000',
+  },
+  seekBarTrack: {
+    width: '100%',
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  seekBarFill: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#FF0000',
+  },
+  durationText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
   fullMedia: {
     width,

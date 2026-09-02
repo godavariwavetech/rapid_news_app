@@ -76,7 +76,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
 
     setIsSubmitting(false);
 
-    if (response?.payload?.news_id) {
+    if (response?.meta?.requestStatus === 'fulfilled') {
       Alert.alert(
         'Success', 
         `Your news has been ${isEditing ? 'updated' : 'submitted'} successfully!`, 
