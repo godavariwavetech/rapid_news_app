@@ -6,7 +6,7 @@
  */
 // Built inside the factory: imports are hoisted above const declarations, so the
 // factory runs before any outer variable exists.
-jest.mock('rn-fetch-blob', () => {
+jest.mock('react-native-blob-util', () => {
   const fetch = jest.fn();
   return {
     fs: {
@@ -21,7 +21,7 @@ jest.mock('rn-fetch-blob', () => {
   };
 });
 
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 
 const fs = RNFetchBlob.fs;
 const fetchMock = RNFetchBlob.__fetch;

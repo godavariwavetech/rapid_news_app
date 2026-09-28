@@ -8,6 +8,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
+    <!-- Android 11+ (API 30+) package visibility: without this, PackageManager
+         can't see whether WhatsApp is installed, so react-native-share's
+         shareSingle(WHATSAPP) silently treats it as "not installed" and
+         redirects to the Play Store listing instead of opening WhatsApp,
+         even when it's actually on the device. -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+    </queries>
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -61,6 +71,18 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        
+        <intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+
+    <data
+        android:scheme="https"
+        android:host="www.rapidnewsnetwork.in"
+        android:pathPrefix="/app" />
+</intent-filter>
 
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />

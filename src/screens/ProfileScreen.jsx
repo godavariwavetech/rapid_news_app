@@ -136,7 +136,7 @@ const ProfileScreen = ({navigation}) => {
           { ( user?.profile_image||reporter?.profile_image)? <Image source={{uri:user?.profile_image||reporter?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color={isDarkMode ? '#555' : '#CCC'} />}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || reporter?.reporter_profile?.username || "Guest"}</Text>
+            <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || reporter?.reporter_profile?.full_name || reporter?.reporter_profile?.username || "Guest"}</Text>
              <Text style={[styles.profileLink, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>{user?.email|| reporter?.email||"Click here to select email id"}</Text>
           </View>
         </TouchableOpacity>
@@ -189,14 +189,16 @@ const ProfileScreen = ({navigation}) => {
                     onPress={() => handleCategoryPress(cat._id)}
                     activeOpacity={0.7}>
                     <View style={[styles.categoryIconBg, { backgroundColor: isDarkMode ? '#222' : '#F0F0F0' }, isSelected && {backgroundColor: isDarkMode ? `${iconColor}50` : `${iconColor}30`}]}>
-                      {categoryIcon && categoryIcon.startsWith('http') ? (
+                      {/* Vector icon renders instantly and stays underneath; the
+                          remote icon overlays on top once it's loaded, so the
+                          circle is never blank while the image downloads. */}
+                      <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
+                      {categoryIcon && categoryIcon.startsWith('http') && (
                         <FastImage
                           source={{ uri: categoryIcon }}
-                          style={{ width: 30, height: 30 }}
+                          style={styles.categoryIconImg}
                           resizeMode={FastImage.resizeMode.contain}
                         />
-                      ) : (
-                        <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
                       )}
                     </View>
                     <Text style={[styles.categoryLabel, { color: theme.textSecondary }, isSelected && {color: iconColor, fontWeight: '700'}]}>
@@ -324,6 +326,7 @@ const styles = StyleSheet.create({
   categoriesScroll: { paddingHorizontal: 16, gap: 12 },
   categoryCard: { alignItems: 'center', width: 66 },
   categoryIconBg: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  categoryIconImg: { position: 'absolute', top: 13, left: 13, width: 30, height: 30 },
   categoryLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
   
   menuSection: { paddingHorizontal: 16, marginTop: 10 },

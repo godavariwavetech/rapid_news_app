@@ -4,7 +4,7 @@
  * devices can load — so it must PUT the bytes and return the URL *without* the
  * presign query string, and must return null (never the local uri) when it can't.
  */
-jest.mock('rn-fetch-blob', () => ({ fetch: jest.fn(), wrap: jest.fn(p => p) }));
+jest.mock('react-native-blob-util', () => ({ fetch: jest.fn(), wrap: jest.fn(p => p) }));
 jest.mock('axios', () => ({ put: jest.fn() }));
 jest.mock('../src/utils/api', () => ({ post: jest.fn() }));
 

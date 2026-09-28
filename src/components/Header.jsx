@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchUnreadNewsCount } from '../redux/reducers/news';
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { fonts, chromeInk, brandGold } from '../config/theme';
+import { fonts, chromeInk } from '../config/theme';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -80,10 +80,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 44 : 8,
     paddingBottom: 12,
-    // Opaque, not a veil — the masthead is a frame around the photo, not a tint on it.
-    backgroundColor: chromeInk,
-    borderBottomWidth: 2,
-    borderBottomColor: brandGold,
+    backgroundColor: 'rgba(11,11,13,0.55)',
   },
   iconButton: {
     width: 34,

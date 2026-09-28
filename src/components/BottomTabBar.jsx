@@ -3,9 +3,10 @@ import {View, Text, TouchableOpacity, StyleSheet, Dimensions} from 'react-native
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { fonts, chromeInk, brandGold } from '../config/theme';
+import { fonts } from '../config/theme';
 
 const INACTIVE = '#8B8B93';
+const ACTIVE = '#FFFFFF';
 
 // Ramabhadra draws both "..." and U+2026 down on the descender, so any tail
 // ellipsis on an overflowing label reads as underscores ("Rajamahendra___").
@@ -46,10 +47,18 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
     //   icon: 'fire',
     //   label: 'ట్రెండ్ల్',
     // },
+    // Reload removed (Requirement 22) - it duplicated the News tab's own
+    // reset-and-refetch, and pull-to-refresh (FlipNewsScreen's swipe-down
+    // gesture) already covers a manual refresh without a dedicated tab.
+    // Create (Requirement 21) - was previously reachable only by opening the
+    // Categories bottom-sheet and finding it in that sidebar. Same
+    // navigation target as that menu item (CategoriesModal's
+    // handleReporterNavigation) - HomeScreen.jsx's handleTabPress just
+    // navigates straight there instead of opening a modal first.
     {
-      id: 'ReloadTab',
-      icon: 'reload',
-      label: 'రిలోడ్',
+      id: 'CreateTab',
+      icon: 'plus-circle',
+      label: 'క్రియేట్',
     },
   ];
 
@@ -67,7 +76,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
               <Icon
                 name={tab.icon}
                 size={IS_WIDE_SCREEN ? 16 : 22}
-                color={isActive ? brandGold : INACTIVE}
+                color={isActive ? ACTIVE : INACTIVE}
               />
             </View>
             <Text
@@ -76,7 +85,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
                allowFontScaling={false}
               style={[
                 styles.tabLabel,
-                { color: isActive ? brandGold : INACTIVE },
+                { color: isActive ? ACTIVE : INACTIVE },
               ]}>
               {tab.label}
             </Text>
@@ -97,7 +106,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     // Same ink as the header — the two bars frame the feed as one system.
-    backgroundColor: chromeInk,
+    backgroundColor: 'rgba(11,11,13,0.95)',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255, 255, 255, 0.10)',
     elevation: 20,
@@ -122,7 +131,7 @@ const styles = StyleSheet.create({
     marginBottom: IS_WIDE_SCREEN ? 1 : 4,
   },
   iconContainerActive: {
-    backgroundColor: 'rgba(240, 169, 43, 0.16)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
   tabLabel: {
     fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 1.3 : 1.7),

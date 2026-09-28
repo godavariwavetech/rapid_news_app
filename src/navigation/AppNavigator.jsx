@@ -211,8 +211,17 @@ function AppNavigator() {
     };
   }, [dispatch, navigationRef]);
 
+  const linking = {
+  prefixes: ['https://www.rapidnewsnetwork.in'],
+
+  config: {
+    screens: {
+      NewsDetail: 'app/article/:articleId',
+    },
+  },
+};
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

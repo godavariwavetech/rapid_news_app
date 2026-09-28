@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -12,28 +12,47 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {useSelector} from 'react-redux';
+import {useSelector, useDispatch} from 'react-redux';
 import {lightTheme, darkTheme} from '../utils/colors';
 import RNShare from 'react-native-share';
 import ViewShot, {captureRef} from 'react-native-view-shot';
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
+import {fetchArticleById} from '../redux/reducers/news';
 
 const {width} = Dimensions.get('window');
 
 const NewsDetailScreen = ({route, navigation}) => {
-  const {news: passedNews, newsId} = route.params || {};
+
+  const {news: passedNews, newsId, articleId} = route.params || {};
+  const deepLinkNewsId = articleId || newsId;
+
+  const dispatch = useDispatch();
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
-  const loading = useSelector(state => state.news.loading);
 
   const reduxNews = useSelector(state => {
-    if (!newsId) return null;
+    if (!deepLinkNewsId) return null;
     const articles = state.news.articles;
     const items = Array.isArray(articles) ? articles : articles.items || [];
-    return items.find(item => (item.data ? item.data._id : item._id) === newsId);
+    return items.find(item => (item.data ? item.data._id : item._id) === deepLinkNewsId);
   });
 
-  const rawNews = passedNews || reduxNews;
+  // Not passed via navigation param and not already in the loaded feed —
+  // this is a deep link opened cold, so the article has to be fetched directly.
+  const [fetchedNews, setFetchedNews] = useState(null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  useEffect(() => {
+    if (passedNews || reduxNews || !deepLinkNewsId) return;
+    setIsFetching(true);
+    dispatch(fetchArticleById(deepLinkNewsId))
+      .unwrap()
+      .then(article => setFetchedNews(article))
+      .catch(() => {})
+      .finally(() => setIsFetching(false));
+  }, [deepLinkNewsId, passedNews, reduxNews, dispatch]);
+
+  const rawNews = passedNews || reduxNews || fetchedNews;
   const news = rawNews?.data || rawNews;
 
   const [sharing, setSharing] = useState(false);
@@ -79,7 +98,7 @@ const NewsDetailScreen = ({route, navigation}) => {
     }
   };
 
-  if (loading && !news) {
+  if (isFetching && !news) {
     return (
       <View style={[styles.container, {backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center'}]}>
         <Text style={{color: theme.text}}>Loading...</Text>

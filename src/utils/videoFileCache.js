@@ -20,7 +20,7 @@
  * LRU capped at MAX_CACHE_BYTES, trimmed after each completed download (i.e. off
  * the first-paint path, never during startup).
  */
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 import { Platform } from 'react-native';
 
 const { fs } = RNFetchBlob;

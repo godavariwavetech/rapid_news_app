@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getUniqueId } from 'react-native-device-info';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 
@@ -101,8 +102,7 @@ export const fetchNews = createAsyncThunk(
     // Location feed must use the user's REAL village — never the hardcoded
     // fallback (that would flash a wrong village before location resolves).
     // Skip until currentLocation is resolved; HomeScreen refetches on change.
-    // Viral News (below) is location-independent, so it's exempt from this gate.
-    if (isLocationMode && category !== 'viral' && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
+    if (isLocationMode && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
       return rejectWithValue('LOCATION_NOT_READY');
     }
 
@@ -111,31 +111,6 @@ export const fetchNews = createAsyncThunk(
       const deviceId = await getUniqueId();
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
-
-      // Viral News: a separate, location-independent endpoint (no village/
-      // district/state/category_id — just lang + paging). Its response is
-      // flatter than the normal feed (news objects directly, no {type, data}
-      // envelope, and no reactions/comments/views yet) but that shape already
-      // works with FlipNewsScreen's `item.data || item` fallback, so it's
-      // normalized here into the same {items, pagination} envelope the
-      // fulfilled reducer below expects and returned early.
-      if (category === 'viral') {
-        const limit = 10;
-        const config = { params: { lang: 'te', page, limit }, timeout: FEED_TIMEOUT_MS };
-        if (!hasToken) {
-          config.headers = { 'x-device-id': deviceId };
-          config.skipAuth = true;
-        }
-        const response = await api.get(endpoints.GET_VIRAL_NEWS, config);
-        const { items = [], total = 0 } = response.data || {};
-        const data = {
-          items,
-          // Only claim another page exists while there's actually more to
-          // fetch — this endpoint reports `total`, not a pagination block.
-          pagination: (page * limit < total) ? { total_news: total } : undefined,
-        };
-        return { data, page, current_day_offset, isLocationMode: false };
-      }
 
       // Prepare base parameters
       const queryParams = {
@@ -164,8 +139,68 @@ export const fetchNews = createAsyncThunk(
       }
 
       const response = await api.get(endpoints.GET_NEWS_FEED, config);
+      console.log('[fetchNews] news feed response:', response.data);
 
       return { data: response.data, page, current_day_offset, isLocationMode };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Viral Posts rail — location-independent, scoped to post_type VIRAL_POST
+// only (unlike GET /magazines/viral, which also mixes in organically-viral
+// magazines). Deliberately has NO extraReducers case: unlike fetchNews, this
+// must never touch state.articles — HomeScreen shows the result as a
+// temporary overlay on top of whatever feed/scroll position the reader was
+// already on, and restores it exactly when they back out (see
+// FlipNewsScreen's overrideItems prop), which a shared-state fetch would
+// clobber.
+export const fetchViralPostsRail = createAsyncThunk(
+  'news/fetchViralPostsRail',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(endpoints.GET_VIRAL_POSTS_RAIL, { params: { lang: 'te', limit: 10 } });
+      const items = response.data?.data?.items || [];
+      // Wrapped the same way the backend wraps an inline VIRAL_POST feed
+      // item, matching what FlipNewsScreen's formattedNews mapping expects.
+      return items.map((post) => ({ type: 'VIRAL_POST', data: post }));
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Hashtag browse (Requirement 16) — every APPROVED article carrying an exact
+// tag, location-independent like the viral rail above. Same reasons as
+// fetchViralPostsRail for having no extraReducers case: HomeScreen shows the
+// result as a temporary overlay, never state.articles, so backing out
+// restores the reader's exact card instead of losing their place.
+export const fetchNewsByTag = createAsyncThunk(
+  'news/fetchNewsByTag',
+  async (tag, { rejectWithValue }) => {
+    try {
+      const response = await api.get(endpoints.GET_NEWS_BY_TAG, { params: { tag, lang: 'te', limit: 20 } });
+      const items = response.data?.items || [];
+      // Bare news objects, same flat shape GET /news/viral used to return —
+      // FlipNewsScreen's formattedNews mapping already falls back to
+      // `item.data || item`, so these don't need a {type, data} wrapper.
+      return items;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Standalone thunk (no extraReducers) — same reasoning as fetchNewsByTag:
+// SearchScreen keeps its own local result state so results never touch
+// state.articles, the main feed.
+export const searchNews = createAsyncThunk(
+  'news/searchNews',
+  async (q, { rejectWithValue }) => {
+    try {
+      const response = await api.get(endpoints.SEARCH_NEWS, { params: { q, lang: 'te', limit: 20 } });
+      return response.data?.items || [];
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -197,6 +232,16 @@ export const getCategories = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.CATEGORY);
+      const list = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+      // Warm FastImage's cache as soon as the category list arrives, so screens
+      // that render these icons later (Profile, CategoriesModal) don't each
+      // trigger their own slow first-load of the same URLs.
+      const iconUrls = list
+        .map(cat => cat.icon)
+        .filter(icon => typeof icon === 'string' && icon.startsWith('http'));
+      if (iconUrls.length) {
+        FastImage.preload(iconUrls.map(uri => ({ uri })));
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

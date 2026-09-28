@@ -270,12 +270,12 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
             
             {/* SECTION: news */}
             <View onLayout={(e) => sectionRefs.current['news'] = e.nativeEvent.layout.y} style={styles.section}>
-              {/* <View style={styles.searchRow}>
+              <View style={styles.searchRow}>
                 <TouchableOpacity style={[styles.premiumSearch, { backgroundColor: isDarkMode ? '#222' : '#F1F3F5' }]} onPress={handleSearchNavigation} activeOpacity={0.9}>
                   <Icon name="magnify" size={22} color={isDarkMode ? '#888' : '#666'} />
                   <Text style={[styles.searchPlaceholder, { color: isDarkMode ? '#666' : '#868E96' }]}>Discover anything...</Text>
                 </TouchableOpacity>
-              </View> */}
+              </View>
 
               <TouchableOpacity style={styles.bentoMainCard} onPress={() => handleSelection('all')} activeOpacity={0.9}>
                 <LinearGradient
@@ -300,33 +300,6 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
 
             {/* SECTION: categories */}
             <View style={styles.bentoGrid} onLayout={(e) => sectionRefs.current['categories'] = e.nativeEvent.layout.y}>
-                {/* Viral News — special pseudo-category (id 'viral'), not from the
-                    backend /categories list. Routed to the news/viral endpoint in
-                    the fetchNews thunk (see redux/reducers/news.js). That endpoint
-                    is live on the dev backend but not yet deployed to production
-                    (api.rapidnewsnetwork.in/news/viral still 404s as of writing). */}
-                <TouchableOpacity
-                    key="viral"
-                    activeOpacity={0.9}
-                    style={[styles.bentoCardWrapper, { width: '100%' }]}
-                    onPress={() => handleSelection('viral')}
-                >
-                    <LinearGradient
-                        colors={['#FF416C', '#FF4B2B']}
-                        start={{x: 0, y: 0}}
-                        end={{x: 1, y: 1}}
-                        style={[styles.bentoCard, styles.bentoCardHorizontal, { height: 90 }]}
-                    >
-                        <View style={styles.bentoIconFloating}>
-                            <Icon name="fire" size={26} color="rgba(255,255,255,0.9)" />
-                        </View>
-                        <View style={[styles.bentoTextContainer, styles.bentoTextContainerHorizontal]}>
-                            <Text style={styles.bentoEnLabel}>VIRAL</Text>
-                            <Text style={styles.bentoTeLabel}>Viral News</Text>
-                        </View>
-                    </LinearGradient>
-                </TouchableOpacity>
-
                 {categories.map((cat, idx) => {
                     const colors = gradientPairs[idx % gradientPairs.length];
                     const mod = idx % 6; 
@@ -357,14 +330,16 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
                                 style={[styles.bentoCard, isFullWidth && styles.bentoCardHorizontal, { height: cardHeight }]}
                             >
                                 <View style={styles.bentoIconFloating}>
-                                    {cat.icon ? (
-                                        <FastImage 
-                                            source={{ uri: cat.icon }} 
+                                    {/* Vector icon renders instantly and stays underneath; the
+                                        remote icon overlays on top once it's loaded, so the
+                                        circle is never blank while the image downloads. */}
+                                    <Icon name={getCategoryIcon(cat.name?.en)} size={isFullWidth ? 26 : 30} color="rgba(255,255,255,0.9)" />
+                                    {cat.icon && (
+                                        <FastImage
+                                            source={{ uri: cat.icon }}
                                             style={styles.floatingImg}
                                             resizeMode={FastImage.resizeMode.contain}
                                         />
-                                    ) : (
-                                        <Icon name={getCategoryIcon(cat.name?.en)} size={isFullWidth ? 26 : 30} color="rgba(255,255,255,0.9)" />
                                     )}
                                 </View>
                                 <View style={[styles.bentoTextContainer, isFullWidth && styles.bentoTextContainerHorizontal]}>
@@ -477,7 +452,7 @@ const styles = StyleSheet.create({
   bentoCard: { borderRadius: 20, padding: 14, justifyContent: 'space-between', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, overflow: 'hidden' },
   bentoCardHorizontal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 16 },
   bentoIconFloating: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  floatingImg: { width: 28, height: 28 },
+  floatingImg: { position: 'absolute', top: 8, left: 8, width: 28, height: 28 },
   bentoTextContainer: { marginTop: 'auto' },
   bentoTextContainerHorizontal: { marginTop: 0, flex: 1 },
   bentoEnLabel: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },

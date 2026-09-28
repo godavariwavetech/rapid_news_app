@@ -1,8 +1,9 @@
 // export const baseURL = 'https://7wscr1mv-7777.asse.devtunnels.ms'; // dev tunnel (LOCAL TESTING — DO NOT COMMIT)
 // export const baseURL = "https://godavariwave.in:7777";
-export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
-// export const baseURL = "https://d4475p54-7778.inc1.devtunnels.ms" 
-
+// export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
+// export const baseURL = "https://d4475p54-7777.inc1.devtunnels.ms" ;
+// export const baseURL = "https://7wscr1mv-7778.asse.devtunnels.ms";
+export const baseURL = "http://192.168.0.140:7778"; // LOCAL TESTING — physical device over WiFi, host PC's LAN IP — DO NOT COMMIT
 
 export const endpoints = {
   REQUEST_LOGIN_OPT: 'OwnerLogin',
@@ -11,7 +12,9 @@ export const endpoints = {
 
   RESOLVE_LOCATION: 'location/resolve',
   GET_NEWS_FEED: 'news/feed',
-  GET_VIRAL_NEWS: 'news/viral',
+  GET_VIRAL_POSTS_RAIL: 'viral-posts/rail',
+  GET_NEWS_BY_TAG: 'news/by-tag',
+  SEARCH_NEWS: 'news/search',
   GET_TOP_STORIES: 'top-stories',
   GET_MAGAZINE_FEED: 'magazines/feed',
   GET_VIRAL_MAGAZINES: 'magazines/viral',

@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import RNShare from 'react-native-share';
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
 import { createThumbnail } from "react-native-create-thumbnail";
 
@@ -125,6 +125,59 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
     const result = await RNShare.open({ title, message, failOnCancel: false });
     return !!result?.success;
   } catch (_) {
+    return false;
+  }
+};
+
+// Opens WhatsApp directly (via shareSingle) instead of the generic share
+// sheet. useInternalStorage:true matters here — react-native-share's own
+// FileProvider paths (share_download_paths.xml) only cover the app's
+// internal cache root or the shared external Downloads folder, NOT
+// getExternalCacheDir(); without this flag ShareFile writes there anyway
+// and FileProvider.getUriForFile() throws, which surfaced as a misleading
+// "WhatsApp Not Found" alert even though WhatsApp was installed.
+export const handleWhatsAppShare = async (title, newsId, base64Data, imageUrl) => {
+  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const message = `${title}\n\n${appUrl}`;
+
+  console.log('[FileHelpers/WhatsAppShare] ▶ handleWhatsAppShare called');
+
+  try {
+    let url;
+    let downloadedPath;
+    if (base64Data) {
+      url = `data:image/jpeg;base64,${base64Data}`;
+    } else if (imageUrl && imageUrl.startsWith('http')) {
+      // shareSingle (unlike RNShare.open's own share sheet) has no remote-URL
+      // fallback of its own — without a local file it silently drops the
+      // image and only the text message goes through. Download it first, the
+      // same way the generic handleShare() above already does.
+      try {
+        downloadedPath = `${RNFetchBlob.fs.dirs.CacheDir}/whatsapp_share_${Date.now()}.jpg`;
+        await RNFetchBlob.config({ path: downloadedPath, trusty: true }).fetch('GET', imageUrl);
+        url = `file://${downloadedPath}`;
+      } catch (err) {
+        console.log('[FileHelpers/WhatsAppShare] ❌ remote image download failed:', err?.message);
+        downloadedPath = undefined;
+      }
+    } else if (imageUrl) {
+      url = imageUrl.startsWith('file://') ? imageUrl : `file://${imageUrl}`;
+    }
+
+    const result = await RNShare.shareSingle({
+      social: RNShare.Social.WHATSAPP,
+      title,
+      message,
+      useInternalStorage: true,
+      ...(url ? { url, type: 'image/jpeg' } : {}),
+    });
+    if (downloadedPath) RNFetchBlob.fs.unlink(downloadedPath).catch(() => {});
+    console.log('[FileHelpers/WhatsAppShare] ✅ WhatsApp share succeeded');
+    return !!result;
+  } catch (err) {
+    const detail = err?.message || err?.error || String(err);
+    console.log('[FileHelpers/WhatsAppShare] ❌ WhatsApp share failed:', detail);
+    Alert.alert('WhatsApp Share Failed', detail);
     return false;
   }
 };

@@ -20,7 +20,7 @@ import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick, shareNews } from '../redux/reducers/news';
 import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
-import { downloadImageToGallery, handleShare, generateVideoThumbnail } from '../utils/FileHelpers';
+import { downloadImageToGallery, handleShare, handleWhatsAppShare, generateVideoThumbnail } from '../utils/FileHelpers';
 import { getCachedVideo } from '../utils/videoFileCache';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
@@ -50,7 +50,7 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false }, ref) => {
+const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag }, ref) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { bookmarkIds } = useSelector(state => state.bookmarks);
@@ -86,6 +86,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [videoCurrentTimeSec, setVideoCurrentTimeSec] = useState(0);
   const [seekBarWidth, setSeekBarWidth] = useState(0);
   const wasPlayingBeforeScrub = useRef(false);
+  const fullScreenVideoRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     play: () => { setIsVideoPaused(false); isManuallyPaused.current = false; setHasActivatedVideo(true); },
@@ -305,7 +306,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const displayBody = news.body || news.description || news.content?.te?.body || news.content?.body || '';
 
   // --- VIEW SHOT SHARE FUNCTION (BASE64) ---
-  const handleShareNews = async () => {
+  const handleShareNews = async (target = 'generic') => {
     let activeThumbnail = generatedThumbnail;
 
     // If sharing from the bottom half, the thumbnail won't be pre-generated. Generate it on-demand.
@@ -341,7 +342,8 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
       const base64Data = await viewShotRef.current.capture();
       console.log('[Share] ViewShot captured, base64 length:', base64Data?.length);
 
-      const shared = await handleShare(displayTitle, articleId, base64Data, imageUrl);
+      const shareFn = target === 'whatsapp' ? handleWhatsAppShare : handleShare;
+      const shared = await shareFn(displayTitle, articleId, base64Data, imageUrl);
       console.log('[Share] ✅ ViewShot share completed | counted:', shared);
       // Only record a share once the user actually completed it (not on cancel).
       if (shared && articleId) dispatch(shareNews(articleId));
@@ -476,7 +478,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     />
                   ) : (
                     <Video
-                      key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0}
+                      key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused || isVideoFullScreen} muted={isMuted} volume={1.0}
                       playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
                       onProgress={(data) => setVideoCurrentTimeSec(data.currentTime)}
                     />
@@ -622,16 +624,70 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
               </Text>
             </View>
 
-            {/* Tags are editorial/search metadata only — never rendered in the
-                feed. They still ride along on news.tags for search + the
-                dashboard. */}
+            {/* Requirement 16: tags are now tappable "#tag" chips - tapping
+                one opens every other APPROVED article carrying that exact
+                tag (see HomeScreen's openTagOverlay), the same overlay
+                mechanism the viral posts rail already uses.
+                Rendered whenever news.tags has content, regardless of
+                onPressTag - the flip animation's transitional "back face"
+                halves (FlipNewsScreen's nextBackStyle/prevBackStyle) mount
+                a separate instance of this card, and any one of them missing
+                the prop must not make the tags flash away and back during a
+                swipe. Falls back to plain (non-tappable) text in that case. */}
+            {Array.isArray(news.tags) && news.tags.length > 0 && (
+              <View style={styles.tagsRow}>
+                {news.tags.map((tag, i) => {
+                  // Some articles already have the tag stored with a leading
+                  // "#" (e.g. "#trend"), others without (e.g. "sports") -
+                  // strip any existing "#" before adding one, so it never
+                  // renders doubled ("##trend").
+                  const label = `#${String(tag).replace(/^#+/, '')}`;
+                  return onPressTag ? (
+                    <TouchableOpacity
+                      key={`${tag}-${i}`}
+                      onPress={() => onPressTag(tag)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    >
+                      <Text style={styles.tagChipText} allowFontScaling={false}>{label}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text key={`${tag}-${i}`} style={styles.tagChipText} allowFontScaling={false}>{label}</Text>
+                  );
+                })}
+              </View>
+            )}
 
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
-                <Icon name="clock-outline" size={14} color="#999" />
-                <Text style={styles.timestamp} allowFontScaling={false}>{news.timeAgo}</Text>
+                {/* Manual "Rapid Exclusive" badge (Requirement 20) takes top
+                    priority in this slot, ahead of Top Story/Pinned/timestamp
+                    — same reasoning as Top Story below, just one step more
+                    deliberate an admin action. */}
+                {news.is_rapid_exclusive ? (
+                  <Text style={styles.timestamp} allowFontScaling={false}>Rapid Exclusive</Text>
+                ) : news.is_top_story ? (
+                  <Text style={styles.timestamp} allowFontScaling={false}>Top Story</Text>
+                ) : news.isPinned ? (
+                  <>
+                    <Icon name="pin" size={14} color="#000000" />
+                    <Text style={styles.pinnedInlineText} allowFontScaling={false}>Pinned article</Text>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="clock-outline" size={14} color="#999" />
+                    <Text style={styles.timestamp} allowFontScaling={false}>{news.timeAgo}</Text>
+                  </>
+                )}
               </View>
-              {news.itemIndex && news.totalNews ? (
+              {/* Manual "Trending" badge (Requirement 19) takes this slot's
+                  place over the "N of M" swipe counter — same reasoning as
+                  Top Story above. */}
+              {news.is_trending ? (
+                <View style={styles.timestampContainer}>
+                  <Text style={styles.timestamp} allowFontScaling={false}>Trending</Text>
+                </View>
+              ) : news.itemIndex && news.totalNews ? (
                 <View style={styles.timestampContainer}>
                   <Text style={styles.timestamp}>{news.itemIndex} of {news.totalNews}</Text>
                 </View>
@@ -640,34 +696,42 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
           </View>
         </TouchableWithoutFeedback>
 
-        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.85)']}
+          style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}
+        >
           <View style={styles.actionLeft}>
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-              <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={22} color={liked ? '#4dabf5' : '#E0E0E0'} />
+              <Icon name={liked ? 'thumb-up' : 'thumb-up-outline'} size={20} color={liked ? '#4dabf5' : '#FFFFFF'} />
               <Text style={[styles.actionText, liked && { color: '#4dabf5' }]}>{likeCount}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton} onPress={handleDislike}>
-              <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={22} color={disliked ? '#F44336' : '#E0E0E0'} />
+              <Icon name={disliked ? 'thumb-down' : 'thumb-down-outline'} size={20} color={disliked ? '#F44336' : '#FFFFFF'} />
               <Text style={[styles.actionText, disliked && { color: '#F44336' }]}>{dislikeCount}</Text>
             </TouchableOpacity>
-          </View>
 
-          <View style={styles.actionRight}>
             {news.commentsEnabled !== false && (
               <TouchableOpacity style={styles.actionButton} onPress={handleCommentsPress}>
-                <Icon name="comment-outline" size={22} color="#E0E0E0" />
+                <Icon name="comment-processing-outline" size={20} color="#FFFFFF" />
                 <Text style={styles.actionText}>{news?.comments?.count || news?.comments || 0}</Text>
               </TouchableOpacity>
             )}
+          </View>
+
+          <View style={styles.actionRight}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => handleShareNews('whatsapp')}>
+              <Icon name="whatsapp" size={20} color="#25D366" />
+              <Text style={styles.shareText}>SHARE</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.actionIconButton} onPress={handleMenuPress}>
-              <Icon name="dots-vertical" size={24} color="#E0E0E0" />
+              <Icon name="dots-vertical" size={20} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionIconButton} onPress={() => handleShareNews()}>
-              <Icon name="share" size={24} color="#2196F3" />
+              <Icon name="share" size={20} color="#2196F3" />
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
       </View>
 
       <ReportModal visible={reportModalVisible} onClose={() => setReportModalVisible(false)} newsId={news.id} />
@@ -678,7 +742,15 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             <Icon name="close" size={28} color="#FFF" />
           </TouchableOpacity>
           {videoSource && (
-            <Video source={videoSource} style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }} resizeMode="contain" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0} playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} controls={true} />
+            <Video
+              ref={fullScreenVideoRef}
+              source={videoSource} style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }} resizeMode="contain" repeat={true} paused={isVideoPaused} muted={isMuted} volume={1.0} playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} controls={true}
+              // The fullscreen player is a separate Video instance from the inline
+              // one, so it always mounts at time 0 — resume from wherever the
+              // inline player had gotten to instead of restarting the clip.
+              onLoad={() => { if (videoCurrentTimeSec > 0) fullScreenVideoRef.current?.seek(videoCurrentTimeSec); }}
+              onProgress={(data) => setVideoCurrentTimeSec(data.currentTime)}
+            />
           )}
           <TouchableOpacity style={[styles.videoControlBtn, { position: 'absolute', bottom: 30, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }]} onPress={() => setIsMuted(m => !m)}>
             <Icon name={isMuted ? 'volume-off' : 'volume-high'} size={24} color="#FFF" />
@@ -732,6 +804,7 @@ const styles = StyleSheet.create({
   watermarkLogo: { position: 'absolute', bottom: -10, left: 15, width: 120, height: 60, resizeMode: 'contain', zIndex: 100000, opacity: 0.9, borderRadius: 16 },
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  pinnedInlineText: { fontSize: responsiveFontSize(1.5), color: '#000000', fontWeight: '600' },
   adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   adSpinnerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   reporterGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100 },
@@ -739,6 +812,8 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.3 : 2.8), color: '#000000', lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.8 : 3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
   body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.5), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.5), color: '#555555', fontWeight: '400' },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
+  tagChipText: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.0 : 2.4), color: '#2196F3' },
   // Byline sits ON the image, so it is white on a bottom gradient rather than
   // themed — same zIndex as the watermark it replaces, or the video layer covers it.
   bylineGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, zIndex: 99999 },
@@ -754,12 +829,13 @@ const styles = StyleSheet.create({
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
-  actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#2C2C2C', width: '100%', paddingTop: 8, paddingHorizontal: 16 },
-  actionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  actionRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 20, paddingHorizontal: 16 },
+  actionLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  actionRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionIconButton: { padding: 4 },
-  actionText: { fontSize: 14, color: '#E0E0E0', fontWeight: '600' },
+  actionText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
+  shareText: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', marginLeft: 2 },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   menuContainer: { borderRadius: 12, width: '100%', maxWidth: 280, paddingVertical: 8, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, gap: 16 },

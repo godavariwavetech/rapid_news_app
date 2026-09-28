@@ -1,6 +1,9 @@
 import React, {useEffect, useState, useRef, useCallback, useMemo} from 'react';
 import {
   View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
   StatusBar,
   Animated,
@@ -10,8 +13,9 @@ import {
   BackHandler,
   InteractionManager,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, getCategories, setSelectedCategory, clearNews} from '../redux/reducers/news';
+import {fetchNews, getCategories, setSelectedCategory, clearNews, fetchViralPostsRail, fetchNewsByTag, searchNews} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
@@ -22,13 +26,17 @@ import { getBookmarks } from '../redux/reducers/bookmarks';
 import { postToken, registerGuestFCM } from '../redux/reducers/auth';
 import notifee from '@notifee/react-native';
 
-function HomeScreen({navigation}) {
+function HomeScreen({navigation, route}) {
   const dispatch = useDispatch();
   
   const { articles, categories, selectedCategory, loading, hasMore, currentPage, currentDayOffset, totalNews, isLoadingMore, error } = useSelector(state => state.news);
   
   // --- ADDED loading: locationLoading HERE ---
   const {currentLocation, loading: locationLoading} = useSelector(state => state.location);
+  // Create tab (Requirement 21) - same reporterToken check CategoriesModal's
+  // own Create menu item uses, so both entry points resolve to the same
+  // screen for the same user.
+  const {reporterToken} = useSelector(state => state.auth);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -36,10 +44,104 @@ function HomeScreen({navigation}) {
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [selectedNews, setSelectedNews] = useState(null);
   const [headerTitle, setHeaderTitle] = useState('న్యూస్');
+  // Generic temporary overlay on top of the current feed (never replaces
+  // `articles`) so backing out returns to the exact card the reader was on —
+  // see FlipNewsScreen's overrideItems prop. Used by both the viral posts
+  // rail ("వైరల్ »") and hashtag browsing (tapping a "#tag" chip) - same
+  // mechanism, just a different fetch and back-bar label per use.
+  const [overlayItems, setOverlayItems] = useState(null);
+  const [overlayLabel, setOverlayLabel] = useState('');
+  const [overlayLoading, setOverlayLoading] = useState(false);
+  const overlaySavedIndexRef = useRef(0);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
+
+  // fetchFn: () => Promise<array of feed items>. Errors are reported with
+  // errorMessage (already-localized, since callers know what they were
+  // fetching) rather than a generic one so a viral-rail failure and a
+  // hashtag failure don't read identically.
+  const openOverlay = useCallback(async (label, fetchFn, errorMessage) => {
+    overlaySavedIndexRef.current = flipScreenRef.current?.getCurrentIndex?.() ?? 0;
+    setOverlayLabel(label);
+    setOverlayLoading(true);
+    try {
+      const result = await fetchFn();
+      setOverlayItems(result || []);
+      // The card the reader tapped from often has the chrome hidden (swiping
+      // into a card hides it) — force it visible so the new back bar is
+      // actually on screen instead of translated away with the rest of the
+      // hidden chrome.
+      setUiVisible(true);
+    } catch (e) {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('సమాచారం', errorMessage);
+      }
+    } finally {
+      setOverlayLoading(false);
+    }
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    setOverlayItems(null);
+    // Wait a frame so FlipNewsScreen re-renders against the restored
+    // (untouched) main feed before jumping — jumping in the same tick would
+    // clamp against the stale override list's length.
+    requestAnimationFrame(() => {
+      flipScreenRef.current?.jumpToIndex?.(overlaySavedIndexRef.current);
+    });
+  }, []);
+
+  const openViralOverlay = useCallback(() => {
+    openOverlay(
+      'వైరల్',
+      () => dispatch(fetchViralPostsRail()).unwrap(),
+      'వైరల్ పోస్ట్‌లు లోడ్ కాలేదు'
+    );
+  }, [openOverlay, dispatch]);
+
+  const openTagOverlay = useCallback((tag) => {
+    if (!tag) return;
+    openOverlay(
+      `#${tag}`,
+      () => dispatch(fetchNewsByTag(tag)).unwrap(),
+      'ఈ హ్యాష్‌ట్యాగ్‌కి సంబంధించిన వార్తలు లోడ్ కాలేదు'
+    );
+  }, [openOverlay, dispatch]);
+
+  const openSearchOverlay = useCallback((query) => {
+    if (!query) return;
+    openOverlay(
+      `"${query}"`,
+      () => dispatch(searchNews(query)).unwrap(),
+      'శోధన ఫలితాలు లోడ్ కాలేదు'
+    );
+  }, [openOverlay, dispatch]);
+
+  // SearchScreen navigates back here with { searchQuery } instead of
+  // rendering its own results list — same overlay mechanism as tapping a
+  // "#tag" chip. Consume the param once, then clear it so re-focusing this
+  // screen doesn't replay the same search.
+  //
+  // A "#"-prefixed query is a hashtag lookup, not free text — /news/search
+  // only matches title/short/body, so "#trend" would find nothing even
+  // though the by-tag endpoint has an exact match. Route those to the tag
+  // overlay instead.
+  useEffect(() => {
+    const query = route?.params?.searchQuery;
+    if (query) {
+      const trimmed = query.trim();
+      if (trimmed.startsWith('#')) {
+        openTagOverlay(trimmed.replace(/^#+/, ''));
+      } else {
+        openSearchOverlay(trimmed);
+      }
+      navigation.setParams({ searchQuery: undefined });
+    }
+  }, [route?.params?.searchQuery, openSearchOverlay, openTagOverlay, navigation]);
 
   // --- ADDED !locationLoading CHECK HERE ---
   const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && !!error;
@@ -77,8 +179,6 @@ function HomeScreen({navigation}) {
     // Header title reflects the selected category (always, even if fetch is deduped).
     if (selectedCategory === 'all') {
       setHeaderTitle('న్యూస్');
-    } else if (selectedCategory === 'viral') {
-      setHeaderTitle('వైరల్ న్యూస్');
     } else {
       const activeCat = categories.find(c => c._id === selectedCategory);
       if (activeCat) {
@@ -152,17 +252,21 @@ function HomeScreen({navigation}) {
 
   useEffect(() => {
     const handleBack = () => {
+      if (overlayItems) {
+        closeOverlay();
+        return true;
+      }
       if (selectedCategory !== 'all') {
         dispatch(setSelectedCategory('all'));
         if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
-        return true; 
+        return true;
       }
       return false;
     };
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
     return () => subscription.remove();
-  }, [selectedCategory]);
+  }, [selectedCategory, overlayItems, closeOverlay]);
 
   useEffect(() => {
     Animated.parallel([
@@ -187,6 +291,12 @@ function HomeScreen({navigation}) {
   const handleTabPress = useCallback((tabId) => {
     if (tabId === 'CategoriesTab') {
       setCategoriesModalVisible(true);
+    } else if (tabId === 'CreateTab') {
+      // Same target CategoriesModal's Create menu item navigates to - not
+      // marked active (no setActiveTab) since it leaves this screen rather
+      // than switching the feed view, the same way CategoriesTab's modal
+      // doesn't claim the active tab either.
+      navigation.navigate(reporterToken ? "ReporterApp" : "Reporter");
     } else if (tabId === 'LocationTab') {
       setActiveTab(tabId);
       setHeaderTitle(displayLocationName);
@@ -210,14 +320,8 @@ function HomeScreen({navigation}) {
       dispatch(clearNews());
       dispatch(fetchNews({ currentLocation, category: 'all', page: 1, isLocationMode: false }));
       if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
-    } else {
-      setActiveTab(tabId);
-      if (tabId === 'ReloadTab') {
-        dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, isLocationMode: activeTab === 'LocationTab', userRefresh: true}));
-        if (flipScreenRef.current) flipScreenRef.current.scrollToTop();
-      }
     }
-  }, [selectedCategory, currentLocation, displayLocationName, dispatch]);
+  }, [selectedCategory, currentLocation, displayLocationName, dispatch, navigation, reporterToken]);
 
   return (
     <View style={styles.container}>
@@ -245,20 +349,47 @@ function HomeScreen({navigation}) {
           onEndReached={() => {
             if (!loading && hasMore) {
               dispatch(fetchNews({
-                currentLocation, 
-                category: selectedCategory, 
-                page: currentPage + 1, 
+                currentLocation,
+                category: selectedCategory,
+                page: currentPage + 1,
                 current_day_offset: currentDayOffset,
                 isLocationMode: activeTab === 'LocationTab'
               }));
             }
           }}
+          // Tapping "వైరల్" on a viral post card, or a "#tag" chip on a news
+          // card, opens the corresponding items as an overlay on top of the
+          // current feed (see openOverlay) — the feed itself and the
+          // reader's scroll position are untouched.
+          onPressViral={openViralOverlay}
+          onPressTag={openTagOverlay}
+          overrideItems={overlayItems}
         />
+      )}
+
+      {overlayLoading && (
+        <View style={styles.overlayLoading} pointerEvents="none">
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
       )}
 
       {!shouldShowFallback && (
         <Animated.View style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
-          <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} locationName={displayLocationName} />
+          {overlayItems ? (
+            // Replaces the normal tab bar while browsing an overlay (viral
+            // posts or a hashtag) — its own tabs (న్యూస్/కేటగిరీలు/...) don't
+            // apply here and would leave the overlay stuck open if pressed.
+            <TouchableOpacity
+              style={styles.viralBackBar}
+              activeOpacity={0.8}
+              onPress={closeOverlay}
+            >
+              <Icon name="chevron-left" size={22} color="#fff" />
+              <Text style={styles.viralBackBarText}>{overlayLabel}</Text>
+            </TouchableOpacity>
+          ) : (
+            <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} locationName={displayLocationName} />
+          )}
         </Animated.View>
       )}
 
@@ -290,7 +421,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
   bottomTabOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
-  commentContainer: { ...StyleSheet.absoluteFillObject, zIndex: 200 }
+  commentContainer: { ...StyleSheet.absoluteFillObject, zIndex: 200 },
+  overlayLoading: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', zIndex: 150 },
+  viralBackBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(11,11,13,0.95)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  viralBackBarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
 
 export default HomeScreen;
