@@ -1,5 +1,5 @@
-import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
-import { getUniqueId, getVersion } from 'react-native-device-info';
+import {createAsyncThunk, createSlice, nanoid} from '@reduxjs/toolkit';
+import { getUniqueId, getVersion, getModel } from 'react-native-device-info';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 import { fetchFCMToken } from '../../services/NotificationsService';
@@ -127,7 +127,7 @@ export const postToken = createAsyncThunk(
 // or surfaces errors; a failed ping must not affect app startup.
 export const registerDevice = createAsyncThunk(
   'auth/registerDevice',
-  async (_, { getState }) => {
+  async (open, { getState }) => {
     try {
       const deviceId = await getUniqueId();
       if (!deviceId) return;
@@ -136,8 +136,10 @@ export const registerDevice = createAsyncThunk(
       const currentLocation = state.location?.currentLocation;
 
       const payload = {
+        open_id: open?.open_id || nanoid(),
         platform: Platform.OS?.toUpperCase(),
         app_version: getVersion(),
+        device_name: getModel(),
         // Best-effort — absent on first launch before a location is picked.
         ...(currentLocation && {
           location: {
@@ -153,6 +155,13 @@ export const registerDevice = createAsyncThunk(
       await api.post(endpoints.REGISTER_DEVICE, payload, {
         headers: { 'x-device-id': deviceId },
       });
+      // Token lookup must not delay or prevent recording this app open.
+      const fcmToken = await fetchFCMToken();
+      if (fcmToken) {
+        await api.post(endpoints.REGISTER_DEVICE + '/token', { fcm_token: fcmToken }, {
+          headers: { 'x-device-id': deviceId },
+        });
+      }
     } catch (error) {
       // Swallow — launch ping is non-critical.
       console.log('registerDevice ping failed:', error?.message);

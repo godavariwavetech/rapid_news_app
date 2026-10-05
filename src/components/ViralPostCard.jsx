@@ -48,7 +48,6 @@ const ViralPostCard = ({ news, height, activeSlide: controlledSlide, onSlideChan
   const data = news?.data || news || {};
   const cards = data.cards?.length ? data.cards : [{ image: null, caption: null }];
   const lastIndex = cards.length - 1;
-
   const [shares, setShares] = useState(data.shares || 0);
 
   const localPanX = useSharedValue(0);

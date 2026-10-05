@@ -74,6 +74,10 @@ public class NotificationHelper {
     }
 
     public static void showCustomNotification(Context context, String htmlText, String title, String body, String newsId) {
+        showCustomNotification(context, htmlText, title, body, newsId, null, null);
+    }
+
+    public static void showCustomNotification(Context context, String htmlText, String title, String body, String newsId, String reportId, String clickKey) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         String channelId = CHANNEL_ID;
 
@@ -117,7 +121,12 @@ public class NotificationHelper {
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(packageName);
         if (intent != null) {
             intent.setAction(Intent.ACTION_VIEW);
-            intent.setData(android.net.Uri.parse("rapidnews://news/" + newsId));
+            android.net.Uri.Builder uri = android.net.Uri.parse("rapidnews://news/" + newsId).buildUpon();
+            if (reportId != null && clickKey != null) {
+                uri.appendQueryParameter("notification_report_id", reportId);
+                uri.appendQueryParameter("notification_click_key", clickKey);
+            }
+            intent.setData(uri.build());
             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         }
 

@@ -1,3 +1,4 @@
+import { trackNotificationClick, notificationClickFromUrl } from '../utils/notificationClicks';
 import React, { useEffect, useRef } from 'react';
 import {NavigationContainer, useNavigationContainerRef} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
@@ -65,6 +66,7 @@ import AboutUsScreen from '../screens/AboutUsScreen';
 
 import { endActivity, startActivity, registerDevice } from '../redux/reducers/auth';
 import { fetchArticleById } from '../redux/reducers/news';
+import { getAppOpenTracker } from '../utils/appOpenTracker';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -95,6 +97,7 @@ function AppNavigator() {
   const appState = useRef(AppState.currentState);
   const districtIdRef = useRef(currentLocation?.district?._id);
   const sessionIdRef = useRef(null);
+  const appOpenTrackerRef = useRef(null);
 
   const serviceHandler = async () =>{
     const action = await dispatch(startActivity({ district_id: districtIdRef.current }));
@@ -123,28 +126,21 @@ function AppNavigator() {
 
   // Handle App State Changes (Background/Foreground)
   useEffect(() => {
+    if (!appOpenTrackerRef.current) {
+      appOpenTrackerRef.current = getAppOpenTracker(AppState.currentState, () => {
+        serviceHandler();
+        dispatch(registerDevice());
+      });
+    }
     // #3: defer the cold-start analytics session off the first-paint path.
     // The foreground-resume serviceHandler() below stays immediate.
     const initTask = InteractionManager.runAfterInteractions(() => {
-      serviceHandler();
-      // Launch ping — records this device for the "Total Reach" metric,
-      // independent of onboarding/login/FCM.
-      dispatch(registerDevice());
+      appOpenTrackerRef.current.start();
     });
     const subscription = AppState.addEventListener('change', nextAppState => {
-      // App comes to Foreground
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-       serviceHandler()
-       dispatch(registerDevice())
-      }
-      // App goes to Background
-      else if (
-        appState.current === 'active' &&
-        nextAppState.match(/inactive|background/)
-      ) {
+      appOpenTrackerRef.current.change(nextAppState);
+      // Inactive is transient; end a session only on a real background transition.
+      if (appState.current !== 'background' && nextAppState === 'background') {
         // --- End Tracking Session ---
         if (sessionIdRef.current) {
           dispatch(endActivity({ session_id: sessionIdRef.current }));
@@ -169,14 +165,15 @@ function AppNavigator() {
 
       // Handle custom scheme: rapidnews://news/<id>
       if (url.startsWith('rapidnews://news/')) {
-        newsId = url.replace('rapidnews://news/', '');
+        newsId = url.replace('rapidnews://news/', '').split('?')[0];
       }
       // Handle HTTPS app link: https://godavariwave.in/news/<id>
       else if (url.startsWith('https://godavariwave.in/news/')) {
-        newsId = url.replace('https://godavariwave.in/news/', '');
+        newsId = url.replace('https://godavariwave.in/news/', '').split('?')[0];
       }
 
       if (!newsId) return;
+      trackNotificationClick(notificationClickFromUrl(url));
 
       console.log('Deep link newsId:', newsId);
 

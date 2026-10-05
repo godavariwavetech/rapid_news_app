@@ -178,14 +178,15 @@ export const fetchViralPostsRail = createAsyncThunk(
 // restores the reader's exact card instead of losing their place.
 export const fetchNewsByTag = createAsyncThunk(
   'news/fetchNewsByTag',
-  async (tag, { rejectWithValue }) => {
+  async (request, { rejectWithValue }) => {
+    const { tag, page = 1 } = typeof request === 'string' ? { tag: request } : request;
     try {
-      const response = await api.get(endpoints.GET_NEWS_BY_TAG, { params: { tag, lang: 'te', limit: 20 } });
+      const response = await api.get(endpoints.GET_NEWS_BY_TAG, { params: { tag, page, lang: 'te', limit: 20 } });
       const items = response.data?.items || [];
       // Bare news objects, same flat shape GET /news/viral used to return —
       // FlipNewsScreen's formattedNews mapping already falls back to
       // `item.data || item`, so these don't need a {type, data} wrapper.
-      return items;
+      return typeof request === 'string' ? items : response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -197,10 +198,11 @@ export const fetchNewsByTag = createAsyncThunk(
 // state.articles, the main feed.
 export const searchNews = createAsyncThunk(
   'news/searchNews',
-  async (q, { rejectWithValue }) => {
+  async (request, { rejectWithValue }) => {
+    const { q, page = 1 } = typeof request === 'string' ? { q: request } : request;
     try {
-      const response = await api.get(endpoints.SEARCH_NEWS, { params: { q, lang: 'te', limit: 20 } });
-      return response.data?.items || [];
+      const response = await api.get(endpoints.SEARCH_NEWS, { params: { q, page, lang: 'te', limit: 20 } });
+      return typeof request === 'string' ? response.data?.items || [] : response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -210,8 +212,9 @@ export const searchNews = createAsyncThunk(
 // 1.1 Fetch Article By Id
 export const fetchArticleById = createAsyncThunk(
   'news/fetchArticleById',
-  async (id, { rejectWithValue }) => {
+  async (request, { rejectWithValue }) => {
     try {
+      const id = typeof request === 'string' ? request : request.id;
       const deviceId = await getUniqueId();
       const url = endpoints.GET_ARTICLE.replace(':id', id);
       const response = await api.get(url, {}, {
@@ -739,6 +742,9 @@ const newsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchArticleById.fulfilled, (state, action) => {
+        // A linked article lives on its own navigation screen. Keep the source
+        // feed and notification selection intact so Back returns to that story.
+        if (action.meta.arg?.addToFeed === false) return;
         let article = action.payload;
 
         if (!article.data) {

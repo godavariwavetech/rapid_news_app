@@ -1,9 +1,9 @@
 // export const baseURL = 'https://7wscr1mv-7777.asse.devtunnels.ms'; // dev tunnel (LOCAL TESTING — DO NOT COMMIT)
 // export const baseURL = "https://godavariwave.in:7777";
-// export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
+export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
 // export const baseURL = "https://d4475p54-7777.inc1.devtunnels.ms" ;
 // export const baseURL = "https://7wscr1mv-7778.asse.devtunnels.ms";
-export const baseURL = "http://192.168.0.140:7778"; // LOCAL TESTING — physical device over WiFi, host PC's LAN IP — DO NOT COMMIT
+// export const baseURL = "http://127.0.0.1:7778"; // LOCAL TESTING via adb reverse tcp:7778 tcp:7778 — DO NOT COMMIT
 
 export const endpoints = {
   REQUEST_LOGIN_OPT: 'OwnerLogin',

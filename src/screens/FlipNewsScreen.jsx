@@ -30,6 +30,11 @@ const formatTimeAgo = (dateString, dayOffset) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' minutes ago';
 
   // If the API says this item is from a previous day's offset, show date label directly
   if (dayOffset != null && dayOffset > 0) {
@@ -47,23 +52,15 @@ const formatTimeAgo = (dateString, dayOffset) => {
     }
   }
 
-  const seconds = Math.floor((now - date) / 1000);
-  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + ' minutes ago';
-
-  // Past the 1-hour mark, show the exact time it was posted (e.g. "4:01 AM")
-  // instead of letting "hours ago" run all the way to 24h - a post from
-  // 4:01 AM still reads "4:01 AM" at 5:15 AM, 9:00 AM, whenever today.
-  const hours = Math.floor(seconds / 3600);
-  if (hours < 24) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  }
-
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
   if (date >= yesterdayStart && date < todayStart) return 'Yesterday';
+
+  // Past the 1-hour mark, show the exact time it was posted (e.g. "4:01 AM")
+  // instead of relative hours; previous-day posts are labeled above.
+  if (date >= todayStart) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString('en-US', sameYear
@@ -142,7 +139,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 });
 
 // WRAP WITH FORWARD REF
-const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main', onPressViral, onPressTag, overrideItems }, ref) => {
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main', onPressViral, onPressTag, overrideItems, onOverlayEndReached, overlayHasMore = false, overlayMoreLoading = false }, ref) => {
   const dispatch = useDispatch();
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
@@ -312,6 +309,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           images: data.images || [],
           videos: data.videos || [],
           external_links: data.external_links || [],
+          article_links: data.article_links || null,
           publishedAt,
           _dayOffset: itemDayOffset, // #6: kept so the visible card can re-derive timeAgo without remapping the whole list
           timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
@@ -466,6 +464,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
 
+  useEffect(() => {
+    if (overrideItems && overlayHasMore && !overlayMoreLoading && formattedNews.length > 0 && currIndex >= formattedNews.length - 5) onOverlayEndReached?.();
+  }, [overrideItems, overlayHasMore, overlayMoreLoading, formattedNews.length, currIndex, onOverlayEndReached]);
+
   // Pre-fetch next page when user lands on the second-to-last item
   useEffect(() => {
     // overrideItems is a fixed, unpaginated list (the viral posts rail) —
@@ -614,6 +616,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const [userSwipedPastEnd, setUserSwipedPastEnd] = useState(false);
 
   const triggerLoadMore = () => {
+    if (overrideItems) { if (overlayHasMore && !overlayMoreLoading) onOverlayEndReached?.(); return; }
     scrollY.value = withSpring(0, SPRING_CONFIG);
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;

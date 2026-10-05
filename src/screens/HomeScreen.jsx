@@ -53,6 +53,11 @@ function HomeScreen({navigation, route}) {
   const [overlayLabel, setOverlayLabel] = useState('');
   const [overlayLoading, setOverlayLoading] = useState(false);
   const overlaySavedIndexRef = useRef(0);
+  const overlayRequestRef = useRef(0);
+  const overlayPageRef = useRef(null);
+  const [overlayMoreLoading, setOverlayMoreLoading] = useState(false);
+  const [overlayMoreError, setOverlayMoreError] = useState(false);
+  const [overlayHasMore, setOverlayHasMore] = useState(false);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
@@ -62,30 +67,79 @@ function HomeScreen({navigation, route}) {
   // errorMessage (already-localized, since callers know what they were
   // fetching) rather than a generic one so a viral-rail failure and a
   // hashtag failure don't read identically.
-  const openOverlay = useCallback(async (label, fetchFn, errorMessage) => {
+  const openOverlay = useCallback(async (label, fetchFn, errorMessage, pageFetcher = null) => {
+    const requestId = ++overlayRequestRef.current;
+    overlayPageRef.current = null;
+    setOverlayHasMore(false);
+    setOverlayMoreLoading(false);
+    setOverlayMoreError(false);
     overlaySavedIndexRef.current = flipScreenRef.current?.getCurrentIndex?.() ?? 0;
     setOverlayLabel(label);
     setOverlayLoading(true);
     try {
       const result = await fetchFn();
-      setOverlayItems(result || []);
+      if (requestId !== overlayRequestRef.current) return;
+      const items = pageFetcher ? result.items || [] : result || [];
+      setOverlayItems(items);
+      requestAnimationFrame(() => {
+        if (requestId === overlayRequestRef.current) flipScreenRef.current?.scrollToTop?.();
+      });
+      if (pageFetcher) {
+        const more = result.page * result.limit < result.total;
+        overlayPageRef.current = { fetch: pageFetcher, page: 1, more, busy: false, requestId };
+        setOverlayHasMore(more);
+      }
       // The card the reader tapped from often has the chrome hidden (swiping
       // into a card hides it) — force it visible so the new back bar is
       // actually on screen instead of translated away with the rest of the
       // hidden chrome.
       setUiVisible(true);
     } catch (e) {
+      if (requestId !== overlayRequestRef.current) return;
       if (Platform.OS === 'android') {
         ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
       } else {
         Alert.alert('సమాచారం', errorMessage);
       }
     } finally {
-      setOverlayLoading(false);
+      if (requestId === overlayRequestRef.current) setOverlayLoading(false);
     }
   }, []);
 
+  const loadOverlayPage = useCallback(async () => {
+    const state = overlayPageRef.current;
+    if (!state || state.busy || !state.more) return;
+    state.busy = true;
+    setOverlayMoreLoading(true);
+    setOverlayMoreError(false);
+    try {
+      const result = await state.fetch(state.page + 1);
+      if (state.requestId !== overlayRequestRef.current) return;
+      setOverlayItems(previous => {
+        const seen = new Set((previous || []).map(item => item._id));
+        const added = (result.items || []).filter(item => { if (seen.has(item._id)) return false; seen.add(item._id); return true });
+        return [...(previous || []), ...added];
+      });
+      state.page += 1;
+      state.more = state.page * result.limit < result.total && (result.items || []).length > 0;
+      setOverlayHasMore(state.more);
+    } catch {
+      if (state.requestId === overlayRequestRef.current) setOverlayMoreError(true);
+    } finally {
+      state.busy = false;
+      if (state.requestId === overlayRequestRef.current) setOverlayMoreLoading(false);
+    }
+  }, []);
+
+  useEffect(() => () => { overlayRequestRef.current += 1 }, []);
+
   const closeOverlay = useCallback(() => {
+    overlayRequestRef.current += 1;
+    overlayPageRef.current = null;
+    setOverlayMoreLoading(false);
+    setOverlayMoreError(false);
+    setOverlayHasMore(false);
+    setOverlayLoading(false);
     setOverlayItems(null);
     // Wait a frame so FlipNewsScreen re-renders against the restored
     // (untouched) main feed before jumping — jumping in the same tick would
@@ -107,8 +161,9 @@ function HomeScreen({navigation, route}) {
     if (!tag) return;
     openOverlay(
       `#${tag}`,
-      () => dispatch(fetchNewsByTag(tag)).unwrap(),
-      'ఈ హ్యాష్‌ట్యాగ్‌కి సంబంధించిన వార్తలు లోడ్ కాలేదు'
+      () => dispatch(fetchNewsByTag({ tag, page: 1 })).unwrap(),
+      'ఈ హ్యాష్‌ట్యాగ్‌కి సంబంధించిన వార్తలు లోడ్ కాలేదు',
+      page => dispatch(fetchNewsByTag({ tag, page })).unwrap()
     );
   }, [openOverlay, dispatch]);
 
@@ -116,8 +171,9 @@ function HomeScreen({navigation, route}) {
     if (!query) return;
     openOverlay(
       `"${query}"`,
-      () => dispatch(searchNews(query)).unwrap(),
-      'శోధన ఫలితాలు లోడ్ కాలేదు'
+      () => dispatch(searchNews({ q: query, page: 1 })).unwrap(),
+      'శోధన ఫలితాలు లోడ్ కాలేదు',
+      page => dispatch(searchNews({ q: query, page })).unwrap()
     );
   }, [openOverlay, dispatch]);
 
@@ -364,9 +420,15 @@ function HomeScreen({navigation, route}) {
           onPressViral={openViralOverlay}
           onPressTag={openTagOverlay}
           overrideItems={overlayItems}
+          onOverlayEndReached={loadOverlayPage}
+          overlayHasMore={overlayHasMore && !overlayMoreError}
+          overlayMoreLoading={overlayMoreLoading}
         />
       )}
 
+      {overlayItems && (overlayMoreLoading || overlayMoreError) && <View style={{ position: 'absolute', bottom: 65, alignSelf: 'center', backgroundColor: '#172b4d', padding: 10, borderRadius: 8 }}>
+        {overlayMoreLoading ? <ActivityIndicator color="#fff" /> : <TouchableOpacity onPress={loadOverlayPage}><Text style={{ color: '#fff' }}>Could not load more. Tap to retry</Text></TouchableOpacity>}
+      </View>}
       {overlayLoading && (
         <View style={styles.overlayLoading} pointerEvents="none">
           <ActivityIndicator size="large" color="#fff" />

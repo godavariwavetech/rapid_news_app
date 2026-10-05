@@ -18,15 +18,25 @@ import RNShare from 'react-native-share';
 import ViewShot, {captureRef} from 'react-native-view-shot';
 import RNFetchBlob from 'react-native-blob-util';
 import {fetchArticleById} from '../redux/reducers/news';
+import ArticleLinks from '../components/ArticleLinks';
+import LinkedArticleText from '../components/LinkedArticleText';
+import Way2NewsCard from '../components/Way2NewsCard';
+import CommentsBottomSheet from '../components/CommentsBottomSheet';
+import {useIsFocused} from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const {width} = Dimensions.get('window');
 
 const NewsDetailScreen = ({route, navigation}) => {
 
-  const {news: passedNews, newsId, articleId} = route.params || {};
+  const {news: passedNews, newsId, articleId, fromArticleLink = false} = route.params || {};
   const deepLinkNewsId = articleId || newsId;
 
   const dispatch = useDispatch();
+  const isFocused = useIsFocused();
+  const insets = useSafeAreaInsets();
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [linkedCardHeight, setLinkedCardHeight] = useState(null);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
 
@@ -41,18 +51,19 @@ const NewsDetailScreen = ({route, navigation}) => {
   // this is a deep link opened cold, so the article has to be fetched directly.
   const [fetchedNews, setFetchedNews] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
+  const cachedNews = fromArticleLink ? null : reduxNews;
 
   useEffect(() => {
-    if (passedNews || reduxNews || !deepLinkNewsId) return;
+    if (passedNews || cachedNews || !deepLinkNewsId) return;
     setIsFetching(true);
-    dispatch(fetchArticleById(deepLinkNewsId))
+    dispatch(fetchArticleById(fromArticleLink ? {id: deepLinkNewsId, addToFeed: false} : deepLinkNewsId))
       .unwrap()
       .then(article => setFetchedNews(article))
       .catch(() => {})
       .finally(() => setIsFetching(false));
-  }, [deepLinkNewsId, passedNews, reduxNews, dispatch]);
+  }, [deepLinkNewsId, passedNews, cachedNews, fromArticleLink, dispatch]);
 
-  const rawNews = passedNews || reduxNews || fetchedNews;
+  const rawNews = fromArticleLink ? fetchedNews : passedNews || reduxNews || fetchedNews;
   const news = rawNews?.data || rawNews;
 
   const [sharing, setSharing] = useState(false);
@@ -116,6 +127,38 @@ const NewsDetailScreen = ({route, navigation}) => {
     );
   }
 
+  if (fromArticleLink) {
+    const article = {
+      ...news,
+      id: news._id,
+      title: news.content?.title || news.title || '',
+      body: news.content?.body || news.body || '',
+      image: news.images?.[0] || null,
+      publishedAt: news.published_at,
+      timeAgo: news.published_at ? new Date(news.published_at).toLocaleDateString() : '',
+      likes: news.reactions?.likes || 0,
+      dislikes: news.reactions?.dislikes || 0,
+      isLiked: news.reactions?.my_reaction === 'LIKE',
+      isDisliked: news.reactions?.my_reaction === 'DISLIKE',
+      commentsEnabled: news.comments?.enabled !== false,
+      comments: news.comments?.count ?? 0,
+      isPinned: news.is_feed_pinned === true,
+    };
+    return <View style={[styles.container, {backgroundColor: theme.background}]}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <View style={{flex: 1}} onLayout={event => setLinkedCardHeight(event.nativeEvent.layout.height)}>
+        <Way2NewsCard news={article} cardHeight={linkedCardHeight} isActive={isFocused} onCommentsPress={() => setCommentsVisible(true)} />
+      </View>
+      <TouchableOpacity accessibilityLabel="Go back" activeOpacity={0.8} style={[styles.linkedBackBar, {paddingBottom: 14 + insets.bottom}]} onPress={() => navigation.goBack()}>
+        <Icon name="chevron-left" size={22} color="#FFF" />
+        <Text style={styles.linkedBackBarText}>Back</Text>
+      </TouchableOpacity>
+      {commentsVisible && <View style={{...StyleSheet.absoluteFillObject, zIndex: 200}}>
+        <CommentsBottomSheet visible={commentsVisible} onClose={() => setCommentsVisible(false)} newsId={article.id} newsTitle={article.title} />
+      </View>}
+    </View>;
+  }
+
   return (
     <View style={[styles.container, {backgroundColor: theme.background}]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -151,7 +194,8 @@ const NewsDetailScreen = ({route, navigation}) => {
             </View>
             <Text style={[styles.title, {color: theme.text}]}>{news.content?.title || news.title || ''}</Text>
             <View style={[styles.divider, {backgroundColor: theme.textSecondary + '20'}]} />
-            <Text style={[styles.bodyText, {color: theme.text}]}>{news.content?.body || news.body || ''}</Text>
+            <LinkedArticleText style={[styles.bodyText, {color: theme.text}]} text={news.content?.body || news.body || ''} links={news.article_links} />
+            <ArticleLinks links={news.article_links} />
           </View>
         </ViewShot>
       </ScrollView>
@@ -172,6 +216,12 @@ const NewsDetailScreen = ({route, navigation}) => {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
+  linkedBackBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 14, backgroundColor: 'rgba(11,11,13,0.95)',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.10)',
+  },
+  linkedBackBarText: {color: '#fff', fontSize: 15, fontWeight: '700'},
   scrollContent: {paddingBottom: 100},
   imageContainer: {width: width, height: 300},
   mainImage: {width: '100%', height: '100%', resizeMode: 'cover'},

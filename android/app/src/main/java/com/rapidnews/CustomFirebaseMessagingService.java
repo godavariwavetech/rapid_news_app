@@ -81,7 +81,7 @@ public class CustomFirebaseMessagingService extends ReactNativeFirebaseMessaging
             // description body is intentionally NOT forwarded, so no paragraph renders.
             // plainTitle (markers stripped) is used here since this is a plain-text
             // field, not HTML.
-            NotificationHelper.showCustomNotification(this, htmlText, null, plainTitle, newsId);
+            NotificationHelper.showCustomNotification(this, htmlText, null, plainTitle, newsId, data.get("notification_report_id"), data.get("notification_click_key"));
         }
 
         // Call super so the library's JS event bridge still fires

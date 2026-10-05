@@ -1,3 +1,4 @@
+import { trackNotificationClick } from '../utils/notificationClicks';
 import { NativeModules, Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { fetchArticleById } from '../redux/reducers/news';
@@ -74,6 +75,7 @@ const displayCustomNotification = async (remoteMessage) => {
 
 const handleNotificationNavigation = async (data, navigation) => {
   if (!data) return;
+  trackNotificationClick(data);
 
   if (data.type === 'order_update') {
     navigation.navigate('OrderDetails', { orderId: data.orderId });

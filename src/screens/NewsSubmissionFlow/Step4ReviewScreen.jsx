@@ -31,7 +31,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Destructure params
-  const {location, headline, description, category, image, images, video, isEditing, newsId, apiPayload} = route.params;
+  const {location, headline, description, category, image, images, video, newsSource, isEditing, newsId, apiPayload} = route.params;
 
   const uploadToS3 = (asset, mediaType = 'image') =>
     uploadMedia(asset, { reporterId: reporter?._id, mediaType });
@@ -149,6 +149,15 @@ const Step4ReviewScreen = ({navigation, route}) => {
             <Text style={[styles.contentText, { color: theme.text }]}>{description}</Text>
           </View>
         </View>
+
+        {newsSource ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>News Source</Text>
+            <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+              <Text style={[styles.contentText, { color: theme.text }]}>{newsSource}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Media preview */}
         {(images && images.length > 0) || image || video ? (

@@ -20,20 +20,20 @@ import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick, shareNews } from '../redux/reducers/news';
 import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
+import ArticleLinks from './ArticleLinks';
+import LinkedArticleText from './LinkedArticleText';
+import { getNewsCommentCount } from '../utils/newsCommentCount';
 import { downloadImageToGallery, handleShare, handleWhatsAppShare, generateVideoThumbnail } from '../utils/FileHelpers';
 import { getCachedVideo } from '../utils/videoFileCache';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import { getArticleImageDimensions } from '../utils/articleImageDimensions';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACTUAL_HEIGHT = SCREEN_HEIGHT;
-// Foldables/tablets (unfolded) have a wide/short aspect ratio; normal phones are ~1.8–2.2.
-// ONLY on these wide screens do we shrink the media + body text and reserve tab-bar space,
-// so the long article body fits above the bottom tab bar instead of clipping behind it.
-// Normal phones keep the original 0.40 media height and font sizes (untouched).
+const { height: IMAGE_HEIGHT } = getArticleImageDimensions(SCREEN_WIDTH, ACTUAL_HEIGHT);
 const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
-const IMAGE_HEIGHT = ACTUAL_HEIGHT * (IS_WIDE_SCREEN ? 0.30 : 0.40);
 // react-native-youtube-iframe hard-codes its internal HTML to a 16:9 box (padding-bottom: 56.25%)
 // that isn't vertically centered inside the WebView. Sizing the player to the true 16:9 height and
 // centering it ourselves (see imageSection/mediaLayer styles) avoids it being pinned to the top of
@@ -50,7 +50,7 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag }, ref) => {
+const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag, cardHeight }, ref) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { bookmarkIds } = useSelector(state => state.bookmarks);
@@ -80,6 +80,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [isVideoFullScreen, setIsVideoFullScreen] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [generatedThumbnail, setGeneratedThumbnail] = useState(null);
   const [videoDurationSec, setVideoDurationSec] = useState(0);
@@ -96,12 +97,25 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   const videoUrls = useMemo(() => (news.videos && news.videos.length > 0) ? news.videos : [], [news.videos]);
   const hasVideos = videoUrls.length > 0; // Removed !isBottomHalf so state is accurate in both halves
+  const activeVideoUrl = videoUrls[activeVideoIndex] || videoUrls[0];
+
+  useEffect(() => {
+    setActiveVideoIndex(0);
+    setHasActivatedVideo(false);
+    setIsVideoPaused(true);
+    setVideoReady(false);
+    setIsBuffering(false);
+    setGeneratedThumbnail(null);
+    setVideoDurationSec(0);
+    setVideoCurrentTimeSec(0);
+    isManuallyPaused.current = false;
+  }, [news._id, videoUrls]);
 
   const youtubeId = useMemo(() => {
-    if (hasVideos) return getYoutubeId(videoUrls[0]);
+    if (hasVideos) return getYoutubeId(activeVideoUrl);
     if (news.external_links && news.external_links.length > 0) return getYoutubeId(news.external_links[0]);
     return null;
-  }, [videoUrls, news.external_links, hasVideos]);
+  }, [activeVideoUrl, news.external_links, hasVideos]);
 
   // True only while a video is actually rolling. Image cards keep isVideoPaused
   // at its initial true, so they never match. Drives both the video controls and
@@ -111,7 +125,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const videoSource = useMemo(() => {
     if (hasVideos && !youtubeId) return {
       // Use the locally-prefetched file if ready (instant, no buffering); else stream.
-      uri: getCachedVideo(videoUrls[0]) || videoUrls[0],
+      uri: (hasActivatedVideo && getCachedVideo(activeVideoUrl)) || activeVideoUrl,
       // bufferForPlaybackAfterRebufferMs was 5000 — every drag-seek on the red
       // seek bar counts as a rebuffer, so playback sat frozen for a full 5s
       // after every scrub. Also tightened minBufferMs/maxBufferMs/
@@ -128,7 +142,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     // mount-time remote URL forever, so the local cached file was never picked up
     // and every video streamed over the network regardless of how early it was
     // prefetched — re-check right before the player actually needs the source.
-  }, [videoUrls, hasVideos, youtubeId, hasActivatedVideo]);
+  }, [activeVideoUrl, hasVideos, youtubeId, hasActivatedVideo]);
 
   const thumbnailUri = useMemo(() => {
     if (news.image) return news.image;
@@ -141,7 +155,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const displayThumbnail = generatedThumbnail || thumbnailUri;
 
   useEffect(() => {
-    console.log('[Thumbnail] Effect triggered | hasVideos:', hasVideos, '| youtubeId:', youtubeId, '| thumbnailUri:', thumbnailUri, '| videoUrl:', videoUrls[0]);
+    console.log('[Thumbnail] Effect triggered | hasVideos:', hasVideos, '| youtubeId:', youtubeId, '| thumbnailUri:', thumbnailUri, '| videoUrl:', activeVideoUrl);
     let isCancelled = false;
 
     // Only pre-generate in the top half to avoid duplicate processing
@@ -149,7 +163,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
       // Prefer the locally-prefetched file: extracting the poster frame from it
       // is local disk I/O instead of a second network fetch/seek into the remote
       // video just to grab a frame.
-      const thumbnailSource = getCachedVideo(videoUrls[0]) || videoUrls[0];
+      const thumbnailSource = getCachedVideo(activeVideoUrl) || activeVideoUrl;
       console.log('[Thumbnail] Starting generation for:', thumbnailSource);
       generateVideoThumbnail(thumbnailSource).then(path => {
         if (isCancelled) return;
@@ -168,7 +182,21 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     }
 
     return () => { isCancelled = true; };
-  }, [hasVideos, youtubeId, thumbnailUri, videoUrls, isBottomHalf]);
+  }, [hasVideos, youtubeId, thumbnailUri, activeVideoUrl, isBottomHalf]);
+
+  const selectVideo = (index) => {
+    if (index < 0 || index >= videoUrls.length || index === activeVideoIndex) return;
+    setActiveVideoIndex(index);
+    setHasActivatedVideo(false);
+    setIsVideoPaused(true);
+    setVideoReady(false);
+    setIsBuffering(false);
+    setGeneratedThumbnail(null);
+    setVideoDurationSec(0);
+    setVideoCurrentTimeSec(0);
+    setSeekBarWidth(0);
+    isManuallyPaused.current = false;
+  };
 
   const isOriginallyLiked = news.isLiked || news.myreaction === 'LIKE' || news.reactions?.my_reaction === 'LIKE';
   const isOriginallyDisliked = news.isDisliked || news.myreaction === 'DISLIKE' || news.reactions?.my_reaction === 'DISLIKE';
@@ -455,7 +483,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   // Outer component handles ViewShot Base64 Capture
   return (
-    <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+    <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={[styles.card, cardHeight && {height: cardHeight}]}>
       <View style={[styles.imageSection, { height: mediaHeight }]}>
 
         {(hasVideos || youtubeId) ? (
@@ -478,7 +506,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                     />
                   ) : (
                     <Video
-                      key={videoUrls[0]} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused || isVideoFullScreen} muted={isMuted} volume={1.0}
+                      key={activeVideoUrl} ref={videoRef} source={videoSource} style={StyleSheet.absoluteFill} resizeMode="cover" repeat={true} paused={isVideoPaused || isVideoFullScreen} muted={isMuted} volume={1.0}
                       playInBackground={false} playWhenInactive={false} onBuffer={({ isBuffering: b }) => setIsBuffering(b)} onReadyForDisplay={onVideoReady} onLoad={onVideoLoad} controls={false}
                       onProgress={(data) => setVideoCurrentTimeSec(data.currentTime)}
                     />
@@ -555,6 +583,35 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
                 )}
               </View>
             </Pressable>
+            {isActive && !isBottomHalf && !screenshotMode && videoUrls.length > 1 && (
+              <>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous video"
+                  disabled={activeVideoIndex === 0}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    selectVideo(activeVideoIndex - 1);
+                  }}
+                  style={[styles.videoPagerButton, styles.videoPagerPrevious, activeVideoIndex === 0 && styles.videoPagerButtonDisabled]}>
+                  <Icon name="chevron-left" size={32} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Next video"
+                  disabled={activeVideoIndex === videoUrls.length - 1}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    selectVideo(activeVideoIndex + 1);
+                  }}
+                  style={[styles.videoPagerButton, styles.videoPagerNext, activeVideoIndex === videoUrls.length - 1 && styles.videoPagerButtonDisabled]}>
+                  <Icon name="chevron-right" size={32} color="#FFFFFF" />
+                </TouchableOpacity>
+                <View style={styles.videoPagerCount} pointerEvents="none">
+                  <Text style={styles.videoPagerCountText}>{activeVideoIndex + 1} / {videoUrls.length}</Text>
+                </View>
+              </>
+            )}
           </View>
         ) : hasMultipleImages ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -567,7 +624,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <TouchableWithoutFeedback onPress={handleDoubleTap}>
               <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
-                <View style={[StyleSheet.absoluteFill]}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
+                <View style={StyleSheet.absoluteFill}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
                 <FastImage source={hasImage ? { uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo} style={styles.image} resizeMode={imageResizeMode} />
               </View>
             </TouchableWithoutFeedback>
@@ -619,45 +676,12 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             <Text style={styles.title} numberOfLines={3} allowFontScaling={false}>{displayTitle}</Text>
             <View style={styles.bodyContainer}>
               <Text style={styles.body} allowFontScaling={false}>
-                {displayBody}
+                <LinkedArticleText text={displayBody} links={news.article_links} disabled={screenshotMode} allowFontScaling={false} />
                 {news.fullContent && (<Text allowFontScaling={false}>{'\n\n' + news.fullContent}</Text>)}
               </Text>
             </View>
 
-            {/* Requirement 16: tags are now tappable "#tag" chips - tapping
-                one opens every other APPROVED article carrying that exact
-                tag (see HomeScreen's openTagOverlay), the same overlay
-                mechanism the viral posts rail already uses.
-                Rendered whenever news.tags has content, regardless of
-                onPressTag - the flip animation's transitional "back face"
-                halves (FlipNewsScreen's nextBackStyle/prevBackStyle) mount
-                a separate instance of this card, and any one of them missing
-                the prop must not make the tags flash away and back during a
-                swipe. Falls back to plain (non-tappable) text in that case. */}
-            {Array.isArray(news.tags) && news.tags.length > 0 && (
-              <View style={styles.tagsRow}>
-                {news.tags.map((tag, i) => {
-                  // Some articles already have the tag stored with a leading
-                  // "#" (e.g. "#trend"), others without (e.g. "sports") -
-                  // strip any existing "#" before adding one, so it never
-                  // renders doubled ("##trend").
-                  const label = `#${String(tag).replace(/^#+/, '')}`;
-                  return onPressTag ? (
-                    <TouchableOpacity
-                      key={`${tag}-${i}`}
-                      onPress={() => onPressTag(tag)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                    >
-                      <Text style={styles.tagChipText} allowFontScaling={false}>{label}</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text key={`${tag}-${i}`} style={styles.tagChipText} allowFontScaling={false}>{label}</Text>
-                  );
-                })}
-              </View>
-            )}
-
+            {!screenshotMode && <ArticleLinks links={news.article_links} compact />}
             <View style={styles.timestampRow}>
               <View style={styles.timestampContainer}>
                 {/* Manual "Rapid Exclusive" badge (Requirement 20) takes top
@@ -714,7 +738,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
             {news.commentsEnabled !== false && (
               <TouchableOpacity style={styles.actionButton} onPress={handleCommentsPress}>
                 <Icon name="comment-processing-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.actionText}>{news?.comments?.count || news?.comments || 0}</Text>
+                <Text style={styles.actionText}>{getNewsCommentCount(news.comments)}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -848,6 +872,12 @@ const styles = StyleSheet.create({
   imageTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 22 },
   loaderOverlay: { position: 'absolute', top: '25%', left: '25%', right: '25%', bottom: '25%', zIndex: 10, justifyContent: 'center', alignItems: 'center' },
   videoTouchOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 100, elevation: 20, justifyContent: 'center', alignItems: 'center' },
+  videoPagerButton: { position: 'absolute', top: '50%', zIndex: 220, elevation: 22, width: 42, height: 48, marginTop: -24, borderRadius: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)' },
+  videoPagerPrevious: { left: 10 },
+  videoPagerNext: { right: 10 },
+  videoPagerButtonDisabled: { opacity: 0.35 },
+  videoPagerCount: { position: 'absolute', top: 12, right: 12, zIndex: 220, elevation: 22, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)' },
+  videoPagerCountText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   playPauseIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   // bottom raised from 12 to 26 (was overlapping the new seek bar's hit area
   // pinned at the very bottom edge — see videoSeekBarHitArea below).

@@ -13,12 +13,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Video from 'react-native-video';
 import { generateVideoThumbnail } from '../utils/FileHelpers';
+import ArticleLinks from './ArticleLinks';
+import LinkedArticleText from './LinkedArticleText';
 
 const { width } = Dimensions.get('window');
+const EMPTY_VIDEOS = [];
 
-const NewsDetailModal = ({ visible, newsItem, onClose }) => {
-  if (!newsItem) return null;
-
+const NewsDetailModalContent = ({ visible, newsItem, onClose }) => {
   const [videoPaused, setVideoPaused] = useState(true);
   // The player isn't mounted until this flips true (see the tap handler below) —
   // react-native-video starts loading/buffering as soon as it's mounted, even
@@ -26,6 +27,7 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   // instant the modal opened instead of waiting for the user to tap play.
   const [videoActivated, setVideoActivated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [thumbnail, setThumbnail] = useState(newsItem.thumbnail);
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
@@ -34,8 +36,18 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   const videoRef = useRef(null);
   const wasPlayingBeforeScrub = useRef(false);
 
-  const hasVideo = newsItem.videos && newsItem.videos.length > 0;
-  const videoUri = hasVideo ? newsItem.videos[0] : null;
+  const videoUrls = Array.isArray(newsItem.videos) ? newsItem.videos : EMPTY_VIDEOS;
+  const hasVideo = videoUrls.length > 0;
+  const videoUri = hasVideo ? (videoUrls[activeVideoIndex] || videoUrls[0]) : null;
+
+  useEffect(() => {
+    setActiveVideoIndex(0);
+    setVideoPaused(true);
+    setVideoActivated(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
+    setThumbnail(newsItem.thumbnail || null);
+  }, [newsItem._id, newsItem.thumbnail, videoUrls]);
 
   useEffect(() => {
     if (hasVideo && !newsItem.thumbnail && videoUri) {
@@ -56,9 +68,21 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   const handleClose = () => {
     setVideoPaused(true);
     setActiveIndex(0);
+    setActiveVideoIndex(0);
+    setVideoActivated(false);
     setVideoDuration(0);
     setVideoCurrentTime(0);
     onClose();
+  };
+
+  const selectVideo = (index) => {
+    if (index < 0 || index >= videoUrls.length || index === activeVideoIndex) return;
+    setActiveVideoIndex(index);
+    setVideoPaused(true);
+    setVideoActivated(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
+    setThumbnail(newsItem.thumbnail || null);
   };
 
   const formatPlaybackTime = (seconds) => {
@@ -158,38 +182,64 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
             <View style={styles.mediaContainer}>
               {hasVideo ? (
                 <>
-                  <TouchableOpacity
-                    activeOpacity={1}
-                    style={styles.videoWrapper}
-                    onPress={() => {
-                      if (!videoActivated) setVideoActivated(true);
-                      setVideoPaused(p => !p);
-                    }}>
-                    {videoActivated ? (
-                      <Video
-                        ref={videoRef}
-                        source={{ uri: videoUri }}
-                        style={styles.fullMedia}
-                        resizeMode="cover"
-                        paused={videoPaused}
-                        repeat={false}
-                        onEnd={() => setVideoPaused(true)}
-                        onLoad={(data) => setVideoDuration(data.duration)}
-                        onProgress={(data) => setVideoCurrentTime(data.currentTime)}
-                      />
-                    ) : thumbnail ? (
-                      <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
-                    ) : (
-                      <View style={[styles.fullMedia, styles.placeholderImage]}>
-                        <Icon name="video" size={40} color="#C2C2C2" />
-                      </View>
+                  <View style={styles.videoStage}>
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      style={styles.videoWrapper}
+                      onPress={() => {
+                        if (!videoActivated) setVideoActivated(true);
+                        setVideoPaused(p => !p);
+                      }}>
+                      {videoActivated ? (
+                        <Video
+                          key={videoUri}
+                          ref={videoRef}
+                          source={{ uri: videoUri }}
+                          style={styles.fullMedia}
+                          resizeMode="cover"
+                          paused={videoPaused}
+                          repeat={false}
+                          onEnd={() => setVideoPaused(true)}
+                          onLoad={(data) => setVideoDuration(data.duration)}
+                          onProgress={(data) => setVideoCurrentTime(data.currentTime)}
+                        />
+                      ) : thumbnail ? (
+                        <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.fullMedia, styles.placeholderImage]}>
+                          <Icon name="video" size={40} color="#C2C2C2" />
+                        </View>
+                      )}
+                      {videoPaused && (
+                        <View style={styles.playOverlay}>
+                          <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    {videoUrls.length > 1 && (
+                      <>
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Previous video"
+                          disabled={activeVideoIndex === 0}
+                          onPress={() => selectVideo(activeVideoIndex - 1)}
+                          style={[styles.videoNavButton, styles.videoNavPrevious, activeVideoIndex === 0 && styles.videoNavDisabled]}>
+                          <Icon name="chevron-left" size={30} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Next video"
+                          disabled={activeVideoIndex === videoUrls.length - 1}
+                          onPress={() => selectVideo(activeVideoIndex + 1)}
+                          style={[styles.videoNavButton, styles.videoNavNext, activeVideoIndex === videoUrls.length - 1 && styles.videoNavDisabled]}>
+                          <Icon name="chevron-right" size={30} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <View style={styles.videoNavCount} pointerEvents="none">
+                          <Text style={styles.videoNavCountText}>{activeVideoIndex + 1} / {videoUrls.length}</Text>
+                        </View>
+                      </>
                     )}
-                    {videoPaused && (
-                      <View style={styles.playOverlay}>
-                        <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                  </View>
                   {/* Red duration/seek line, directly under the video (matches the
                       reference: not overlaid on the picture). Shown immediately —
                       even before the video has been played — so the duration is
@@ -275,13 +325,19 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
 
             {/* Full Body */}
             <View style={styles.bodyContainer}>
-              <Text style={styles.bodyText}>{body}</Text>
+              <LinkedArticleText style={styles.bodyText} text={body} links={newsItem.article_links} onNavigate={onClose} />
+              <ArticleLinks links={newsItem.article_links} onNavigate={onClose} />
             </View>
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
+};
+
+const NewsDetailModal = ({ visible, newsItem, onClose }) => {
+  if (!newsItem) return null;
+  return <NewsDetailModalContent visible={visible} newsItem={newsItem} onClose={onClose} />;
 };
 
 const styles = StyleSheet.create({
@@ -327,6 +383,46 @@ const styles = StyleSheet.create({
   videoWrapper: {
     width: '100%',
     height: 250,
+  },
+  videoStage: {
+    position: 'relative',
+    width: '100%',
+    height: 250,
+  },
+  videoNavButton: {
+    position: 'absolute',
+    top: 101,
+    zIndex: 10,
+    width: 42,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  videoNavPrevious: {
+    left: 10,
+  },
+  videoNavNext: {
+    right: 10,
+  },
+  videoNavDisabled: {
+    opacity: 0.35,
+  },
+  videoNavCount: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  videoNavCountText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
