@@ -28,6 +28,7 @@ const ProfileScreen = ({navigation}) => {
   
   // Coming Soon Modal State
   const [comingSoonVisible, setComingSoonVisible] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   // Select data from Redux
   const {reporter,user} = useSelector(state => state.auth);
@@ -83,10 +84,13 @@ const ProfileScreen = ({navigation}) => {
   };
 
   const handleGoogleLogin =  async () =>{
+ if (signingIn) return;
+ setSigningIn(true);
  try {
      await GoogleSignin.signOut();
      await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
+     if (response.type === 'cancelled') return;
 
      const idToken = response.data?.idToken;
      if (!idToken) throw new Error('Google returned no idToken');
@@ -106,6 +110,8 @@ const ProfileScreen = ({navigation}) => {
 
     console.log('[GoogleLogin]', detail, error);
     Alert.alert('Sign-in failed', detail);
+   } finally {
+     setSigningIn(false);
    }
   }
 
@@ -131,7 +137,7 @@ const ProfileScreen = ({navigation}) => {
         <Text style={[styles.pageTitle, { color: theme.text }]}>Profile</Text>
 
         {/* Profile Section */}
-        <TouchableOpacity onPress={handleGoogleLogin} style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
+        <TouchableOpacity onPress={handleGoogleLogin} disabled={signingIn} accessibilityState={{busy: signingIn}} style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
           <View style={styles.avatarContainer}>
           { ( user?.profile_image||reporter?.profile_image)? <Image source={{uri:user?.profile_image||reporter?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color={isDarkMode ? '#555' : '#CCC'} />}
           </View>

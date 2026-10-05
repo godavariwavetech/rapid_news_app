@@ -12,13 +12,19 @@ api.interceptors.request.use(
     // If skipAuth is set, don't attach Authorization header
     if (config.skipAuth) {
       delete config.skipAuth;
+      if (config.headers?.delete) {
+        config.headers.delete('Authorization');
+      } else if (config.headers) {
+        delete config.headers.Authorization;
+        delete config.headers.authorization;
+      }
       return config;
     }
     try {
       const state = store.getState(); 
       const tempToken = store.getState().location?.tempReporterToken; 
       const token = tempToken ? tempToken : state?.auth?.reporterToken || state?.auth?.userToken;
-      if (token) {
+      if (token && !config.headers.Authorization && !config.headers.authorization) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }
     } catch (error) {

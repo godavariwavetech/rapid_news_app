@@ -59,6 +59,19 @@ const bookmarksSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase('auth/logout', state => {
+        state.bookmarks = [];
+        state.bookmarkIds = [];
+        state.loading = false;
+      })
+      .addCase('auth/userLogin/fulfilled', state => {
+        state.bookmarks = [];
+        state.bookmarkIds = [];
+      })
+      .addCase('auth/verifyOTP/fulfilled', state => {
+        state.bookmarks = [];
+        state.bookmarkIds = [];
+      })
       .addCase(toggleBookmarkApi.fulfilled, (state, action) => {
         // Handle server confirmation here if necessary
         state.loading = false;

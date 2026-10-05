@@ -36,7 +36,8 @@ function HomeScreen({navigation, route}) {
   // Create tab (Requirement 21) - same reporterToken check CategoriesModal's
   // own Create menu item uses, so both entry points resolve to the same
   // screen for the same user.
-  const {reporterToken} = useSelector(state => state.auth);
+  const {reporterToken, userToken} = useSelector(state => state.auth);
+  const language = useSelector(state => state.settings.language);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -164,8 +165,6 @@ function HomeScreen({navigation, route}) {
     // #3: defer the rest off the first-paint path (bookmarks, FCM register,
     // notifee permission) so they don't compete with the initial feed render.
     const task = InteractionManager.runAfterInteractions(() => {
-      dispatch(getBookmarks())
-      sendToken()
       notifee.requestPermission();
     });
     return () => task.cancel();
@@ -207,10 +206,17 @@ function HomeScreen({navigation, route}) {
     }
   }, [selectedCategory, currentLocation, dispatch]);
 
-  const sendToken = async () =>{
-    await dispatch(postToken())
-    dispatch(registerGuestFCM());
-  }
+  // Refresh account-owned data when a guest signs in without remounting Home.
+  useEffect(() => {
+    if (userToken || reporterToken) dispatch(getBookmarks());
+  }, [dispatch, userToken, reporterToken]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      dispatch(userToken || reporterToken ? postToken() : registerGuestFCM());
+    });
+    return () => task.cancel();
+  }, [dispatch, userToken, reporterToken, language, currentLocation?.state?._id, currentLocation?.district?._id, currentLocation?.village?._id]);
 
   useEffect(() => {
     const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;

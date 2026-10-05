@@ -44,9 +44,9 @@ const ProfileSetupScreen = ({navigation, route}) => {
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageAsset, setProfileImageAsset] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [username, setUsername] = useState('Eshwar');
-  const [fullName, setFullName] = useState('Eshwar vanapalli');
-  const [email, setEmail] = useState('eshwar@gmail.com');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   
   // Selection State
   const [selectedState, setSelectedState] = useState(null);
@@ -121,6 +121,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
   };
 
   const handleProceed = async () => {
+    if (authLoading || uploadingImage) return;
     if (validateForm()) {
       const { token } = route.params || {};
       
@@ -153,7 +154,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
       }
 
       try {
-        const resultAction = await dispatch(applyReporter(payload));
+        const resultAction = await dispatch(applyReporter({...payload, token}));
         console.log(resultAction,">>>>>>>>>>RESULT ACTION");
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [

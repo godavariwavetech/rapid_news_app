@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import RNShare from 'react-native-share';
+import { getNewsShareUrl } from './newsLinks';
 import RNFetchBlob from 'react-native-blob-util';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
 import { createThumbnail } from "react-native-create-thumbnail";
@@ -48,7 +49,7 @@ export const generateVideoThumbnail = async (url) => {
 // know whether a share really happened (e.g. counting it server-side) must
 // check this return value rather than just whether the call didn't throw.
 export const handleShare = async (title, newsId, base64Data, imageUrl) => {
-  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const appUrl = getNewsShareUrl(newsId);
   const message = `${title}\n\n${appUrl}`;
 
   console.log('[FileHelpers/Share] ▶ handleShare called');
@@ -137,7 +138,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
 // and FileProvider.getUriForFile() throws, which surfaced as a misleading
 // "WhatsApp Not Found" alert even though WhatsApp was installed.
 export const handleWhatsAppShare = async (title, newsId, base64Data, imageUrl) => {
-  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const appUrl = getNewsShareUrl(newsId);
   const message = `${title}\n\n${appUrl}`;
 
   console.log('[FileHelpers/WhatsAppShare] ▶ handleWhatsAppShare called');

@@ -4,7 +4,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
-import { AppState, Linking, Text, TextInput, InteractionManager } from 'react-native'; // <--- ADD Text, TextInput HERE
+import { AppState, Text, TextInput, InteractionManager } from 'react-native'; // <--- ADD Text, TextInput HERE
 
 // ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
 const customTextProps = {
@@ -64,7 +64,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED T
 import AboutUsScreen from '../screens/AboutUsScreen';
 
 import { endActivity, startActivity, registerDevice } from '../redux/reducers/auth';
-import { fetchArticleById } from '../redux/reducers/news';
+import { newsLinking } from './newsLinking';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -160,68 +160,8 @@ function AppNavigator() {
     };
   }, [dispatch]);
 
-  // Deep Linking & Notification Handling
-  useEffect(() => {
-    const handleDeepLink = async (url) => {
-      if (!url) return;
-
-      let newsId = null;
-
-      // Handle custom scheme: rapidnews://news/<id>
-      if (url.startsWith('rapidnews://news/')) {
-        newsId = url.replace('rapidnews://news/', '');
-      }
-      // Handle HTTPS app link: https://godavariwave.in/news/<id>
-      else if (url.startsWith('https://godavariwave.in/news/')) {
-        newsId = url.replace('https://godavariwave.in/news/', '');
-      }
-
-      if (!newsId) return;
-
-      console.log('Deep link newsId:', newsId);
-
-      const resp = await dispatch(fetchArticleById(newsId));
-      const article = resp?.payload;
-
-      const navigateToNews = () => {
-        if (navigationRef.isReady()) {
-          // fetchArticleById already prepended the article to index 0 in the feed.
-          // Reset to Main so the user sees it first in the normal flip flow.
-          navigationRef.current.reset({
-            index: 0,
-            routes: [{ name: 'Main' }],
-          });
-        } else {
-          setTimeout(navigateToNews, 300);
-        }
-      };
-      navigateToNews();
-    };
-
-    // App opened from killed state via link
-    Linking.getInitialURL().then(handleDeepLink);
-
-    // App in background, link clicked
-    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      handleDeepLink(url);
-    });
-
-    return () => {
-      linkingSubscription.remove();
-    };
-  }, [dispatch, navigationRef]);
-
-  const linking = {
-  prefixes: ['https://www.rapidnewsnetwork.in'],
-
-  config: {
-    screens: {
-      NewsDetail: 'app/article/:articleId',
-    },
-  },
-};
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={newsLinking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
