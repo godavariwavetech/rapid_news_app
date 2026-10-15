@@ -136,6 +136,15 @@ const locationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase('auth/logout', state => {
+        state.tempReporterToken = null;
+      })
+      .addCase('auth/userLogin/fulfilled', state => {
+        state.tempReporterToken = null;
+      })
+      .addCase('auth/verifyOTP/fulfilled', state => {
+        state.tempReporterToken = null;
+      })
       // --- Resolve Location ---
       .addCase(resolveLocation.pending, (state) => {
         state.loading = true;

@@ -1,3 +1,4 @@
+import {articleCounters, articleDayKey} from '../utils/articleCounters';
 import React, { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet, Dimensions, StatusBar, Platform, ToastAndroid, ActivityIndicator, AppState } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -103,7 +104,7 @@ const SPRING_CONFIG = {
 };
 
 // 1. Memoized Card
-const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
+const MemoizedCard = React.memo(({ newsItem, height, fitToContainer = false, onPress, onCommentsPress, isActive = true, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
   if (!newsItem) return null;
   return (
    <View style={{ height }}>
@@ -112,14 +113,14 @@ const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, i
       ) : newsItem.type === 'VIRAL_POST' ? (
         <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
       ) : (
-        <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} onPressTag={onPressTag} />
+        <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} onPressTag={onPressTag} />
       )}
     </View>
   );
-}, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive && prev.viralSlideIndex === next.viralSlideIndex);
+}, (prev, next) => prev.newsItem === next.newsItem && prev.height === next.height && prev.fitToContainer === next.fitToContainer && prev.isActive === next.isActive && prev.viralSlideIndex === next.viralSlideIndex);
 
 // 2. CardHalf
-const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
+const CardHalf = React.memo(({ newsItem, side, height, fitToContainer = false, onPress, onCommentsPress, isActive = true, theme, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
   const isTop = side === 'top';
@@ -131,7 +132,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
         ) : newsItem.type === 'VIRAL_POST' ? (
           <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
         ) : (
-          <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} onPressTag={onPressTag} />
+          <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} onPressTag={onPressTag} />
         )}
       </View>
     </View>
@@ -139,7 +140,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 });
 
 // WRAP WITH FORWARD REF
-const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main', onPressViral, onPressTag, overrideItems, onOverlayEndReached, overlayHasMore = false, overlayMoreLoading = false }, ref) => {
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main', onPressViral, onPressTag, overrideItems, onOverlayEndReached, overlayHasMore = false, overlayMoreLoading = false, fitToContainer = false, onSwipeUpAtEnd, onSwipeDownAtStart }, ref) => {
   const dispatch = useDispatch();
   
   // DYNAMIC REDUX SELECTION BASED ON feedType PROP
@@ -220,7 +221,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     const now = new Date(nowTick);
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const dayCounters = {};
+    const counters = articleCounters(rawItems, {today: articleDayKey(now), unread: feedType === 'unread', unreadCount, overlay: Boolean(overrideItems)});
 
     return rawItems.map((item) => {
       if (item.type === 'AD') {
@@ -274,29 +275,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         const publishedAt = data.published_at;
         const pubDate = publishedAt ? new Date(publishedAt) : null;
 
-        // Build a day key from the publish date so each calendar day gets its own counter
-        let dayKey = 'unknown';
-        if (pubDate) {
-          dayKey = `${pubDate.getFullYear()}-${pubDate.getMonth()}-${pubDate.getDate()}`;
-        }
-        dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
-        const itemIndex = dayCounters[dayKey];
-
-        const isToday = pubDate && pubDate >= todayStart;
-
-        // For items from a previous day offset, pass the offset so timeAgo shows
-        // "Yesterday" / date instead of "17 hours ago"
+        const counter = counters.get(data._id);
+        const itemIndex = counter?.index || 1;
+        const dayTotal = counter?.total || 1;
+        const isToday = articleDayKey(publishedAt) === articleDayKey(now);
         const itemDayOffset = isToday ? 0 : currentDayOffset > 0 ? currentDayOffset : null;
-        let dayTotal;
-        if (feedType === 'unread') {
-          dayTotal = unreadCount || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY' && i.type !== 'VIRAL_POST').length;
-        } else if (isToday) {
-          // Use the total stamped on this item at fetch time so the counter
-          // doesn't jump while the user is still viewing the last card.
-          dayTotal = item._batch_today_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY' && i.type !== 'VIRAL_POST').length;
-        } else {
-          dayTotal = item._batch_total || rawItems.filter(i => i.type !== 'AD' && i.type !== 'SURVEY' && i.type !== 'VIRAL_POST').length;
-        }
 
         return {
           id: data._id,
@@ -336,7 +319,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     });
     // #6: nowTick deliberately NOT a dep — the 60s tick no longer re-maps the
     // whole list; only the visible card's timeAgo is refreshed (see currentNews).
-  }, [activeArticles, overrideItems, bookmarkedIds, currentDayOffset]);
+  }, [activeArticles, overrideItems, bookmarkedIds, currentDayOffset, feedType, unreadCount]);
 
   // Preload all ad images as soon as the feed is ready
   useEffect(() => {
@@ -604,6 +587,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
 
   const triggerRefresh = () => {
+    if (overrideItems) {
+      scrollY.value = withSpring(0, SPRING_CONFIG);
+      loaderY.value = withSpring(-60, SPRING_CONFIG);
+      return;
+    }
     setIsRefreshing(true);
     loaderY.value = withSpring(20, SPRING_CONFIG);
     // Pull-to-refresh re-fetches the main feed — meaningless (and confusing)
@@ -667,13 +655,25 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       let position = -e.translationY / containerHeight;
 
+      // Linked article dismissal is animated by the navigator as one whole
+      // screen. Rotating its card halves here leaves them cut during that slide.
+      const dismissingLinkedArticle =
+        (position > 0 && !hasNext.value && !!onSwipeUpAtEnd) ||
+        (position < 0 && !hasPrev.value && !!onSwipeDownAtStart);
+      if (dismissingLinkedArticle) {
+        scrollY.value = 0;
+        swipeDirection.value = 0;
+        loaderY.value = -60;
+        return;
+      }
+
       if (!hasNext.value && position > 0) {
         position = position / 3; 
       }
       else if (!hasPrev.value && position < 0) {
         position = position / 3; 
         
-        if (!isRefreshing) {
+        if (!isRefreshing && !onSwipeDownAtStart) {
           const dragY = e.translationY; 
           loaderY.value = Math.min(-60 + (dragY * 0.4), 20); 
         }
@@ -691,6 +691,15 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
+            // A linked article is an isolated screen above its source. Swiping
+            // past it should reveal that source, preserving its feed position.
+            if (onSwipeUpAtEnd) {
+              scrollY.value = 0;
+              swipeDirection.value = 0;
+              isAnimating.value = true;
+              runOnJS(onSwipeUpAtEnd)();
+              return;
+            }
             if (!activeHasMore && Platform.OS === 'android') {
               runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
             }
@@ -707,6 +716,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       } 
       else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
+           if (onSwipeDownAtStart) {
+              scrollY.value = 0;
+              swipeDirection.value = 0;
+              loaderY.value = -60;
+              isAnimating.value = true;
+              runOnJS(onSwipeDownAtStart)();
+              return;
+           }
            if (!isRefreshing) {
               runOnJS(triggerRefresh)();
            } else {
@@ -852,31 +869,33 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
           {activeNextNews && (
              <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
-               <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
+               <MemoizedCard fitToContainer={fitToContainer} newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
           {activePrevNews && (
              <Animated.View style={[styles.absoluteFill, destinationPrevStyle]}>
-               <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
+               <MemoizedCard fitToContainer={fitToContainer} newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
              </Animated.View>
           )}
 
-          {activeCurrentNews?.isAd && !isSwitching ? (
-            // Full-bleed ads (esp. full-screen video) render as ONE full card so
+          {activeCurrentNews?.isAd && activeCurrentNews.mediaType === 'video' && !!activeCurrentNews.video && !isSwitching ? (
+            // Video ads render as ONE full card so
             // the video isn't cut to the top half by the two-half flip split.
             // While switching, fall through to the normal halves below so the
             // flip animation is unchanged (it briefly shows the ad's poster).
+            // Image ads use the stationary halves below, which hide during
+            // the flip so the outgoing ad cannot cover the destination card.
             <Animated.View style={styles.absoluteFill}>
-              <MemoizedCard newsItem={activeCurrentNews} height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+              <MemoizedCard fitToContainer={fitToContainer} newsItem={activeCurrentNews} height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
             </Animated.View>
           ) : (
             <>
               <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
 
               <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={!isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
             </>
           )}
@@ -884,10 +903,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {nextNews && (
             <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, flipNextStyle]}>
               <Animated.View style={[styles.face, nextFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
               <Animated.View style={[styles.face, nextBackStyle]}>
-                <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>
@@ -896,10 +915,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {prevNews && (
             <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, flipPrevStyle]}>
               <Animated.View style={[styles.face, prevFrontStyle]}>
-                <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
               <Animated.View style={[styles.face, prevBackStyle]}>
-                <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+                <CardHalf fitToContainer={fitToContainer} newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={isSwitching} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
               </Animated.View>
               <Animated.View style={[styles.shadow, shadowStyle]} />
             </Animated.View>

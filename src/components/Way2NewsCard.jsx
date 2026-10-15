@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, Image, StyleSheet, Dimensions, Modal, Linking, Alert,
+  View, Text, Image, StyleSheet, Dimensions, Modal, Linking, Alert, Platform,
   ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState, PanResponder,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
@@ -23,7 +23,7 @@ import ReportModal from './ReportModal';
 import ArticleLinks from './ArticleLinks';
 import LinkedArticleText from './LinkedArticleText';
 import { getNewsCommentCount } from '../utils/newsCommentCount';
-import { downloadImageToGallery, handleShare, handleWhatsAppShare, generateVideoThumbnail } from '../utils/FileHelpers';
+import { downloadImageToGallery, handleArticleLinkShare, generateVideoThumbnail } from '../utils/FileHelpers';
 import { getCachedVideo } from '../utils/videoFileCache';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
@@ -203,15 +203,22 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   const [liked, setLiked] = useState(isOriginallyLiked);
   const [disliked, setDisliked] = useState(isOriginallyDisliked);
-  const [likeCount, setLikeCount] = useState(parseInt(news?.reactions?.likes || news?.likes || 0));
-  const [dislikeCount, setDislikeCount] = useState(parseInt(news?.reactions?.dislikes || news?.dislikes || 0));
+  const articleLikeCount = Number(news?.reactions?.likes ?? news?.likes ?? 0);
+  const articleDislikeCount = Number(news?.reactions?.dislikes ?? news?.dislikes ?? 0);
+  const [likeCount, setLikeCount] = useState(articleLikeCount);
+  const [dislikeCount, setDislikeCount] = useState(articleDislikeCount);
+
+  // Synchronize before paint when the flip reuses this mount for another article.
+  // Scalar dependencies avoid resetting optimistic counts on unrelated updates.
+  useLayoutEffect(() => {
+    setLiked(isOriginallyLiked); setDisliked(isOriginallyDisliked);
+    setLikeCount(articleLikeCount);
+    setDislikeCount(articleDislikeCount);
+  }, [news.id, news._id, isOriginallyLiked, isOriginallyDisliked, articleLikeCount, articleDislikeCount]);
 
   useEffect(() => {
-    setLiked(isOriginallyLiked); setDisliked(isOriginallyDisliked);
-    setLikeCount(parseInt(news?.reactions?.likes || news?.likes || 0));
-    setDislikeCount(parseInt(news?.reactions?.dislikes || news?.dislikes || 0));
     setGeneratedThumbnail(null); // Reset generated thumbnail for new news item
-  }, [news.id, isOriginallyLiked, isOriginallyDisliked, news.likes, news.dislikes, news.reactions]);
+  }, [news.id, news._id]);
 
   const handleLike = () => {
     if (liked) { setLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); dispatch(reactToNews({ newsId: news.id, type: 'LIKE' })); }
@@ -261,11 +268,11 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const hasImage = images.length > 0;
   const imageResizeMode = FastImage.resizeMode.cover;
 
-  // Media box is always IMAGE_HEIGHT (40%) for BOTH image and video cards, so
-  // every card's media is the same height and the headline below sits in the
-  // same place as you swipe. Video fills this box via resizeMode="cover"
-  // (matching how images fill their box) — no letterbox gap, no shrinking.
-  const mediaHeight = IMAGE_HEIGHT;
+  // Linked articles share the screen with a separate Back bar. Size their
+  // media against the available card height so the text and actions fit.
+  const mediaHeight = cardHeight
+    ? getArticleImageDimensions(SCREEN_WIDTH, cardHeight).height
+    : IMAGE_HEIGHT;
 
   const onVideoReady = useCallback(() => { playerRef.current?.seekTo(0, true); setIsBuffering(false); setVideoReady(true); }, []);
   const onVideoLoad = useCallback((data) => {
@@ -333,54 +340,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
   const displayBody = news.body || news.description || news.content?.te?.body || news.content?.body || '';
 
-  // --- VIEW SHOT SHARE FUNCTION (BASE64) ---
   const handleShareNews = async (target = 'generic') => {
-    let activeThumbnail = generatedThumbnail;
-
-    // If sharing from the bottom half, the thumbnail won't be pre-generated. Generate it on-demand.
-    if (hasVideos && !youtubeId && !activeThumbnail && !thumbnailUri) {
-      console.log('[Share] Generating thumbnail on-demand during share (bottom half)...');
-      activeThumbnail = await generateVideoThumbnail(videoUrls[0]);
-      if (activeThumbnail) setGeneratedThumbnail(activeThumbnail);
-    }
-
-    const currentDisplayThumbnail = activeThumbnail || thumbnailUri;
-    const imageUrl = news.images?.[0] || news.image || news.thumbnail || currentDisplayThumbnail;
-    const articleId = news._id || news.id;
-
-    console.log('[Share] ▶ handleShareNews triggered');
-    console.log('[Share] news.id:', news.id, '| hasVideos:', hasVideos, '| youtubeId:', youtubeId);
-    console.log('[Share] activeThumbnail:', activeThumbnail);
-    console.log('[Share] thumbnailUri:', thumbnailUri);
-    console.log('[Share] currentDisplayThumbnail:', currentDisplayThumbnail);
-    console.log('[Share] imageUrl (fallback):', imageUrl);
-
-    console.log('[Share] Path: ViewShot capture (with generatedThumbnail if available)');
-    try {
-      setScreenshotMode(true);
-      // Allow image to fully render in place of the video before capture
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      if (!viewShotRef.current || !viewShotRef.current.capture) {
-        throw new Error("ViewShot reference is missing or library is not linked correctly.");
-      }
-
-      console.log('[Share] Capturing ViewShot...');
-      // Capture as Base64 String to completely avoid Android file permission errors
-      const base64Data = await viewShotRef.current.capture();
-      console.log('[Share] ViewShot captured, base64 length:', base64Data?.length);
-
-      const shareFn = target === 'whatsapp' ? handleWhatsAppShare : handleShare;
-      const shared = await shareFn(displayTitle, articleId, base64Data, imageUrl);
-      console.log('[Share] ✅ ViewShot share completed | counted:', shared);
-      // Only record a share once the user actually completed it (not on cancel).
-      if (shared && articleId) dispatch(shareNews(articleId));
-    } catch (error) {
-      console.log('[Share] ❌ ViewShot Share error:', error);
-      Alert.alert("Share Failed", "Could not process screenshot: " + error.message);
-    } finally {
-      setScreenshotMode(false);
-    }
+    const articleId = news.id || news._id || news.data?._id;
+    const shared = await handleArticleLinkShare(displayTitle, articleId, target);
+    if (shared && articleId) dispatch(shareNews(articleId));
   };
 
   const handleMenuPress = () => setMenuVisible(true);
@@ -401,11 +364,15 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
     // (unmounts off-screen for a clean replay on return). Autoplays WITH sound;
     // a single tap opens redirect_url.
     const isVideoAd = news.mediaType === 'video' && !!news.video;
+    // Android 15+ paints the navigation bar over the edge-to-edge content.
+    // Keep the full poster above that overlay, including during split flips.
+    const adBottomInset = !isVideoAd && Platform.OS === 'android' && Platform.Version >= 35
+      ? insets.bottom : 0;
     // Play the locally-prefetched file if it's ready (instant, no network buffer);
     // otherwise fall back to the remote URL. Prefetch happens ahead in FlipNewsScreen.
     const adVideoUri = getCachedVideo(news.video) || news.video;
     return (
-      <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={styles.card}>
+      <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }} style={[styles.card, cardHeight && {height: cardHeight}, {paddingBottom: adBottomInset}]}>
         <Pressable onPress={handleAdPress} style={{ flex: 1 }}>
           {isVideoAd ? (
             <>
@@ -452,7 +419,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
               <Pressable onPress={handleAdPress} style={styles.videoTouchOverlay} />
             </>
           ) : (
-            <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={imageResizeMode} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
+            <FastImage source={imageSource} style={[styles.image, { height: '100%', width: '100%' }]} resizeMode={FastImage.resizeMode.stretch} onLoadStart={() => setIsBuffering(true)} onLoad={() => setIsBuffering(false)} onError={() => setIsBuffering(false)} />
           )}
           {isBuffering && (
             // Video ads: keep the poster visible (only a light dim + spinner) so the
@@ -470,10 +437,10 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
   const renderImageItem = ({ item }) => (
     <TouchableWithoutFeedback onPress={handleDoubleTap}>
-      <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
+      <View style={{ width: SCREEN_WIDTH, height: mediaHeight }}>
         {/* Shimmer behind the image (parity with the single-image branch) so a
             not-yet-decoded carousel frame shows a placeholder instead of black. */}
-        <View style={StyleSheet.absoluteFill}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
+        <View style={StyleSheet.absoluteFill}><ShimmerLoader height={mediaHeight} borderRadius={0} /></View>
         <FastImage source={{ uri: item, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }} style={styles.image} resizeMode={imageResizeMode} />
       </View>
     </TouchableWithoutFeedback>
@@ -623,8 +590,8 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <TouchableWithoutFeedback onPress={handleDoubleTap}>
-              <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
-                <View style={StyleSheet.absoluteFill}><ShimmerLoader height={IMAGE_HEIGHT} borderRadius={0} /></View>
+              <View style={{ width: SCREEN_WIDTH, height: mediaHeight }}>
+                <View style={StyleSheet.absoluteFill}><ShimmerLoader height={mediaHeight} borderRadius={0} /></View>
                 <FastImage source={hasImage ? { uri: images[0], priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable } : applogo} style={styles.image} resizeMode={imageResizeMode} />
               </View>
             </TouchableWithoutFeedback>
@@ -670,7 +637,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
         )}
       </View>
 
-      <View style={styles.bottomContainer}>
+      <View style={[styles.bottomContainer, cardHeight && {paddingBottom: 0}]}>
         <TouchableWithoutFeedback onPress={handleDoubleTap}>
           <View style={styles.contentSection}>
             <Text style={styles.title} numberOfLines={3} allowFontScaling={false}>{displayTitle}</Text>
@@ -722,7 +689,11 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
 
         <LinearGradient
           colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.85)']}
-          style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 8) + 4 }]}
+          style={[styles.actionBar, cardHeight
+            // SafeAreaView outside the linked card already reserves the system
+            // navigation inset. Adding it here again creates a large empty gap.
+            ? styles.linkedActionBar
+            : {paddingBottom: Math.max(insets.bottom, 8) + 4}]}
         >
           <View style={styles.actionLeft}>
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
@@ -835,7 +806,7 @@ const styles = StyleSheet.create({
   contentSection: { flex: 1, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 15, borderBottomRightRadius: 15, paddingHorizontal: 18, paddingTop: 0, paddingBottom: 10 },
   title: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.3 : 2.8), color: '#000000', lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.8 : 3.4), includeFontPadding: false, paddingTop: 8, paddingBottom: 3 },
   bodyContainer: { flex: 1, overflow: 'hidden' },
-  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.5), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.5), color: '#555555', fontWeight: '400' },
+  body: { fontFamily: fonts.description, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.6 : 3.4), lineHeight: responsiveFontSize(IS_WIDE_SCREEN ? 2.9 : 3.4), color: '#555555', fontWeight: '400' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
   tagChipText: { fontFamily: fonts.medium, fontSize: responsiveFontSize(IS_WIDE_SCREEN ? 2.0 : 2.4), color: '#2196F3' },
   // Byline sits ON the image, so it is white on a bottom gradient rather than
@@ -854,6 +825,7 @@ const styles = StyleSheet.create({
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
   actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 20, paddingHorizontal: 16 },
+  linkedActionBar: {minHeight: 48, paddingTop: 12, paddingBottom: 12, flexShrink: 0},
   actionLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   actionRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },

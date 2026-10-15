@@ -1,11 +1,10 @@
-import { trackNotificationClick, notificationClickFromUrl } from '../utils/notificationClicks';
 import React, { useEffect, useRef } from 'react';
 import {NavigationContainer, useNavigationContainerRef} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
-import { AppState, Linking, Text, TextInput, InteractionManager } from 'react-native'; // <--- ADD Text, TextInput HERE
+import { AppState, Text, TextInput, InteractionManager } from 'react-native';
 
 // ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
 const customTextProps = {
@@ -57,6 +56,7 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import {linkedArticleTransition} from './linkedArticleTransition';
 import MagazineViewerScreen from '../screens/MagazineViewerScreen';
 import FullScorecardScreen from '../screens/FullScorecardScreen';
 import ExamResultScreen from '../screens/ExamResultScreen';
@@ -65,7 +65,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED T
 import AboutUsScreen from '../screens/AboutUsScreen';
 
 import { endActivity, startActivity, registerDevice } from '../redux/reducers/auth';
-import { fetchArticleById } from '../redux/reducers/news';
+import { newsLinking } from './newsLinking';
 import { getAppOpenTracker } from '../utils/appOpenTracker';
 
 const Stack = createStackNavigator();
@@ -156,69 +156,8 @@ function AppNavigator() {
     };
   }, [dispatch]);
 
-  // Deep Linking & Notification Handling
-  useEffect(() => {
-    const handleDeepLink = async (url) => {
-      if (!url) return;
-
-      let newsId = null;
-
-      // Handle custom scheme: rapidnews://news/<id>
-      if (url.startsWith('rapidnews://news/')) {
-        newsId = url.replace('rapidnews://news/', '').split('?')[0];
-      }
-      // Handle HTTPS app link: https://godavariwave.in/news/<id>
-      else if (url.startsWith('https://godavariwave.in/news/')) {
-        newsId = url.replace('https://godavariwave.in/news/', '').split('?')[0];
-      }
-
-      if (!newsId) return;
-      trackNotificationClick(notificationClickFromUrl(url));
-
-      console.log('Deep link newsId:', newsId);
-
-      const resp = await dispatch(fetchArticleById(newsId));
-      const article = resp?.payload;
-
-      const navigateToNews = () => {
-        if (navigationRef.isReady()) {
-          // fetchArticleById already prepended the article to index 0 in the feed.
-          // Reset to Main so the user sees it first in the normal flip flow.
-          navigationRef.current.reset({
-            index: 0,
-            routes: [{ name: 'Main' }],
-          });
-        } else {
-          setTimeout(navigateToNews, 300);
-        }
-      };
-      navigateToNews();
-    };
-
-    // App opened from killed state via link
-    Linking.getInitialURL().then(handleDeepLink);
-
-    // App in background, link clicked
-    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      handleDeepLink(url);
-    });
-
-    return () => {
-      linkingSubscription.remove();
-    };
-  }, [dispatch, navigationRef]);
-
-  const linking = {
-  prefixes: ['https://www.rapidnewsnetwork.in'],
-
-  config: {
-    screens: {
-      NewsDetail: 'app/article/:articleId',
-    },
-  },
-};
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={newsLinking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -383,7 +322,10 @@ function AppNavigator() {
         <Stack.Screen
           name="NewsDetail"
           component={NewsDetailScreen}
-          options={{headerShown: false}}
+          options={({route}) => ({
+            headerShown: false,
+            ...(route.params?.fromArticleLink ? linkedArticleTransition : {}),
+          })}
         />
 
         <Stack.Screen 

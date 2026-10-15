@@ -684,6 +684,7 @@ const newsSlice = createSlice({
             ...item,
             _batch_today_total: batchTodayTotal,
             _batch_total: batchTotal,
+            _news_totals_by_day: pagination?.news_totals_by_day,
           }));
         }
 
@@ -753,25 +754,19 @@ const newsSlice = createSlice({
 
         state.notificationArticle = article;
 
-        // Only prepend to an already-loaded feed. If articles is empty the feed
-        // hasn't loaded yet — fetchNews (page 1) will pick up notificationArticle
-        // and prepend it then, avoiding a double-insert / flash on app open.
+        // Make the shared article visible even before page 1 arrives (or if
+        // that request fails). Subsequent feed pages keep it pinned and unique.
         const existingItems = Array.isArray(state.articles)
           ? state.articles
           : (state.articles?.items || []);
-
-        if (existingItems.length > 0) {
-          if (Array.isArray(state.articles)) {
-            const filtered = state.articles.filter(item =>
-              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-            );
-            state.articles = [article, ...filtered];
-          } else if (state.articles?.items) {
-            const filtered = state.articles.items.filter(item =>
-              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-            );
-            state.articles.items = [article, ...filtered];
-          }
+        const articleId = article.data?._id || article._id;
+        const items = [article, ...existingItems.filter(item =>
+          (item.data?._id || item._id) !== articleId
+        )];
+        if (Array.isArray(state.articles)) {
+          state.articles = items;
+        } else {
+          state.articles = {...state.articles, items};
         }
       })
       .addCase(fetchArticleById.rejected, (state, action) => {

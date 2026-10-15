@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector, useDispatch} from 'react-redux';
-import {fetchNews, getCategories, setSelectedCategory, clearNews, fetchViralPostsRail, fetchNewsByTag, searchNews} from '../redux/reducers/news';
+import {fetchArticleById, fetchNews, getCategories, setSelectedCategory, clearNews, fetchViralPostsRail, fetchNewsByTag, searchNews} from '../redux/reducers/news';
 import Header from '../components/Header';
 import BottomTabBar from '../components/BottomTabBar';
 import CategoriesModal from '../components/CategoriesModal';
@@ -36,7 +36,11 @@ function HomeScreen({navigation, route}) {
   // Create tab (Requirement 21) - same reporterToken check CategoriesModal's
   // own Create menu item uses, so both entry points resolve to the same
   // screen for the same user.
-  const {reporterToken} = useSelector(state => state.auth);
+  const {reporterToken, userToken} = useSelector(state => state.auth);
+  const language = useSelector(state => state.settings.language);
+  const isDarkMode = useSelector(state => state.settings.isDarkMode);
+  const sharedArticleId = route?.params?.sharedArticleId;
+  const sharedArticleLoading = Boolean(sharedArticleId);
 
   const [uiVisible, setUiVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('HomeTab');
@@ -62,6 +66,37 @@ function HomeScreen({navigation, route}) {
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bottomTabAnim = useRef(new Animated.Value(0)).current;
   const flipScreenRef = useRef(null);
+
+  useEffect(() => {
+    if (!sharedArticleId) return;
+    let active = true;
+    headerAnim.stopAnimation();
+    bottomTabAnim.stopAnimation();
+    headerAnim.setValue(0);
+    bottomTabAnim.setValue(0);
+    setUiVisible(true);
+    setActiveTab('HomeTab');
+    setOverlayItems(null);
+    setCommentsVisible(false);
+    setOverlayLoading(false);
+    // Ignore any overlay request that was still running when the link opened.
+    overlayRequestRef.current += 1;
+    overlayPageRef.current = null;
+    dispatch(setSelectedCategory('all'));
+    const request = dispatch(fetchArticleById(sharedArticleId));
+    request.unwrap()
+      .catch(() => {
+        if (active) Alert.alert('News unavailable', 'Could not load the shared article. Please try again.');
+      })
+      .finally(() => {
+        if (active) navigation.setParams({sharedArticleId: undefined});
+      });
+    return () => {
+      active = false;
+      // Prevent an older link from replacing a newer article in the feed.
+      request.abort();
+    };
+  }, [sharedArticleId, dispatch, navigation, headerAnim, bottomTabAnim]);
 
   // fetchFn: () => Promise<array of feed items>. Errors are reported with
   // errorMessage (already-localized, since callers know what they were
@@ -200,7 +235,7 @@ function HomeScreen({navigation, route}) {
   }, [route?.params?.searchQuery, openSearchOverlay, openTagOverlay, navigation]);
 
   // --- ADDED !locationLoading CHECK HERE ---
-  const shouldShowFallback = !loading && !locationLoading && (!articles || articles.length === 0) && !!error;
+  const shouldShowFallback = !sharedArticleLoading && !loading && !locationLoading && (!articles || articles.length === 0) && !!error;
 
   const displayLocationName = useMemo(() => {
     return (
@@ -220,8 +255,6 @@ function HomeScreen({navigation, route}) {
     // #3: defer the rest off the first-paint path (bookmarks, FCM register,
     // notifee permission) so they don't compete with the initial feed render.
     const task = InteractionManager.runAfterInteractions(() => {
-      dispatch(getBookmarks())
-      sendToken()
       notifee.requestPermission();
     });
     return () => task.cancel();
@@ -261,12 +294,19 @@ function HomeScreen({navigation, route}) {
       // No location yet — fetch with default/fallback location so feed isn't empty
       dispatch(fetchNews({ category: selectedCategory, page: 1, isLocationMode: false }));
     }
-  }, [selectedCategory, currentLocation, dispatch]);
+  }, [selectedCategory, currentLocation, dispatch, activeTab, categories]);
 
-  const sendToken = async () =>{
-    await dispatch(postToken())
-    dispatch(registerGuestFCM());
-  }
+  // Refresh account-owned data when a guest signs in without remounting Home.
+  useEffect(() => {
+    if (userToken || reporterToken) dispatch(getBookmarks());
+  }, [dispatch, userToken, reporterToken]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      dispatch(userToken || reporterToken ? postToken() : registerGuestFCM());
+    });
+    return () => task.cancel();
+  }, [dispatch, userToken, reporterToken, language, currentLocation?.state?._id, currentLocation?.district?._id, currentLocation?.village?._id]);
 
   useEffect(() => {
     const articlesCount = (Array.isArray(articles) ? articles : (articles?.items || [])).length;
@@ -384,7 +424,7 @@ function HomeScreen({navigation, route}) {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
      {!shouldShowFallback && (
-        <Animated.View style={[styles.headerOverlay, {transform: [{translateY: headerAnim}]}]}>
+        <Animated.View style={[styles.headerOverlay, {transform: [{translateY: sharedArticleLoading ? 0 : headerAnim}]}]}>
           <Header 
             title={headerTitle} 
             onProfilePress={() => navigation.navigate("Profile")}
@@ -393,7 +433,11 @@ function HomeScreen({navigation, route}) {
         </Animated.View>
       )}
 
-      {shouldShowFallback ? (
+      {sharedArticleLoading ? (
+        <View style={[styles.sharedArticleLoader, {backgroundColor: isDarkMode ? '#121212' : '#fff'}]}>
+          <ActivityIndicator size="large" color="#4dabf5" accessibilityLabel="Loading shared news" />
+        </View>
+      ) : shouldShowFallback ? (
         <OfflineFallback onRetry={() => dispatch(fetchNews({currentLocation, category: 'all', page: 1}))} />
       ) : (
         <FlipNewsScreen
@@ -436,8 +480,8 @@ function HomeScreen({navigation, route}) {
       )}
 
       {!shouldShowFallback && (
-        <Animated.View style={[styles.bottomTabOverlay, {transform: [{translateY: bottomTabAnim}]}]}>
-          {overlayItems ? (
+        <Animated.View style={[styles.bottomTabOverlay, {transform: [{translateY: sharedArticleLoading ? 0 : bottomTabAnim}]}]}>
+          {overlayItems && !sharedArticleLoading ? (
             // Replaces the normal tab bar while browsing an overlay (viral
             // posts or a hashtag) — its own tabs (న్యూస్/కేటగిరీలు/...) don't
             // apply here and would leave the overlay stuck open if pressed.
@@ -481,6 +525,7 @@ function HomeScreen({navigation, route}) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  sharedArticleLoader: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
   bottomTabOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
   commentContainer: { ...StyleSheet.absoluteFillObject, zIndex: 200 },

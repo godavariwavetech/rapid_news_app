@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Read this story on Rapid News</title>
+  </head>
+  <body>
+    <h1>Rapid News</h1>
+    <p>Open the story in Rapid News, or install the app to read it.</p>
+    <p><a id="open-app" href="rapidnews://news/">Open in Rapid News</a></p>
+    <p><a id="install" href="https://play.google.com/store/apps/details?id=com.rapidnews">Install Rapid News on Android</a></p>
+    <script>
+      const installUrl = document.getElementById('install').href;
+      const match = location.pathname.match(/^\/app\/article\/([^/]+)\/?$/);
+      let articleId = '';
+      try {
+        articleId = match ? decodeURIComponent(match[1]) : '';
+      } catch {}
+      const validId = articleId.trim() && !/[/?#]/.test(articleId);
+      if (validId) {
+        const encodedId = encodeURIComponent(articleId);
+        const android = /Android/i.test(navigator.userAgent);
+        // The explicit button can recover when app-link verification is disabled.
+        document.getElementById('open-app').href = android
+          ? `intent://news/${encodedId}#Intent;scheme=rapidnews;package=com.rapidnews;S.browser_fallback_url=${encodeURIComponent(installUrl)};end`
+          : `rapidnews://news/${encodedId}`;
+      } else {
+        document.getElementById('open-app').hidden = true;
+      }
+      // Verified installed apps intercept the HTTPS URL before this page loads.
+      // Link preview crawlers do not execute this browser-only install redirect.
+      if (/Android/i.test(navigator.userAgent)) location.replace(installUrl);
+    </script>
+  </body>
+</html>

@@ -13,6 +13,7 @@ import topStoriesReducer from './reducers/topStories';
 import magazineReducer from './reducers/magazine';
 import cricketReducer from './reducers/cricket';
 import examsReducer from './reducers/exams';
+import {migrateAuthSession} from '../utils/migrateAuthSession';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -36,6 +37,7 @@ const rootReducer = combineReducers({
 // GPS resolve — the user can still change it explicitly at any time via
 // LocationSelectionScreen, which always sets this flag itself.
 const migrations = {
+  2: migrateAuthSession,
   1: (state: any) => {
     if (state?.location?.currentLocation && !state.location.isManuallySet) {
       return {
@@ -54,7 +56,7 @@ const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
   whitelist: ['auth', 'settings', 'location'],
-  version: 1,
+  version: 2,
   migrate: createMigrate(migrations, {debug: false}),
 };
 

@@ -27,16 +27,25 @@ public class NotificationHelper {
     // news item a standalone, independent entry — matching the competitor's behavior.
     private static final String GROUP_KEY_PREFIX = "com.rapidnews.NEWS_";
 
-    // Process-wide monotonically increasing id source. Seeded from the clock so ids
-    // don't repeat across app restarts; incremented per-notification so two posts in
-    // the same millisecond can't collide (which casting currentTimeMillis to int could).
-    private static final java.util.concurrent.atomic.AtomicInteger ID_COUNTER =
-            new java.util.concurrent.atomic.AtomicInteger((int) (System.currentTimeMillis() & 0x7FFFFFFF));
+    // Persist a distinct integer for each article so resends replace its existing
+    // entry even when Android restarted the notification service process.
+    private static synchronized int notificationIdFor(Context context, String newsId) {
+        android.content.SharedPreferences prefs =
+                context.getSharedPreferences(HISTORY_PREFS, Context.MODE_PRIVATE);
+        String key = newsId == null || newsId.trim().isEmpty() ? null : "article_id:" + newsId.trim();
+        if (key != null && prefs.contains(key)) return prefs.getInt(key, 0);
+        int nextId = prefs.getInt("next_notification_id",
+                (int) (System.currentTimeMillis() & 0x7FFFFFFF)) + 1;
+        android.content.SharedPreferences.Editor editor = prefs.edit()
+                .putInt("next_notification_id", nextId);
+        if (key != null) editor.putInt(key, nextId);
+        editor.commit();
+        return nextId;
+    }
     private static final long[] VIBRATION_PATTERN = new long[]{0, 250, 250, 250};
 
-    // Every push gets its own unique id/group (see GROUP_KEY_PREFIX above) so Android
-    // never auto-collapses them — but that also means nothing ever cancels old ones,
-    // so they pile up in the shade forever. We persist the ids we've posted (oldest
+    // Each article has its own id/group so Android never auto-collapses them.
+    // We persist the ids we've posted (oldest
     // first) in SharedPreferences (survives the FCM service's process being killed
     // between pushes) and cancel the oldest ones once more than MAX_VISIBLE are active,
     // keeping only the latest 5 notifications visible.
@@ -54,7 +63,10 @@ public class NotificationHelper {
         if (!stored.isEmpty()) {
             java.util.Collections.addAll(ids, stored.split(HISTORY_DELIMITER));
         }
-        ids.add(String.valueOf(newNotificationId));
+        // A replacement is the newest item, not another slot in the five-item cap.
+        String currentId = String.valueOf(newNotificationId);
+        while (ids.remove(currentId)) { }
+        ids.add(currentId);
 
         while (ids.size() > MAX_VISIBLE) {
             String oldestId = ids.remove(0);
@@ -130,9 +142,7 @@ public class NotificationHelper {
             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         }
 
-        // Unique id per notification so each is a distinct entry, never a replace, and
-        // never collides (incremented, not a possibly-duplicate same-ms timestamp).
-        int notificationId = ID_COUNTER.incrementAndGet();
+        int notificationId = notificationIdFor(context, newsId);
 
         // Real arrival time, captured once for both setWhen and the sort key below so
         // they agree. This is the actual post time (NOT a backend publish timestamp),

@@ -28,3 +28,14 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// This dependency's publishing-only Javadoc task omits its React Native and
+// Commons IO classpath. App builds do not need its documentation artifacts.
+// Keep the workaround here so it survives node_modules reinstalls.
+project(":react-native-create-thumbnail") {
+    tasks.withType(Javadoc).configureEach {
+        if (name == "androidJavadoc") {
+            enabled = false
+        }
+    }
+}

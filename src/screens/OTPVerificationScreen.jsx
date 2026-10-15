@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
-import { verifyOTP } from '../redux/reducers/auth';
+import { verifyOTP, requestOTP } from '../redux/reducers/auth';
 import { setReporterTempToken } from '../redux/reducers/location';
 import { useTheme } from '../context/ThemeContext';
 
@@ -24,7 +24,7 @@ const STATUS_BAR_HEIGHT =
 const OTPVerificationScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
   const { theme, isDarkMode } = useTheme();
-  const {mobile} = route.params;
+  const {mobile} = route.params || {};
   const [otp, setOtp] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(23);
   const [canResend, setCanResend] = useState(false);
@@ -74,6 +74,7 @@ const OTPVerificationScreen = ({navigation, route}) => {
   };
 
   const handleVerify = async () => {
+    if (isLoading) return;
     const otpCode = otp.join('');
     if (otpCode.length === 4) {
       setErrorMessage('');
@@ -89,8 +90,6 @@ const OTPVerificationScreen = ({navigation, route}) => {
         
         if (response.type === 'auth/verifyOTP/fulfilled') {
           const { token, user } = response.payload;
-
-          console.log(user,">>>>>>>>>>>>>USERRRR");
 
           if (!user.reporter_profile?.full_name) {
             dispatch(setReporterTempToken(token))
@@ -130,13 +129,21 @@ const OTPVerificationScreen = ({navigation, route}) => {
     }
   };
 
-  const handleResend = () => {
-    if (canResend) {
+  const handleResend = async () => {
+    if (!canResend || isLoading) return;
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      await dispatch(requestOTP({phone: mobile})).unwrap();
       setTimer(23);
       setCanResend(false);
       setOtp(['', '', '', '']);
       setErrorMessage('');
       inputRefs.current[0]?.focus();
+    } catch (error) {
+      setErrorMessage(error?.message || (typeof error === 'string' ? error : 'Could not resend OTP. Please try again.'));
+    } finally {
+      setIsLoading(false);
     }
   };
 

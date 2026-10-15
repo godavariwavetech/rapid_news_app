@@ -37,11 +37,6 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
       icon: 'view-grid',
       label: 'కేటగిరీలు',
     },
-    {
-      id: 'LocationTab',
-      icon: 'map-marker',
-      label: truncate(locationName || 'రాజమండ్రి'),
-    },
     // {
     //   id: 'TrendingTab',
     //   icon: 'fire',
@@ -59,6 +54,11 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
       id: 'CreateTab',
       icon: 'plus-circle',
       label: 'క్రియేట్',
+    },
+    {
+      id: 'LocationTab',
+      icon: 'map-marker',
+      label: truncate(locationName || 'రాజమండ్రి'),
     },
   ];
 

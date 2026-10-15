@@ -52,25 +52,22 @@ const MobileLoginScreen = ({navigation}) => {
   };
 
   const handleProceed = async () => {
-    if (mobileNumber.length === 10) {
+    if (loading) return;
+    if (/^\d{10}$/.test(mobileNumber)) {
       const payload = { "phone": mobileNumber };
       
       try {
-        const response = await dispatch(requestOTP(payload));
-        if (response?.payload?.status === 200) {
-          dispatch(clearReporter())
-          dispatch(setReporterTempToken(null))
-          navigation.navigate('OTPVerification', {mobile: mobileNumber});
-        }
+        await dispatch(requestOTP(payload)).unwrap();
+        navigation.navigate('OTPVerification', {mobile: mobileNumber});
       } catch (error) {
-        console.error("Login Error:", error);
+        Alert.alert('Could not send OTP', error?.message || (typeof error === 'string' ? error : 'Please try again.'));
       }
     } else {
       alert('Please enter a valid 10-digit mobile number');
     }
   };
 
-  const isValid = mobileNumber.length === 10;
+  const isValid = /^\d{10}$/.test(mobileNumber);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>

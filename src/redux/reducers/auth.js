@@ -13,14 +13,26 @@ const initialState = {
   reporterToken: null,
   userToken: null,
   isActive: true,
+  loading: false,
+  error: null,
+};
+
+const saveLogin = (state, {user, token}) => {
+  state.user = user;
+  state.userToken = token;
+  state.isAuthenticated = true;
+  state.isActive = user.is_active !== false;
+  const approved = user.reporter_profile?.status === 'APPROVED';
+  state.reporter = approved ? user : null;
+  state.reporterToken = approved ? token : null;
 };
 
 export const requestOTP = createAsyncThunk(
   'auth/requestOTP',
   async (payload, {getState, rejectWithValue}) => {
     try {
-      const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload);
-      return response;
+      const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload, {skipAuth: true});
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -38,6 +50,9 @@ export const verifyOTP = createAsyncThunk(
         headers: { 'x-device-id': deviceId },
         skipAuth: true,
       });
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Sign-in response is incomplete. Please try again.');
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -56,7 +71,7 @@ export const applyReporter = createAsyncThunk(
           Authorization: `Bearer ${token}`
         }
       };
-      const response = await api.post(endpoints.APPLY_REPORTER, payload, config);
+      const response = await api.post(endpoints.APPLY_REPORTER, data, token ? config : {});
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -93,7 +108,14 @@ export const userLogin = createAsyncThunk(
   'auth/userLogin',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.GOOGLE_LOGIN, payload);
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.GOOGLE_LOGIN, payload, {
+        skipAuth: true,
+        headers: {'x-device-id': deviceId},
+      });
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Sign-in response is incomplete. Please try again.');
+      }
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -105,9 +127,14 @@ export const userLogin = createAsyncThunk(
 
 export const postToken = createAsyncThunk(
   'auth/postToken',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
+      const {userToken, reporterToken} = getState().auth;
+      if (!userToken && !reporterToken) return;
       const token = await fetchFCMToken()
+      if (!token) return;
+      const currentAuth = getState().auth;
+      if (!currentAuth.userToken && !currentAuth.reporterToken) return;
       const payload = {
         token: token,
         device_type: Platform.OS?.toUpperCase(),
@@ -181,8 +208,12 @@ export const registerGuestFCM = createAsyncThunk(
       const fcm_token = await fetchFCMToken();
       if (!fcm_token) return;
 
-      const currentLocation = state.location?.currentLocation;
-      const preferred_language = state.settings?.language || 'te';
+      // Sign-in may have completed while Firebase was fetching the token.
+      const latestState = getState();
+      if (latestState.auth.userToken || latestState.auth.reporterToken) return;
+
+      const currentLocation = latestState.location?.currentLocation;
+      const preferred_language = latestState.settings?.language || 'te';
 
       const payload = {
         fcm_token,
@@ -196,9 +227,7 @@ export const registerGuestFCM = createAsyncThunk(
       };
 
 
-      console.log(payload,">>>>>>>>>>>>>>>GUUEST USER FCM");
       const response = await api.post(endpoints.REGISTER_GUEST, payload, { skipAuth: true });
-      console.log(response,">>>>>>>>>>>>>>>>> GUEST FCM REST");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -259,11 +288,13 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.user = null;
-      state.token = null;
+      state.userToken = null;
       state.isAuthenticated = false;
       state.isActive = null;
       state.reporter = null;
       state.reporterToken = null;
+      state.loading = false;
+      state.error = null;
     },
     clearReporter:(state) => {
       state.reporter = null;
@@ -281,7 +312,7 @@ const authSlice = createSlice({
       })
       .addCase(requestOTP.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to send OTP';
+        state.error = action.payload?.message || action.payload || action.error.message || 'Failed to send OTP';
       })
       .addCase(verifyOTP.pending, state => {
         state.loading = true;
@@ -289,14 +320,11 @@ const authSlice = createSlice({
       })
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.loading = false;
-        if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
-          state.reporter = action.payload?.user?.reporter_profile;
-          state.reporterToken = action.payload?.token;
-        }
+        saveLogin(state, action.payload);
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch news';
+        state.error = action.payload?.message || action.payload || action.error.message || 'Verification failed';
       })
       .addCase(getProfile.fulfilled, (state, action) => {
         state.loading = false;
@@ -312,10 +340,28 @@ const authSlice = createSlice({
           state.reporter = { ...state.reporter, ...action.payload.user };
         }
       })
+      .addCase(userLogin.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(applyReporter.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(applyReporter.fulfilled, state => {
+        state.loading = false;
+      })
+      .addCase(applyReporter.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || action.payload || action.error.message || 'Application failed';
+      })
       .addCase(userLogin.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.userToken = action.payload.token;
+        saveLogin(state, action.payload);
+      })
+      .addCase(userLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || action.payload || action.error.message || 'Sign-in failed';
       });
   },
 });

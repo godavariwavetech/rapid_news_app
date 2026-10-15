@@ -82,7 +82,8 @@ const ReporterScreen = ({navigation}) => {
               <Text style={[styles.guestText, { color: theme.textSecondary }]}>{reporter?.username || "Guest"}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={styles.homeButton} accessibilityRole="button" accessibilityLabel="Go to news"
+            onPress={() => navigation.popTo('Main', {screen: 'HomeTab'})}>
             <Icon name="home-outline" size={30} color={theme.text} />
           </TouchableOpacity>
         </View>
