@@ -1,0 +1,13 @@
+# Certificates and provisioning profiles are stored, encrypted, in the
+# "match-certs" branch of this same repo (not ios-deployment/main) so they
+# never mix with app source history.
+git_url(ENV["MATCH_GIT_URL"] || "https://github.com/godavariwavetech/rapid_news_app.git")
+git_branch("match-certs")
+
+storage_mode("git")
+type("appstore")
+
+app_identifier(["com.rapidnews"])
+team_id("PU79FB3RAD")
+
+readonly(is_ci?)

@@ -1,0 +1,57 @@
+name: iOS TestFlight
+
+on:
+  push:
+    branches:
+      - ios-deployment
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Build and upload to TestFlight
+        working-directory: ios
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          APP_STORE_CONNECT_APP_APPLE_ID: ${{ secrets.APP_STORE_CONNECT_APP_APPLE_ID }}
+          MATCH_GIT_URL: https://x-access-token:${{ secrets.MATCH_GIT_TOKEN }}@github.com/godavariwavetech/rapid_news_app.git
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          CI: true
+        run: bundle exec fastlane ios beta
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapidnews-ipa
+          path: ios/build/*.ipa
+          if-no-files-found: ignore
+          retention-days: 14
