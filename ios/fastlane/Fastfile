@@ -20,7 +20,10 @@ platform :ios do
 
   desc "Build and upload a new build to TestFlight"
   lane :beta do
-    match(type: "appstore")
+    # setup_ci forces match readonly on CI as a safety default. We want CI to
+    # be able to create the distribution cert on its first-ever run; once it
+    # exists, fetching it again here is a no-op either way.
+    match(type: "appstore", readonly: false)
 
     update_code_signing_settings(
       use_automatic_signing: false,
