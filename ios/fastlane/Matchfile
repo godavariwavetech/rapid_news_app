@@ -9,5 +9,3 @@ type("appstore")
 
 app_identifier(["com.rapidnews"])
 team_id("PU79FB3RAD")
-
-readonly(is_ci?)
