@@ -14,16 +14,22 @@ import {
   Alert,
   Switch,
   FlatList,
+  Dimensions,
+  PixelRatio,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from '../../redux/reducers/news';
 import { useTheme } from '../../context/ThemeContext';
 import CameraComponent from '../../components/CameraComponent';
+import { getArticleImageDimensions } from '../../utils/articleImageDimensions';
 
 const MAX_IMAGES = 5;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const ARTICLE_IMAGE_DIMENSIONS = getArticleImageDimensions(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -43,6 +49,8 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   // Form State
   const [headline, setHeadline] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [newsSource, setNewsSource] = useState('');
   const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
   const [images, setImages] = useState([]); // array of image assets
   const [video, setVideo] = useState(null); // single video asset
@@ -78,8 +86,10 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
       previousHeadlineRef.current = title;
       setDescription(body);
       previousDescriptionRef.current = body;
+      setNewsSource(existingNews.news_source || '');
       setHeadlineTranslitEnabled(isTeTitle);
       setDescriptionTranslitEnabled(isTeBody);
+      setTags(Array.isArray(existingNews.tags) ? existingNews.tags.join(', ') : '');
       
       if (imgUrl) setImages([{ uri: imgUrl }]);
 
@@ -160,34 +170,90 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
     setShowCamera(true);
   };
 
-  const handleCapture = (photo) => {
-    setShowCamera(false);
-    setImages(prev => {
-      if (prev.length >= MAX_IMAGES) {
-        Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
-        return prev;
-      }
-      return [...prev, photo];
+  const cropImage = async (path) => {
+    const cropped = await ImageCropPicker.openCropper({
+      path: path.startsWith('file://') || path.startsWith('content://')
+        ? path
+        : `file://${path}`,
+      mediaType: 'photo',
+      width: Math.round(ARTICLE_IMAGE_DIMENSIONS.width * PixelRatio.get()),
+      height: Math.round(ARTICLE_IMAGE_DIMENSIONS.height * PixelRatio.get()),
+      freeStyleCropEnabled: false,
+      hideBottomControls: true,
+      compressImageQuality: 0.85,
+      cropperToolbarTitle: 'Adjust photo',
+      cropperToolbarColor: isDarkMode ? '#1A1A1A' : '#FFFFFF',
+      cropperToolbarWidgetColor: isDarkMode ? '#FFFFFF' : '#1A1A1A',
     });
+
+    return {
+      uri: cropped.path.startsWith('file://') ? cropped.path : `file://${cropped.path}`,
+      type: cropped.mime || 'image/jpeg',
+      fileName: cropped.filename || `cropped_${Date.now()}.jpg`,
+      width: cropped.width,
+      height: cropped.height,
+    };
   };
 
-  const handleGallery = () => {
+  const handleCapture = async (photo) => {
+    setShowCamera(false);
+    try {
+      const croppedPhoto = await cropImage(photo.uri);
+      setImages(prev => [...prev, croppedPhoto].slice(0, MAX_IMAGES));
+    } catch (error) {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
+        console.error('Image crop failed:', error);
+        Alert.alert('Crop Failed', 'Could not crop this photo. Please try again.');
+      }
+    }
+  };
+
+  const handleGallery = async () => {
     setShowMediaOptions(false);
-    launchImageLibrary(
-      { mediaType: 'photo', quality: 0.7, includeBase64: true, selectionLimit: MAX_IMAGES },
-      response => {
-        if (response.assets) {
-          setImages(prev => {
-            const combined = [...prev, ...response.assets];
-            if (combined.length > MAX_IMAGES) {
-              Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
-              return combined.slice(0, MAX_IMAGES);
-            }
-            return combined;
-          });
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+      return;
+    }
+
+    let pickedImages;
+    try {
+      pickedImages = await ImageCropPicker.openPicker({
+        mediaType: 'photo',
+        multiple: true,
+        maxFiles: remainingSlots,
+      });
+    } catch (error) {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
+        console.error('Image picker failed:', error);
+        Alert.alert('Unable to Select Images', 'Could not open the photo library. Please try again.');
+      }
+      return;
+    }
+
+    const selectedImages = (Array.isArray(pickedImages) ? pickedImages : [pickedImages])
+      .slice(0, remainingSlots);
+    const pickedImageCount = Array.isArray(pickedImages) ? pickedImages.length : 1;
+    const croppedImages = [];
+
+    for (const image of selectedImages) {
+      try {
+        croppedImages.push(await cropImage(image.path));
+      } catch (error) {
+        if (error?.code !== 'E_PICKER_CANCELLED') {
+          console.error('Image crop failed:', error);
+          Alert.alert('Crop Failed', 'Could not crop this photo. Please try again.');
         }
-      },
-    );
+        break;
+      }
+    }
+
+    if (croppedImages.length > 0) {
+      setImages(prev => [...prev, ...croppedImages].slice(0, MAX_IMAGES));
+    }
+    if (pickedImageCount > remainingSlots) {
+      Alert.alert('Limit reached', `You can upload up to ${MAX_IMAGES} images.`);
+    }
   };
 
   const handleVideoGallery = () => {
@@ -203,14 +269,27 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
 
   const handleNext = async () => {
     if (headline && description && selectedCategoryObj && (images.length > 0 || video)) {
-      const villageId = locationData?.village?._id || existingNews?.village_id || currentLocation?.village?._id;
       const districtId = locationData?.district?._id || existingNews?.district_id || currentLocation?.district?._id;
       const stateId = locationData?.state?._id || existingNews?.state_id || currentLocation?.state?._id;
+      // Step1 now supports picking several villages/mandals for the same
+      // post. Fall back to the single legacy village (old callers / editing
+      // an existing article) so this still works when only one is known.
+      const villages = locationData?.villages?.length
+        ? locationData.villages
+        : (locationData?.village || existingNews?.village_id || currentLocation?.village
+            ? [locationData?.village || { _id: existingNews?.village_id || currentLocation?.village?._id }]
+            : []);
+
+      // The backend's news create/update endpoint takes a `locations` array —
+      // one {state_id, district_id, village_id} entry per targeted village,
+      // sharing the same (locked) state/district. Matches what the admin
+      // dashboard's AddNews.jsx already sends for multi-location posts.
+      const locations = villages
+        .map(v => ({ state_id: stateId || null, district_id: districtId || null, village_id: v?._id || null }))
+        .filter(loc => loc.village_id);
 
       const payload = {
-        "village_id": villageId || null,
-        "district_id": districtId || null,
-        "state_id": stateId || null,
+        locations,
         "category_id": selectedCategoryObj._id,
         "content": {
           "te": { 
@@ -221,6 +300,14 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         },
         "images": images.filter(img => img.uri && !img.base64).map(img => img.uri),
         "videos": video?.uri ? [video.uri] : [],
+        // Keep existing source when older reporter-list responses do not include
+        // it, while allowing a new value or an explicit clear when present.
+        ...((newsSource.trim() || existingNews?.news_source !== undefined)
+          ? { news_source: newsSource.trim() }
+          : {}),
+        // Raw comma-separated string; the backend's normalizeTags splits and
+        // cleans it. Omitted when blank so an edit can't wipe existing tags.
+        ...(tags.trim() && { tags: tags.trim() }),
       };
 
       navigation.navigate('NewsSubmissionStep4', {
@@ -230,8 +317,11 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         image: images[0] || null,
         images,
         video,
+        newsSource: newsSource.trim(),
         apiPayload: payload,
-        location: locationData ? `${locationData.village?.name?.en}, ${locationData.district?.name?.en}` : "Current Location",
+        location: locationData
+          ? `${villages.map(v => v?.name?.en).filter(Boolean).join(', ')}, ${locationData.district?.name?.en}`
+          : "Current Location",
         isEditing: !!existingNews,
         newsId: existingNews?._id
       });
@@ -313,6 +403,23 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           </View>
         </View>
 
+        {/* Tags — optional keywords, searchable alongside headline and body */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Tags</Text>
+          </View>
+          <View style={[styles.inputBox, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <TextInput
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="cyclone, amaravati (comma separated)"
+              placeholderTextColor={isDarkMode ? '#666' : '#999'}
+              value={tags}
+              onChangeText={setTags}
+              maxLength={200}
+            />
+          </View>
+        </View>
+
         {/* Category */}
         <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 8 }]}>Category *</Text>
         <TouchableOpacity 
@@ -345,7 +452,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         {/* Media Upload */}
         <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 4 }]}>Media *</Text>
         <Text style={[styles.mediaHint, { color: theme.textSecondary }]}>
-          Add up to {MAX_IMAGES} images OR one video (not both)
+          Add up to {MAX_IMAGES} images OR one video. Adjust each image crop after selecting.
         </Text>
 
         {/* Images preview grid */}
@@ -391,6 +498,27 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Add Images or Video</Text>
           </TouchableOpacity>
         )}
+
+        <View style={styles.inputContainer}>
+          <Text style={[styles.inputLabel, styles.newsSourceLabel, { color: theme.textSecondary }]}>
+            News Source (Optional)
+          </Text>
+          <View style={[styles.inputBox, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#F0F0F0' }]}>
+            <TextInput
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="Source name or URL"
+              placeholderTextColor={isDarkMode ? '#666' : '#999'}
+              value={newsSource}
+              onChangeText={setNewsSource}
+              maxLength={300}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+          </View>
+          <Text style={[styles.newsSourceHint, { color: theme.textSecondary }]}>
+            Shared with editors in the dashboard only.
+          </Text>
+        </View>
         
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -473,6 +601,8 @@ const styles = StyleSheet.create({
   inputContainer: { marginBottom: 20 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   inputLabel: { fontSize: 14, fontWeight: '600', marginLeft: 4 },
+  newsSourceLabel: { marginBottom: 8 },
+  newsSourceHint: { fontSize: 12, marginTop: 6, marginLeft: 4 },
   translitToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   translitLabel: { fontSize: 12, fontWeight: '600' },
   inputBox: { borderRadius: 12, padding: 16, borderWidth: 1 },

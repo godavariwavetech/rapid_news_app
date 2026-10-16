@@ -1,53 +1,62 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   StatusBar,
   Platform,
   TextInput,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
+import api from '../utils/api';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
 const SearchScreen = ({navigation}) => {
   const { theme, isDarkMode } = useTheme();
   const [searchText, setSearchText] = useState('');
-  const [selectedTime, setSelectedTime] = useState('1 hour');
+  const [hashtags, setHashtags] = useState([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [tagError, setTagError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    const term = searchText.trim().replace(/^#+/, '');
+    setHashtags([]);
+    setTagError(false);
+    setLoadingTags(Boolean(term));
+    if (!term) return;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await api.get('news/hashtags', { params: { q: term } });
+        if (active) setHashtags(result.data?.items || []);
+      } catch { if (active) setTagError(true); }
+      finally { if (active) setLoadingTags(false); }
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [searchText, retry]);
 
-  const timeFilters = [
-    '1 hour',
-    '2 hours',
-    '4 hours',
-    '8 hours',
-    '12 hours',
-    '16 hours',
-    '20 hours',
-    '24 hours',
-  ];
-
-  const categories = [
-    {id: 'videos', icon: 'video', label: 'Videos', color: theme.primary},
-    {id: 'magazines', icon: 'book-open-variant', label: 'Magazines', color: theme.primary},
-    {id: 'world', icon: 'earth', label: 'World', color: theme.primary},
-    {id: 'trending', icon: 'trending-up', label: 'Trending', color: theme.primary},
-    {id: 'health', icon: 'heart-pulse', label: 'Health Tips', color: theme.primary},
-    {id: 'sports', icon: 'trophy', label: 'Sports', color: theme.primary},
-    {id: 'lifestyle', icon: 'coffee', label: 'Lifestyle', color: theme.primary},
-  ];
+  // Submitting a query opens results the same way tapping a "#tag" chip
+  // does — a swipeable overlay on top of the main feed (see HomeScreen's
+  // openSearchOverlay) — rather than a separate results list on this screen.
+  const runSearch = () => {
+    const term = searchText.trim();
+    if (!term) return;
+    navigation.navigate('Main', { screen: 'HomeTab', params: { searchQuery: term } });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.statusBar} />
-      
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.background} />
+
       {/* Header with Back Button */}
-      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8, backgroundColor: theme.statusBar, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+      <View style={[styles.header, {paddingTop: STATUS_BAR_HEIGHT + 8, backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED'}]}>
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={26} color="#FFFFFF" />
         </TouchableOpacity>
@@ -56,16 +65,18 @@ const SearchScreen = ({navigation}) => {
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchSection, { backgroundColor: theme.background, borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }]}>
+      <View style={[styles.searchSection, { backgroundColor: theme.background }]}>
         <View style={[styles.searchBar, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F0F2F5' }]}>
           <Icon name="magnify" size={24} color={theme.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder="ex : Modi, Politics, Health, Stocks, ..."
+            placeholder="ex : Modi, Politics, Health, Stocks, #tag, ..."
             placeholderTextColor={isDarkMode ? '#666' : '#999'}
             value={searchText}
             onChangeText={setSearchText}
-            autoFocus={false}
+            onSubmitEditing={runSearch}
+            returnKeyType="search"
+            autoFocus
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText('')}>
@@ -74,72 +85,20 @@ const SearchScreen = ({navigation}) => {
           )}
         </View>
       </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Last 24 Hours Updates */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Icon name="clock-outline" size={20} color={theme.text} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Last 24 Hours Updates</Text>
-          </View>
-
-          {/* Time Filter Chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsContainer}>
-            {timeFilters.map(time => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.chip,
-                  { backgroundColor: theme.background, borderColor: isDarkMode ? '#333' : '#DDD' },
-                  selectedTime === time && [styles.chipSelected, { backgroundColor: isDarkMode ? theme.primary : '#333', borderColor: isDarkMode ? theme.primary : '#333' }],
-                ]}
-                onPress={() => setSelectedTime(time)}
-                activeOpacity={0.7}>
-                <Text
-                  style={[
-                    styles.chipText,
-                    { color: theme.textSecondary },
-                    selectedTime === time && [styles.chipTextSelected, { color: isDarkMode ? '#000' : '#FFF' }],
-                  ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Categories Section */}
-        <View style={styles.categoriesSection}>
-          <Text style={[styles.categoriesTitle, { color: theme.text }]}>Categories</Text>
-          
-          <View style={[styles.categoriesCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderRadius: 12, overflow: 'hidden' }]}>
-            {categories.map((category, index) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryItem,
-                  { borderBottomColor: isDarkMode ? '#333' : '#E8EAED' },
-                  index === categories.length - 1 && styles.lastCategoryItem,
-                ]}
-                onPress={() => console.log(`${category.label} pressed`)}
-                activeOpacity={0.7}>
-                <View style={styles.categoryLeft}>
-                  <View style={styles.iconContainer}>
-                    <Icon name={category.icon} size={26} color={category.color} />
-                  </View>
-                  <Text style={[styles.categoryLabel, { color: theme.text }]}>{category.label}</Text>
-                </View>
-                <Icon name="chevron-right" size={22} color={theme.textSecondary} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={{height: 20}} />
-      </ScrollView>
+      <View style={{ flex: 1, paddingHorizontal: 20 }}>
+        <Text style={{ color: theme.textSecondary, fontSize: 13, marginBottom: 12 }}>Related hashtags</Text>
+        {loadingTags ? <ActivityIndicator color={theme.textSecondary} /> : tagError ?
+          <TouchableOpacity onPress={() => setRetry(value => value + 1)}><Text style={{ color: theme.textSecondary }}>Could not load hashtags. Tap to retry</Text></TouchableOpacity> :
+          <FlatList data={hashtags} keyExtractor={item => item.tag} keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={<Text style={{ color: theme.textSecondary }}>{searchText.trim().replace(/^#+/, '') ? 'No matching hashtags' : 'Type to find hashtags and news counts'}</Text>}
+            renderItem={({ item }) => <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate('Main', { screen: 'HomeTab', params: { searchQuery: `#${item.tag}` } })}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#E8EAED' }}>
+              <Icon name="pound" size={24} color="#2586df" />
+              <Text style={{ color: '#2586df', fontSize: 16, flex: 1, marginLeft: 10 }}>#{item.tag}</Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>{item.count} {item.count === 1 ? 'news article' : 'news articles'}</Text>
+              <Icon name="chevron-right" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>} />}
+      </View>
     </View>
   );
 };
@@ -169,7 +128,6 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   searchBar: {
     flexDirection: 'row',
@@ -184,77 +142,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  chipsContainer: {
-    paddingHorizontal: 12,
-    gap: 10,
-  },
-  chip: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  chipSelected: { },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  chipTextSelected: {
-    fontWeight: '600',
-  },
-  categoriesSection: {
-    paddingTop: 20,
-    paddingHorizontal: 16,
-  },
-  categoriesTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 14,
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-  },
-  lastCategoryItem: {
-    borderBottomWidth: 0,
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryLabel: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

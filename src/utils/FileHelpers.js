@@ -1,8 +1,26 @@
 import { Alert } from 'react-native';
 import RNShare from 'react-native-share';
-import RNFetchBlob from 'rn-fetch-blob';
+import { getNewsShareUrl } from './newsLinks';
+import RNFetchBlob from 'react-native-blob-util';
 import { CameraRoll } from "@react-native-camera-roll/camera-roll";
 import { createThumbnail } from "react-native-create-thumbnail";
+
+// Article links let WhatsApp generate a preview instead of attaching a screenshot.
+// Keep the image-based helpers below for viral posts and other media sharing.
+export const handleArticleLinkShare = async (title, newsId, target = 'generic') => {
+  const message = `${title}\n\n${getNewsShareUrl(newsId)}\n\nShared via Rapid News`;
+  try {
+    const result = target === 'whatsapp'
+      ? await RNShare.shareSingle({social: RNShare.Social.WHATSAPP, title, message})
+      : await RNShare.open({title, message, failOnCancel: false});
+    return target === 'whatsapp' ? !!result && result.success !== false : !!result?.success;
+  } catch (error) {
+    if (!/cancel/i.test(error?.message || '')) {
+      Alert.alert('Share Failed', error?.message || 'Could not share this article.');
+    }
+    return false;
+  }
+};
 
 export const generateVideoThumbnail = async (url) => {
   console.log('[FileHelpers/Thumbnail] >>>>>>>>createThumbnail function exists:', !!createThumbnail);
@@ -42,8 +60,13 @@ export const generateVideoThumbnail = async (url) => {
   }
 };
 
+// Returns true only if the user actually completed a share (RNShare's
+// `success` flag) — `failOnCancel: false` means opening the sheet and then
+// cancelling still resolves rather than throwing, so callers that need to
+// know whether a share really happened (e.g. counting it server-side) must
+// check this return value rather than just whether the call didn't throw.
 export const handleShare = async (title, newsId, base64Data, imageUrl) => {
-  const appUrl = 'https://play.google.com/store/apps/details?id=com.rapidnews&pcampaignid=web_share';
+  const appUrl = getNewsShareUrl(newsId);
   const message = `${title}\n\n${appUrl}`;
 
   console.log('[FileHelpers/Share] ▶ handleShare called');
@@ -55,12 +78,12 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
     if (base64Data) {
       console.log('[FileHelpers/Share] Trying: ViewShot base64 -> File -> RNShare...');
       const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_screenshot_${Date.now()}.jpg`;
-      
+
       try {
         await RNFetchBlob.fs.writeFile(destPath, base64Data, 'base64');
         console.log('[FileHelpers/Share] ViewShot written to:', destPath);
-        
-        await RNShare.open({
+
+        const result = await RNShare.open({
           title,
           message,
           url: `file://${destPath}`,
@@ -70,7 +93,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
         console.log('[FileHelpers/Share] ✅ ViewShot file share succeeded');
         // Clean up the temp file after share
         RNFetchBlob.fs.unlink(destPath).catch(() => {});
-        return; // Stop here if successful
+        return !!result?.success; // Stop here if successful
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ ViewShot file share failed:', err?.message);
       }
@@ -87,10 +110,10 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
       try {
         await RNFetchBlob.config({ path: destPath, trusty: true }).fetch('GET', imageUrl);
         console.log('[FileHelpers/Share] Downloaded to:', destPath);
-        await RNShare.open({ title, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
+        const result = await RNShare.open({ title, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
         console.log('[FileHelpers/Share] ✅ remote image share succeeded');
         RNFetchBlob.fs.unlink(destPath).catch(() => { });
-        return;
+        return !!result?.success;
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ remote image share failed:', err?.message);
       }
@@ -99,7 +122,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
       const localUrl = imageUrl.startsWith('file://') ? imageUrl : `file://${imageUrl}`;
       console.log('[FileHelpers/Share] Trying: local file share:', localUrl);
       try {
-        await RNShare.open({
+        const result = await RNShare.open({
           title,
           message,
           url: localUrl,
@@ -107,7 +130,7 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
           failOnCancel: false
         });
         console.log('[FileHelpers/Share] ✅ local file share succeeded');
-        return;
+        return !!result?.success;
       } catch (err) {
         console.log('[FileHelpers/Share] ❌ local file share failed:', err?.message);
       }
@@ -116,7 +139,65 @@ export const handleShare = async (title, newsId, base64Data, imageUrl) => {
 
   // 3. Last resort: text only
   console.log('[FileHelpers/Share] Falling back to text-only share...');
-  try { await RNShare.open({ title, message, failOnCancel: false }); } catch (_) { }
+  try {
+    const result = await RNShare.open({ title, message, failOnCancel: false });
+    return !!result?.success;
+  } catch (_) {
+    return false;
+  }
+};
+
+// Opens WhatsApp directly (via shareSingle) instead of the generic share
+// sheet. useInternalStorage:true matters here — react-native-share's own
+// FileProvider paths (share_download_paths.xml) only cover the app's
+// internal cache root or the shared external Downloads folder, NOT
+// getExternalCacheDir(); without this flag ShareFile writes there anyway
+// and FileProvider.getUriForFile() throws, which surfaced as a misleading
+// "WhatsApp Not Found" alert even though WhatsApp was installed.
+export const handleWhatsAppShare = async (title, newsId, base64Data, imageUrl) => {
+  const appUrl = getNewsShareUrl(newsId);
+  const message = `${title}\n\n${appUrl}`;
+
+  console.log('[FileHelpers/WhatsAppShare] ▶ handleWhatsAppShare called');
+
+  try {
+    let url;
+    let downloadedPath;
+    if (base64Data) {
+      url = `data:image/jpeg;base64,${base64Data}`;
+    } else if (imageUrl && imageUrl.startsWith('http')) {
+      // shareSingle (unlike RNShare.open's own share sheet) has no remote-URL
+      // fallback of its own — without a local file it silently drops the
+      // image and only the text message goes through. Download it first, the
+      // same way the generic handleShare() above already does.
+      try {
+        downloadedPath = `${RNFetchBlob.fs.dirs.CacheDir}/whatsapp_share_${Date.now()}.jpg`;
+        await RNFetchBlob.config({ path: downloadedPath, trusty: true }).fetch('GET', imageUrl);
+        url = `file://${downloadedPath}`;
+      } catch (err) {
+        console.log('[FileHelpers/WhatsAppShare] ❌ remote image download failed:', err?.message);
+        downloadedPath = undefined;
+      }
+    } else if (imageUrl) {
+      url = imageUrl.startsWith('file://') ? imageUrl : `file://${imageUrl}`;
+    }
+
+    const result = await RNShare.shareSingle({
+      social: RNShare.Social.WHATSAPP,
+      title,
+      message,
+      useInternalStorage: true,
+      ...(url ? { url, type: 'image/jpeg' } : {}),
+    });
+    if (downloadedPath) RNFetchBlob.fs.unlink(downloadedPath).catch(() => {});
+    console.log('[FileHelpers/WhatsAppShare] ✅ WhatsApp share succeeded');
+    return !!result;
+  } catch (err) {
+    const detail = err?.message || err?.error || String(err);
+    console.log('[FileHelpers/WhatsAppShare] ❌ WhatsApp share failed:', detail);
+    Alert.alert('WhatsApp Share Failed', detail);
+    return false;
+  }
 };
 
 export const downloadImageToGallery = async (imageUrl) => {

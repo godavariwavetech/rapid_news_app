@@ -17,9 +17,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { setDarkMode } from '../redux/reducers/settings';
-import { clearNews, fetchNews } from '../redux/reducers/news'; 
+import { clearNews, fetchNews } from '../redux/reducers/news';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
-import DeviceInfo from 'react-native-device-info'; 
+import DeviceInfo from 'react-native-device-info';
+import FastImage from 'react-native-fast-image';
+import { clearVideoCache } from '../utils/videoFileCache';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
@@ -112,10 +114,19 @@ const SettingsScreen = ({ navigation }) => {
             try {
               // 1. Clear News Cache from Redux Memory
               dispatch(clearNews());
-              
-              // 2. IMMEDIATELY trigger a fresh fetch so the Home Screen isn't empty when returning
+
+              // 2. The actual disk usage: cached images (Glide) and downloaded
+              //    feed videos. Clearing only the Redux list left every megabyte
+              //    on the phone, which is what made this button look broken.
+              await Promise.all([
+                FastImage.clearDiskCache(),
+                FastImage.clearMemoryCache(),
+                clearVideoCache(),
+              ]);
+
+              // 3. IMMEDIATELY trigger a fresh fetch so the Home Screen isn't empty when returning
               dispatch(fetchNews({ currentLocation, category: selectedCategory, page: 1 }));
-              
+
               if (Platform.OS === 'android') {
                 ToastAndroid.show("క్యాచె విజయవంతంగా క్లియర్ చేయబడింది", ToastAndroid.SHORT);
               } else {

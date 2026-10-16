@@ -14,7 +14,6 @@ import { CommonActions, useNavigationState } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Logic & Theme Imports
 import { logout } from '../redux/reducers/auth';
@@ -79,7 +78,6 @@ function CustomDrawerContent({ navigation }) {
                 routes: [{ name: 'Main' }], 
               })
             );
-            await AsyncStorage.clear();
           }
         }
       ]

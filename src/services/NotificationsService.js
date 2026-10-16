@@ -1,3 +1,4 @@
+import { trackNotificationClick } from '../utils/notificationClicks';
 import { NativeModules, Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { fetchArticleById } from '../redux/reducers/news';
@@ -56,7 +57,11 @@ const displayCustomNotification = async (remoteMessage) => {
 
     if (CustomNewsNotification && CustomNewsNotification.show) {
       if (Platform.OS === 'android') {
-        const newsHtml = `<b><font color="#ffffff">${title}</font></b>`;
+        // No hardcoded color — the notification's themed text color (set via
+        // TextAppearance.Compat.Notification.Title in the layout) adapts to the
+        // light/dark shade. A <font color> span here would override it and break
+        // on light themes (white-on-white). See CustomFirebaseMessagingService for the killed-app path.
+        const newsHtml = `<b>${title}</b>`;
         CustomNewsNotification.show(newsHtml, newsId);
       }
     } else {
@@ -70,6 +75,7 @@ const displayCustomNotification = async (remoteMessage) => {
 
 const handleNotificationNavigation = async (data, navigation) => {
   if (!data) return;
+  trackNotificationClick(data);
 
   if (data.type === 'order_update') {
     navigation.navigate('OrderDetails', { orderId: data.orderId });

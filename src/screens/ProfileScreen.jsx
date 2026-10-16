@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Alert,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { userLogin } from '../redux/reducers/auth';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
 import { useTheme } from '../context/ThemeContext';
@@ -27,6 +28,7 @@ const ProfileScreen = ({navigation}) => {
   
   // Coming Soon Modal State
   const [comingSoonVisible, setComingSoonVisible] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   // Select data from Redux
   const {reporter,user} = useSelector(state => state.auth);
@@ -82,20 +84,34 @@ const ProfileScreen = ({navigation}) => {
   };
 
   const handleGoogleLogin =  async () =>{
+ if (signingIn) return;
+ setSigningIn(true);
  try {
      await GoogleSignin.signOut();
      await GoogleSignin.hasPlayServices();
      const response = await GoogleSignin.signIn();
-     
-     const userInfo = response.data;
-     const payload = {
-      idToken:userInfo?.idToken
-     }
+     if (response.type === 'cancelled') return;
 
-     const resp = await dispatch(userLogin(payload))
-     
+     const idToken = response.data?.idToken;
+     if (!idToken) throw new Error('Google returned no idToken');
+
+     // .unwrap() so a rejected backend call throws here instead of failing silently
+     await dispatch(userLogin({ idToken })).unwrap();
+
    } catch (error) {
-    console.log(error,">>>>>>>>>>>>>>>>ERROR");
+    if (error?.code === statusCodes.SIGN_IN_CANCELLED) return;
+
+    const detail =
+      error?.code === statusCodes.DEVELOPER_ERROR
+        ? "DEVELOPER_ERROR (10) — this build's signing certificate isn't registered in the Google Cloud project."
+        : error?.code
+          ? `Google sign-in failed (code ${error.code})`
+          : error?.message || JSON.stringify(error);
+
+    console.log('[GoogleLogin]', detail, error);
+    Alert.alert('Sign-in failed', detail);
+   } finally {
+     setSigningIn(false);
    }
   }
 
@@ -121,12 +137,12 @@ const ProfileScreen = ({navigation}) => {
         <Text style={[styles.pageTitle, { color: theme.text }]}>Profile</Text>
 
         {/* Profile Section */}
-        <TouchableOpacity onPress={handleGoogleLogin} style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
+        <TouchableOpacity onPress={handleGoogleLogin} disabled={signingIn} accessibilityState={{busy: signingIn}} style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
           <View style={styles.avatarContainer}>
           { ( user?.profile_image||reporter?.profile_image)? <Image source={{uri:user?.profile_image||reporter?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color={isDarkMode ? '#555' : '#CCC'} />}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || reporter?.reporter_profile?.username || "Guest"}</Text>
+            <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || reporter?.reporter_profile?.full_name || reporter?.reporter_profile?.username || "Guest"}</Text>
              <Text style={[styles.profileLink, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>{user?.email|| reporter?.email||"Click here to select email id"}</Text>
           </View>
         </TouchableOpacity>
@@ -179,14 +195,16 @@ const ProfileScreen = ({navigation}) => {
                     onPress={() => handleCategoryPress(cat._id)}
                     activeOpacity={0.7}>
                     <View style={[styles.categoryIconBg, { backgroundColor: isDarkMode ? '#222' : '#F0F0F0' }, isSelected && {backgroundColor: isDarkMode ? `${iconColor}50` : `${iconColor}30`}]}>
-                      {categoryIcon && categoryIcon.startsWith('http') ? (
+                      {/* Vector icon renders instantly and stays underneath; the
+                          remote icon overlays on top once it's loaded, so the
+                          circle is never blank while the image downloads. */}
+                      <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
+                      {categoryIcon && categoryIcon.startsWith('http') && (
                         <FastImage
                           source={{ uri: categoryIcon }}
-                          style={{ width: 30, height: 30 }}
+                          style={styles.categoryIconImg}
                           resizeMode={FastImage.resizeMode.contain}
                         />
-                      ) : (
-                        <Icon name={getCategoryIcon(cat.name?.en)} size={28} color={iconColor} />
                       )}
                     </View>
                     <Text style={[styles.categoryLabel, { color: theme.textSecondary }, isSelected && {color: iconColor, fontWeight: '700'}]}>
@@ -314,6 +332,7 @@ const styles = StyleSheet.create({
   categoriesScroll: { paddingHorizontal: 16, gap: 12 },
   categoryCard: { alignItems: 'center', width: 66 },
   categoryIconBg: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  categoryIconImg: { position: 'absolute', top: 13, left: 13, width: 30, height: 30 },
   categoryLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
   
   menuSection: { paddingHorizontal: 16, marginTop: 10 },

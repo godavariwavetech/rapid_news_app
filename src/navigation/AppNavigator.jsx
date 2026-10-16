@@ -4,7 +4,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useDispatch, useSelector} from 'react-redux';
 import { setupNotificationHandlers } from '../services/NotificationsService';
-import { AppState, Linking, Text, TextInput } from 'react-native'; // <--- ADD Text, TextInput HERE
+import { AppState, Text, TextInput, InteractionManager } from 'react-native';
 
 // ---> ADD THIS BLOCK TO SET THE GLOBAL FONT <---
 const customTextProps = {
@@ -27,8 +27,6 @@ if (TextInput.defaultProps) {
   TextInput.defaultProps = customTextProps;
 }
 
-// Import Store to check fresh state inside event listeners
-import { store } from '../redux/store'; 
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -58,12 +56,17 @@ import FlipNewsScreen from '../screens/FlipNewsScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ReporterStatusScreen from '../screens/ReporterStatusScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import {linkedArticleTransition} from './linkedArticleTransition';
+import MagazineViewerScreen from '../screens/MagazineViewerScreen';
+import FullScorecardScreen from '../screens/FullScorecardScreen';
+import ExamResultScreen from '../screens/ExamResultScreen';
 import UnreadNewsScreen from '../screens/UnreadNewsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen'; // <-- ADDED THIS
 import AboutUsScreen from '../screens/AboutUsScreen';
 
-import { endActivity, startActivity, updateGuestLastActiveDate } from '../redux/reducers/auth';
-import { fetchArticleById } from '../redux/reducers/news';
+import { endActivity, startActivity, registerDevice } from '../redux/reducers/auth';
+import { newsLinking } from './newsLinking';
+import { getAppOpenTracker } from '../utils/appOpenTracker';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -94,11 +97,17 @@ function AppNavigator() {
   const appState = useRef(AppState.currentState);
   const districtIdRef = useRef(currentLocation?.district?._id);
   const sessionIdRef = useRef(null);
+  const appOpenTrackerRef = useRef(null);
 
   const serviceHandler = async () =>{
-    const response = await dispatch(startActivity({ district_id: districtIdRef.current }));
-    if (response?.meta?.requestId) {
-      sessionIdRef.current = response.meta.requestId;
+    const action = await dispatch(startActivity({ district_id: districtIdRef.current }));
+    // The backend (usersSession.controller.start) returns the created session's
+    // real _id as payload.session_id. Use THAT — meta.requestId is the
+    // Redux-Toolkit thunk id (a nanoid), not a Mongo ObjectId, so sending it to
+    // /activity/end fails ObjectId.isValid() and the session never closes.
+    const sessionId = action?.payload?.session_id;
+    if (sessionId) {
+      sessionIdRef.current = sessionId;
     }
   }
 
@@ -117,28 +126,22 @@ function AppNavigator() {
 
   // Handle App State Changes (Background/Foreground)
   useEffect(() => {
-    serviceHandler()
+    if (!appOpenTrackerRef.current) {
+      appOpenTrackerRef.current = getAppOpenTracker(AppState.currentState, () => {
+        serviceHandler();
+        dispatch(registerDevice());
+      });
+    }
+    // #3: defer the cold-start analytics session off the first-paint path.
+    // The foreground-resume serviceHandler() below stays immediate.
+    const initTask = InteractionManager.runAfterInteractions(() => {
+      appOpenTrackerRef.current.start();
+    });
     const subscription = AppState.addEventListener('change', nextAppState => {
-      // App comes to Foreground
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-       serviceHandler()
-      } 
-      // App goes to Background
-      else if (
-        appState.current === 'active' &&
-        nextAppState.match(/inactive|background/)
-      ) {
-        // --- 1. Track Guest Last Active Date ---
-        // Using store.getState() prevents stale closure issues in the event listener
-        const currentAuthState = store.getState().auth;
-        if (!currentAuthState.userToken && !currentAuthState.reporterToken) {
-           dispatch(updateGuestLastActiveDate());
-        }
-
-        // --- 2. End Tracking Session ---
+      appOpenTrackerRef.current.change(nextAppState);
+      // Inactive is transient; end a session only on a real background transition.
+      if (appState.current !== 'background' && nextAppState === 'background') {
+        // --- End Tracking Session ---
         if (sessionIdRef.current) {
           dispatch(endActivity({ session_id: sessionIdRef.current }));
           sessionIdRef.current = null;
@@ -148,63 +151,13 @@ function AppNavigator() {
     });
 
     return () => {
+      initTask.cancel();
       subscription.remove();
     };
   }, [dispatch]);
 
-  // Deep Linking & Notification Handling
-  useEffect(() => {
-    const handleDeepLink = async (url) => {
-      if (!url) return;
-
-      let newsId = null;
-
-      // Handle custom scheme: rapidnews://news/<id>
-      if (url.startsWith('rapidnews://news/')) {
-        newsId = url.replace('rapidnews://news/', '');
-      }
-      // Handle HTTPS app link: https://godavariwave.in/news/<id>
-      else if (url.startsWith('https://godavariwave.in/news/')) {
-        newsId = url.replace('https://godavariwave.in/news/', '');
-      }
-
-      if (!newsId) return;
-
-      console.log('Deep link newsId:', newsId);
-
-      const resp = await dispatch(fetchArticleById(newsId));
-      const article = resp?.payload;
-
-      const navigateToNews = () => {
-        if (navigationRef.isReady()) {
-          // fetchArticleById already prepended the article to index 0 in the feed.
-          // Reset to Main so the user sees it first in the normal flip flow.
-          navigationRef.current.reset({
-            index: 0,
-            routes: [{ name: 'Main' }],
-          });
-        } else {
-          setTimeout(navigateToNews, 300);
-        }
-      };
-      navigateToNews();
-    };
-
-    // App opened from killed state via link
-    Linking.getInitialURL().then(handleDeepLink);
-
-    // App in background, link clicked
-    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      handleDeepLink(url);
-    });
-
-    return () => {
-      linkingSubscription.remove();
-    };
-  }, [dispatch, navigationRef]);
-
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} linking={newsLinking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -369,7 +322,10 @@ function AppNavigator() {
         <Stack.Screen
           name="NewsDetail"
           component={NewsDetailScreen}
-          options={{headerShown: false}}
+          options={({route}) => ({
+            headerShown: false,
+            ...(route.params?.fromArticleLink ? linkedArticleTransition : {}),
+          })}
         />
 
         <Stack.Screen 
@@ -383,10 +339,25 @@ function AppNavigator() {
           component={PrivacyPolicyScreen} 
           options={{ headerShown: false }} 
         />
-        <Stack.Screen 
-          name="AboutUs" 
-          component={AboutUsScreen} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="AboutUs"
+          component={AboutUsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MagazineViewer"
+          component={MagazineViewerScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FullScorecard"
+          component={FullScorecardScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ExamResult"
+          component={ExamResultScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -28,6 +28,7 @@ import {
 } from '../redux/reducers/location';
 import {applyReporter} from '../redux/reducers/auth';
 import LocationService from '../utils/LocationService';
+import uploadMedia from '../utils/uploadMedia';
 import { useTheme } from '../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
@@ -67,7 +68,8 @@ const ProfileSetupScreen = ({navigation, route}) => {
   const {loading: authLoading} = useSelector(state => state.auth || {});
 
   const [profileImage, setProfileImage] = useState(null);
-  const [profileImageBase64, setProfileImageBase64] = useState(null);
+  const [profileImageAsset, setProfileImageAsset] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -144,6 +146,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
   };
 
   const handleProceed = async () => {
+    if (authLoading || uploadingImage) return;
     if (validateForm()) {
       const { token } = route.params || {};
       
@@ -159,11 +162,24 @@ const ProfileSetupScreen = ({navigation, route}) => {
         state_id: selectedState._id,
         district_id: selectedDistrict._id,
         village_id: selectedVillage._id,
-        profile_image:"https://png.pngtree.com/png-vector/20190710/ourmid/pngtree-user-vector-avatar-png-image_1541962.jpg"
       };
 
+      // Upload the picked photo; the backend only keeps profile_image when truthy,
+      // so skipping it on failure leaves the account with no image rather than a
+      // dead local uri. (This used to always post a stock pngtree avatar.)
+      if (profileImageAsset) {
+        setUploadingImage(true);
+        const url = await uploadMedia(profileImageAsset);
+        setUploadingImage(false);
+        if (url) {
+          payload.profile_image = url;
+        } else {
+          Alert.alert('Notice', 'Could not upload your photo — continuing without it.');
+        }
+      }
+
       try {
-        const resultAction = await dispatch(applyReporter(payload));
+        const resultAction = await dispatch(applyReporter({...payload, token}));
         console.log(resultAction,">>>>>>>>>>RESULT ACTION");
         if (applyReporter.fulfilled.match(resultAction)) {
           Alert.alert('Success', 'Profile setup completed!', [
@@ -190,7 +206,7 @@ const ProfileSetupScreen = ({navigation, route}) => {
     launchImageLibrary(options, response => {
       if (response.assets && response.assets[0]) {
         setProfileImage(response.assets[0].uri);
-        setProfileImageBase64(response.assets[0].base64); 
+        setProfileImageAsset(response.assets[0]);
       }
     });
   };
@@ -355,9 +371,9 @@ const ProfileSetupScreen = ({navigation, route}) => {
           <TouchableOpacity
             style={[styles.proceedButton, { backgroundColor: isDarkMode ? '#333' : '#E0E0E0' }, isFormValid && !authLoading && [styles.proceedButtonActive, { backgroundColor: isDarkMode ? theme.primary : '#1A1A1A' }]]}
             onPress={handleProceed}
-            disabled={!isFormValid || authLoading}
+            disabled={!isFormValid || authLoading || uploadingImage}
           >
-            {authLoading ? (
+            {authLoading || uploadingImage ? (
               <ActivityIndicator color={isDarkMode ? "#000" : "#FFF"} />
             ) : (
               <Text style={[styles.proceedButtonText, { color: isDarkMode && isFormValid ? '#000' : '#FFFFFF' }]}>Proceed</Text>

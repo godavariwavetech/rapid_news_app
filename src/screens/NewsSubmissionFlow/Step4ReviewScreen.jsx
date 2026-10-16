@@ -16,11 +16,8 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useDispatch, useSelector} from 'react-redux';
-import {createNews, updateNews} from '../../redux/reducers/news'; 
-import { Buffer } from 'buffer';
-import api from '../../utils/api';
-import axios from 'axios';
-import RNFetchBlob from 'rn-fetch-blob';
+import {createNews, updateNews} from '../../redux/reducers/news';
+import uploadMedia from '../../utils/uploadMedia';
 import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_BAR_HEIGHT =
@@ -34,54 +31,10 @@ const Step4ReviewScreen = ({navigation, route}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Destructure params
-  const {location, headline, description, category, image, images, video, isEditing, newsId, apiPayload} = route.params;
+  const {location, headline, description, category, image, images, video, newsSource, isEditing, newsId, apiPayload} = route.params;
 
-  const uploadToS3 = async (asset, mediaType = 'image') => {
-    if (!asset) return null;
-    // Already a remote URL (editing case), no upload needed
-    if (asset.uri?.startsWith('http')) return asset.uri;
-
-    const isVideo = mediaType === 'video';
-    const defaultExt = isVideo ? 'mp4' : 'jpg';
-    const defaultMime = isVideo ? 'video/mp4' : 'image/jpeg';
-    const mimeType = asset.type || defaultMime;
-
-    try {
-      // 1. Get signed URL from server
-      const response = await api.post('media/upload-url', {
-        filename: asset.fileName || `news_${Date.now()}.${defaultExt}`,
-        type: mimeType,
-        reporterId: reporter?._id,
-      });
-      const { signedUrl } = response.data.data;
-
-      // 2. Upload — use base64 for images, RNFetchBlob file stream for videos
-      if (!isVideo && asset.base64) {
-        const binaryData = Uint8Array.from(Buffer.from(asset.base64, 'base64'));
-        const uploadResult = await axios.put(signedUrl, binaryData, {
-          headers: { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
-          transformRequest: [(data) => data],
-          timeout: 120000,
-        });
-        if (uploadResult.status !== 200) return null;
-      } else {
-        // For video (or image without base64): read from local file path and upload
-        const localPath = asset.uri.replace('file://', '');
-        const uploadResult = await RNFetchBlob.fetch(
-          'PUT',
-          signedUrl,
-          { 'Content-Type': mimeType, 'Content-Disposition': 'attachment' },
-          RNFetchBlob.wrap(localPath),
-        );
-        if (uploadResult.respInfo.status !== 200) return null;
-      }
-
-      return signedUrl.split('?')[0];
-    } catch (error) {
-      console.error('S3 Upload Error:', error);
-      return null;
-    }
-  };
+  const uploadToS3 = (asset, mediaType = 'image') =>
+    uploadMedia(asset, { reporterId: reporter?._id, mediaType });
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -123,7 +76,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
 
     setIsSubmitting(false);
 
-    if (response?.payload?.news_id) {
+    if (response?.meta?.requestStatus === 'fulfilled') {
       Alert.alert(
         'Success', 
         `Your news has been ${isEditing ? 'updated' : 'submitted'} successfully!`, 
@@ -196,6 +149,15 @@ const Step4ReviewScreen = ({navigation, route}) => {
             <Text style={[styles.contentText, { color: theme.text }]}>{description}</Text>
           </View>
         </View>
+
+        {newsSource ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>News Source</Text>
+            <View style={[styles.infoCard, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+              <Text style={[styles.contentText, { color: theme.text }]}>{newsSource}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Media preview */}
         {(images && images.length > 0) || image || video ? (

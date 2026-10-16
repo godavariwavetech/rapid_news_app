@@ -1,24 +1,25 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getUniqueId } from 'react-native-device-info';
 import NetInfo from '@react-native-community/netinfo';
-import { Platform } from 'react-native'; 
-import api from '../../utils/api'; 
-import { endpoints } from '../../config/config'; 
+import { Platform } from 'react-native';
+import FastImage from 'react-native-fast-image';
+import api from '../../utils/api';
+import { endpoints } from '../../config/config';
 
 const initialState = {
   // --- News List State ---
-  articles: [], 
+  articles: [],
   loading: true,          // Start as true so skeleton shows before first fetch completes
-  isLoadingMore: false,    
+  isLoadingMore: false,
   error: null,
-  
+
   // --- Categories State ---
   categories: [],
   loadingCategories: false,
   selectedCategory: 'all',
-  
+
   refreshing: false,
-  
+
   // --- Pagination State ---
   currentPage: 1,
   currentDayOffset: 0,
@@ -27,8 +28,8 @@ const initialState = {
 
   // --- Interaction State ---
   currentComments: [],
-  isLoadingComments: false, 
-  isPostingComment: false,  
+  isLoadingComments: false,
+  isPostingComment: false,
   interactionError: null,
 
   // --- Reporter News State ---
@@ -57,7 +58,7 @@ const initialState = {
   unreadHasMore: false,
   unreadPage: 1,
   unreadError: null,
-  
+
   // --- Unread Count State (Added for Header Badge) ---
   unreadCount: 0,
   totalNews: 0,
@@ -67,6 +68,12 @@ const initialState = {
 // --- ASYNC THUNKS ---
 
 // 1. Fetch News List
+// #4: feed-specific request timeout. The shared axios instance defaults to 60s
+// (utils/api.js); on bad/no network that leaves the feed spinning for a full
+// minute before the OfflineFallback retry appears. The feed is the first-paint
+// path, so give it a much shorter ceiling and fail fast to the retry UI.
+const FEED_TIMEOUT_MS = 12000;
+
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
   async (arg = 'all', { getState, rejectWithValue }) => {
@@ -74,8 +81,8 @@ export const fetchNews = createAsyncThunk(
     let page = 1;
     let current_day_offset = 0;
     let location = {
-      village_id: "699d218506598bc535887c02",
-      district_id: "699d218506598bc535887c00",
+      village_id: "697d8135322a103bdabf0fc7",
+      district_id: "697d8135322a103bdabf0fc5",
       state_id: "697d8135322a103bdabf0fc3",
     };
     let isLocationMode = false;
@@ -84,24 +91,19 @@ export const fetchNews = createAsyncThunk(
       category = arg.category || 'all';
       page = arg.page || 1;
       current_day_offset = arg.current_day_offset || 0;
-      isLocationMode = arg.isLocationMode || false; 
-      
-      if (arg.currentLocation) {
-        location = {
-          village_id: arg.currentLocation.village?._id || location.village_id,
-          district_id: arg.currentLocation.district?._id || location.district_id,
-          state_id: arg.currentLocation.state?._id || location.state_id,
-        };
-      }
+      isLocationMode = arg.isLocationMode || false;
+      location = {
+        village_id: arg.currentLocation?.village?._id || "697d8135322a103bdabf0fc7",
+        district_id: arg.currentLocation?.district?._id || "697d8135322a103bdabf0fc5",
+        state_id: arg.currentLocation?.state?._id || "697d8135322a103bdabf0fc3",
+      };
     }
 
-    // Double check: if for some reason IDs are still missing, use hardcoded defaults
-    if (!location.village_id || !location.district_id || !location.state_id) {
-      location = {
-       "village_id": "699d218506598bc535887c02",
-    "district_id": "699d218506598bc535887c00",
-    "state_id": "697d8135322a103bdabf0fc3",
-      };
+    // Location feed must use the user's REAL village — never the hardcoded
+    // fallback (that would flash a wrong village before location resolves).
+    // Skip until currentLocation is resolved; HomeScreen refetches on change.
+    if (isLocationMode && !(typeof arg === 'object' && arg.currentLocation?.village?._id)) {
+      return rejectWithValue('LOCATION_NOT_READY');
     }
 
 
@@ -125,13 +127,12 @@ export const fetchNews = createAsyncThunk(
 
 
 
-      console.log(queryParams,">>>>>>>>>>>>>>QUERY PARAMSSSSSSSS");
 
       if (isLocationMode && location.village_id) {
         queryParams['feed_mode'] = "village";
       }
 
-      const config = { params: queryParams };
+      const config = { params: queryParams, timeout: FEED_TIMEOUT_MS }; // #4: fail fast on the feed path
       if (!hasToken) {
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;
@@ -140,10 +141,79 @@ export const fetchNews = createAsyncThunk(
       console.log('Fetching News with config:', JSON.stringify(config, null, 2));
 
       const response = await api.get(endpoints.GET_NEWS_FEED, config);
+      console.log('[fetchNews] news feed response:', response.data);
 
       console.log('News Fetch Success:', response.status);
 
-      return { data: response.data, page, current_day_offset, isLocationMode }; 
+      return { data: response.data, page, current_day_offset, isLocationMode };
+    } catch (error) {
+      console.error('News Fetch Error Detail:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url,
+        params: error.config?.params
+      });
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Viral Posts rail — location-independent, scoped to post_type VIRAL_POST
+// only (unlike GET /magazines/viral, which also mixes in organically-viral
+// magazines). Deliberately has NO extraReducers case: unlike fetchNews, this
+// must never touch state.articles — HomeScreen shows the result as a
+// temporary overlay on top of whatever feed/scroll position the reader was
+// already on, and restores it exactly when they back out (see
+// FlipNewsScreen's overrideItems prop), which a shared-state fetch would
+// clobber.
+export const fetchViralPostsRail = createAsyncThunk(
+  'news/fetchViralPostsRail',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(endpoints.GET_VIRAL_POSTS_RAIL, { params: { lang: 'te', limit: 10 } });
+      const items = response.data?.data?.items || [];
+      // Wrapped the same way the backend wraps an inline VIRAL_POST feed
+      // item, matching what FlipNewsScreen's formattedNews mapping expects.
+      return items.map((post) => ({ type: 'VIRAL_POST', data: post }));
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Hashtag browse (Requirement 16) — every APPROVED article carrying an exact
+// tag, location-independent like the viral rail above. Same reasons as
+// fetchViralPostsRail for having no extraReducers case: HomeScreen shows the
+// result as a temporary overlay, never state.articles, so backing out
+// restores the reader's exact card instead of losing their place.
+export const fetchNewsByTag = createAsyncThunk(
+  'news/fetchNewsByTag',
+  async (request, { rejectWithValue }) => {
+    const { tag, page = 1 } = typeof request === 'string' ? { tag: request } : request;
+    try {
+      const response = await api.get(endpoints.GET_NEWS_BY_TAG, { params: { tag, page, lang: 'te', limit: 20 } });
+      const items = response.data?.items || [];
+      // Bare news objects, same flat shape GET /news/viral used to return —
+      // FlipNewsScreen's formattedNews mapping already falls back to
+      // `item.data || item`, so these don't need a {type, data} wrapper.
+      return typeof request === 'string' ? items : response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Standalone thunk (no extraReducers) — same reasoning as fetchNewsByTag:
+// SearchScreen keeps its own local result state so results never touch
+// state.articles, the main feed.
+export const searchNews = createAsyncThunk(
+  'news/searchNews',
+  async (request, { rejectWithValue }) => {
+    const { q, page = 1 } = typeof request === 'string' ? { q: request } : request;
+    try {
+      const response = await api.get(endpoints.SEARCH_NEWS, { params: { q, page, lang: 'te', limit: 20 } });
+      return typeof request === 'string' ? response.data?.items || [] : response.data;
     } catch (error) {
       console.error('News Fetch Error Detail:', {
         message: error.message,
@@ -160,12 +230,13 @@ export const fetchNews = createAsyncThunk(
 // 1.1 Fetch Article By Id
 export const fetchArticleById = createAsyncThunk(
   'news/fetchArticleById',
-  async (id, { rejectWithValue }) => {
+  async (request, { rejectWithValue }) => {
     try {
+      const id = typeof request === 'string' ? request : request.id;
       const deviceId = await getUniqueId();
       const url = endpoints.GET_ARTICLE.replace(':id', id);
-      const response = await api.get(url,{},{
-         headers: {
+      const response = await api.get(url, {}, {
+        headers: {
           'x-device-id': deviceId
         }
       });
@@ -182,6 +253,16 @@ export const getCategories = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.CATEGORY);
+      const list = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+      // Warm FastImage's cache as soon as the category list arrives, so screens
+      // that render these icons later (Profile, CategoriesModal) don't each
+      // trigger their own slow first-load of the same URLs.
+      const iconUrls = list
+        .map(cat => cat.icon)
+        .filter(icon => typeof icon === 'string' && icon.startsWith('http'));
+      if (iconUrls.length) {
+        FastImage.preload(iconUrls.map(uri => ({ uri })));
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -208,7 +289,7 @@ export const updateNews = createAsyncThunk(
   async ({ id, payload }, { rejectWithValue }) => {
     try {
       const url = endpoints.UPDATE_NEWS.replace(':id', id);
-      const response = await api.patch(url, payload); 
+      const response = await api.patch(url, payload);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -224,7 +305,6 @@ export const reactToNews = createAsyncThunk(
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
       const payload = { news_id: newsId, type: type };
-      console.log(payload,">>>>>>>>>>>>>>>>>>PAYLOADDDDDD><>>>>>>>>>>>>> React TO News");
 
       const config = {};
       if (!hasToken) {
@@ -233,9 +313,35 @@ export const reactToNews = createAsyncThunk(
         config.skipAuth = true;
       }
 
-      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config); 
+      const response = await api.post(endpoints.GUEST_REACT_LIKE, payload, config);
 
-      console.log(response,'>>>>>>>>>>>>>>>>>>>Responseeeeeeee Displain');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// 5.1 Record a share (fired once the native share sheet actually completes —
+// see Way2NewsCard's handleShareNews, which checks RNShare's `success` flag
+// before dispatching this). Public/no-auth on the backend, rate-limited.
+export const shareNews = createAsyncThunk(
+  'news/shareNews',
+  async (newsId, { getState, rejectWithValue }) => {
+    try {
+      const state = getState();
+      const hasToken = state.auth?.reporterToken || state.auth?.userToken;
+
+      const config = {};
+      if (!hasToken) {
+        const deviceId = await getUniqueId();
+        config.headers = { 'x-device-id': deviceId };
+        config.skipAuth = true;
+      }
+
+      const url = endpoints.SHARE_NEWS.replace(':id', newsId);
+      const response = await api.post(url, {}, config);
+
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -250,7 +356,7 @@ export const getComments = createAsyncThunk(
     try {
       const url = endpoints.GET_COMMENTS.replace(':id', newsId);
       const response = await api.get(url);
-      return response.data; 
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -264,7 +370,7 @@ export const postComment = createAsyncThunk(
     try {
       const payload = { news_id: newsId, text: text };
       const response = await api.post(endpoints.ADD_COMMENT, payload);
-      dispatch(getComments(newsId)); 
+      dispatch(getComments(newsId));
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -308,7 +414,7 @@ export const getReporterNews = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(endpoints.GET_REPORTER_NEWS);
-      return response.data; 
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -322,10 +428,10 @@ export const reportNews = createAsyncThunk(
       // 1. Check if the user is logged in by looking for a token in the auth state
       const state = getState();
       const hasToken = state.auth?.userToken || state.auth?.reporterToken;
-      
+
       // 2. Prepare custom headers
       const headers = {};
-      
+
       if (!hasToken) {
         // If there is NO token, send the device ID and strip the Authorization header
         const deviceId = await getUniqueId();
@@ -340,7 +446,7 @@ export const reportNews = createAsyncThunk(
       }, {
         headers
       });
-      
+
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -354,9 +460,11 @@ export const postFeedback = createAsyncThunk(
     try {
       const deviceId = await getUniqueId();
 
-      const response = await api.post(endpoints.FEEDBACK, { message },  {headers: {
+      const response = await api.post(endpoints.FEEDBACK, { message }, {
+        headers: {
           'x-device-id': deviceId
-        }});
+        }
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -374,18 +482,22 @@ export const fetchUnreadNews = createAsyncThunk(
       const location = state.location?.currentLocation || {};
       const hasToken = userToken || reporterToken;
 
-      // arg can be a lastSeenAt string (legacy) or an object { lastSeenAt, page }
-      const lastSeenAt = typeof arg === 'string' ? arg : arg?.lastSeenAt;
+      // arg may be an object { page }. (Older callers also passed lastSeenAt;
+      // the backend ignores it, so it's no longer sent.)
       const page = typeof arg === 'object' ? (arg?.page || 1) : 1;
 
       const queryParams = {
         village_id: location.village?._id || "699d218506598bc535887c02",
         district_id: location.district?._id || "699d218506598bc535887c00",
         state_id: location.state?._id || "697d8135322a103bdabf0fc3",
-        last_seen_at: lastSeenAt || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         page,
         limit: 10,
       };
+
+      // Match the feed's scope: in village (location) mode the feed is village-only.
+      if (state.news?.isLocationMode && location.village?._id) {
+        queryParams.feed_mode = 'village';
+      }
 
       const config = { params: queryParams };
 
@@ -409,20 +521,25 @@ export const fetchUnreadNewsCount = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState();
-      const { guestLastActiveDate, userToken, reporterToken } = state.auth;
+      const { userToken, reporterToken } = state.auth;
       const location = state.location?.currentLocation || {};
       const hasToken = userToken || reporterToken;
 
-      let lastSeenAt = guestLastActiveDate || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      // Cause 6: don't count against the hardcoded fallback location. If the
+      // user's real location hasn't resolved yet, skip the call — Header
+      // refetches once currentLocation lands and on every change after that.
+      const village_id = location.village?._id;
+      const district_id = location.district?._id;
+      const state_id = location.state?._id;
+      if (!village_id || !district_id || !state_id) {
+        return rejectWithValue('LOCATION_NOT_READY');
+      }
 
-      console.log(lastSeenAt,">>>>>>>>>>>>>LAST SEEN");
-
-      const queryParams = {
-        last_seen_at: lastSeenAt,
-        village_id: location.village?._id || "699d218506598bc535887c02",
-        district_id: location.district?._id || "699d218506598bc535887c00",
-        state_id: location.state?._id || "697d8135322a103bdabf0fc3",
-      };
+      const queryParams = { village_id, district_id, state_id };
+      // Match the feed's scope: in village (location) mode the feed is village-only.
+      if (state.news?.isLocationMode && village_id) {
+        queryParams.feed_mode = 'village';
+      }
 
       const config = { params: queryParams };
 
@@ -436,7 +553,6 @@ export const fetchUnreadNewsCount = createAsyncThunk(
 
       const response = await api.get('/news/unread/count', config);
 
-      console.log(response,">>>>>>>>>>>>>>>>>response unread");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -450,7 +566,7 @@ export const submitSurveyVote = createAsyncThunk(
     try {
       const state = getState();
       const hasToken = state.auth?.reporterToken || state.auth?.userToken;
-      
+
       const payload = { option_index: optionId };
       let config = {};
 
@@ -464,10 +580,9 @@ export const submitSurveyVote = createAsyncThunk(
         };
       }
 
-      const response = await api.post(`/surveys/${surveyId}/vote`, payload, config); 
+      const response = await api.post(`/surveys/${surveyId}/vote`, payload, config);
 
-      console.log(response,">>>>>>>>>>>>>>SURVEY>>>>>>>>>>>>>>>>>>>");
-      
+
       return { surveyId, optionId, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -488,9 +603,7 @@ export const markNewsAsRead = createAsyncThunk(
         config.headers = { 'x-device-id': deviceId };
         config.skipAuth = true;
       }
-      console.log(newsIds,">>>>>>>>>>>>>>>>>>NEWS IDDD");
       const response = await api.post('/news/feed/read', { news_ids: newsIds }, config);
-      console.log(response,">>>>>>>>>>>>>Responseeeeeeeeee");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -513,6 +626,8 @@ const newsSlice = createSlice({
       state.currentDayOffset = 0;
       state.hasMore = true;
       state.isLocationMode = false;
+      // Tab switches clear the feed — the pinned notification article goes with it
+      state.notificationArticle = null;
     },
     setRefreshing: (state, action) => {
       state.refreshing = action.payload;
@@ -553,6 +668,12 @@ const newsSlice = createSlice({
 
         const pagination = data?.pagination;
 
+        // Snapshot the batch totals BEFORE updating global state so each item
+        // can carry its own total — prevents the counter from jumping on the
+        // currently-visible card when the next page loads in the background.
+        const batchTodayTotal = pagination?.today_total_news ?? null;
+        const batchTotal = pagination?.total_news ?? null;
+
         if (pagination) {
           if (pagination.today_total_news != null) {
             state.todayTotalNews = pagination.today_total_news;
@@ -573,6 +694,18 @@ const newsSlice = createSlice({
 
         let incomingItems = Array.isArray(data) ? data : (data.items || data.data || []);
 
+        // Stamp each item with the totals from its own API response so that
+        // FlipNewsScreen can use a stable value per card instead of the
+        // ever-updating global Redux totals.
+        if (batchTodayTotal != null || batchTotal != null) {
+          incomingItems = incomingItems.map(item => ({
+            ...item,
+            _batch_today_total: batchTodayTotal,
+            _batch_total: batchTotal,
+            _news_totals_by_day: pagination?.news_totals_by_day,
+          }));
+        }
+
         // Only replace the list on a true refresh: mode switch OR explicit page-1 pull-to-refresh
         // A day-offset change is NOT a refresh — it's a continuation, items must be appended
         const modeChanged = isLocationMode !== state.isLocationMode;
@@ -581,24 +714,24 @@ const newsSlice = createSlice({
         // Track current mode so we can detect future switches
         state.isLocationMode = isLocationMode;
 
+        // A user-initiated refresh means "give me the current feed" — unpin the
+        // notification article. Anything else (the extra page-1 fetch HomeScreen
+        // fires once currentLocation resolves) must keep it pinned, otherwise the
+        // article the user tapped gets swapped out from under them on cold start.
+        if (action.meta.arg?.userRefresh) state.notificationArticle = null;
+
         if (isRefresh) {
           // Only prepend notification article on main-feed refreshes, not location feed
           if (state.notificationArticle && !isLocationMode) {
             const article = state.notificationArticle;
-            const filtered = incomingItems.filter(item => 
+            const filtered = incomingItems.filter(item =>
               (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
             );
             incomingItems = [article, ...filtered];
-            
-            if (Array.isArray(data)) {
-              state.articles = incomingItems;
-            } else {
-              state.articles = { ...data, items: incomingItems };
-            }
-            // Clear after use so it doesn't re-prepend on the next refresh
-            state.notificationArticle = null;
+            state.articles = { ...data, items: incomingItems };
           } else {
-            state.articles = data;
+            // Store with annotated items so batch totals are preserved
+            state.articles = Array.isArray(data) ? incomingItems : { ...data, items: incomingItems };
           }
         } else {
           // Append logic — only append if mode hasn't changed
@@ -628,33 +761,30 @@ const newsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchArticleById.fulfilled, (state, action) => {
+        // A linked article lives on its own navigation screen. Keep the source
+        // feed and notification selection intact so Back returns to that story.
+        if (action.meta.arg?.addToFeed === false) return;
         let article = action.payload;
-        
+
         if (!article.data) {
           article = { data: article, type: 'NEWS' };
         }
 
         state.notificationArticle = article;
 
-        // Only prepend to an already-loaded feed. If articles is empty the feed
-        // hasn't loaded yet — fetchNews (page 1) will pick up notificationArticle
-        // and prepend it then, avoiding a double-insert / flash on app open.
+        // Make the shared article visible even before page 1 arrives (or if
+        // that request fails). Subsequent feed pages keep it pinned and unique.
         const existingItems = Array.isArray(state.articles)
           ? state.articles
           : (state.articles?.items || []);
-
-        if (existingItems.length > 0) {
-          if (Array.isArray(state.articles)) {
-            const filtered = state.articles.filter(item => 
-              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-            );
-            state.articles = [article, ...filtered];
-          } else if (state.articles?.items) {
-            const filtered = state.articles.items.filter(item => 
-              (item.data ? item.data._id : item._id) !== (article.data ? article.data._id : article._id)
-            );
-            state.articles.items = [article, ...filtered];
-          }
+        const articleId = article.data?._id || article._id;
+        const items = [article, ...existingItems.filter(item =>
+          (item.data?._id || item._id) !== articleId
+        )];
+        if (Array.isArray(state.articles)) {
+          state.articles = items;
+        } else {
+          state.articles = {...state.articles, items};
         }
       })
       .addCase(fetchArticleById.rejected, (state, action) => {
@@ -664,40 +794,40 @@ const newsSlice = createSlice({
       // --- React To News (Optimistic Update) ---
       .addCase(reactToNews.pending, (state, action) => {
         const { newsId, type } = action.meta.arg;
-        
+
         const updateReactionCount = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
-          
+
           const index = itemsList.findIndex(item => (item.data ? item.data._id === newsId : item._id === newsId));
-          
+
           if (index !== -1) {
             let target = itemsList[index].data || itemsList[index];
-            
+
             if (!target.reactions) {
               target.reactions = { likes: 0, dislikes: 0, my_reaction: null };
             }
-            
+
             const prevReaction = target.reactions.my_reaction;
-            
+
             if (prevReaction === 'LIKE') {
               target.reactions.likes = Math.max(0, (target.reactions.likes || 0) - 1);
             } else if (prevReaction === 'DISLIKE') {
               target.reactions.dislikes = Math.max(0, (target.reactions.dislikes || 0) - 1);
             }
-            
+
             if (type === 'LIKE') {
               target.reactions.likes = (target.reactions.likes || 0) + 1;
             } else if (type === 'DISLIKE') {
               target.reactions.dislikes = (target.reactions.dislikes || 0) + 1;
             }
-            
+
             target.reactions.my_reaction = type === 'NONE' ? null : type;
           }
         };
 
         if (state.articles?.items) updateReactionCount(state.articles.items);
         else if (Array.isArray(state.articles)) updateReactionCount(state.articles);
-        
+
         updateReactionCount(state.unreadArticles);
         updateReactionCount(state.reporterNews);
         if (state.notificationArticle) updateReactionCount([state.notificationArticle]);
@@ -709,8 +839,8 @@ const newsSlice = createSlice({
       })
       .addCase(getCategories.fulfilled, (state, action) => {
         state.loadingCategories = false;
-        state.categories = Array.isArray(action.payload) 
-          ? action.payload 
+        state.categories = Array.isArray(action.payload)
+          ? action.payload
           : (action.payload.items || []);
       })
 
@@ -778,7 +908,7 @@ const newsSlice = createSlice({
       })
       .addCase(getComments.fulfilled, (state, action) => {
         state.isLoadingComments = false;
-        state.currentComments = action.payload?.items || action.payload || []; 
+        state.currentComments = action.payload?.items || action.payload || [];
       })
       .addCase(getComments.rejected, (state, action) => {
         state.isLoadingComments = false;
@@ -793,7 +923,7 @@ const newsSlice = createSlice({
       .addCase(postComment.fulfilled, (state, action) => {
         state.isPostingComment = false;
         const { newsId } = action.meta.arg;
-        
+
         const updateItemCommentCount = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
           const index = itemsList.findIndex(item => (item.data && item.data._id === newsId));
@@ -851,49 +981,58 @@ const newsSlice = createSlice({
         state.unreadError = action.payload || 'Failed to fetch unread news';
       })
 
+      // --- Mark Articles as Read (optimistic badge update) ---
+      .addCase(markNewsAsRead.fulfilled, (state, action) => {
+        // Drop the badge immediately by however many we just marked read so it
+        // feels responsive. Clamped at 0; reconciled by the fetchUnreadNewsCount
+        // refetch FlipNewsScreen fires right after the batch flushes.
+        const markedCount = action.meta.arg?.length || 0;
+        state.unreadCount = Math.max(0, state.unreadCount - markedCount);
+      })
+
       // --- Fetch Unread News Count ---
       .addCase(fetchUnreadNewsCount.fulfilled, (state, action) => {
         state.unreadCount = action.payload?.unread_news || action.payload?.count || 0;
       })
-      
+
       // --- Submit Survey Vote ---
       .addCase(submitSurveyVote.fulfilled, (state, action) => {
         const { surveyId, optionId, data } = action.payload;
-        
+
         const updateSurveyData = (itemsList) => {
           if (!Array.isArray(itemsList)) return;
-          
+
           // Match by id or _id
-          const index = itemsList.findIndex(item => 
-            (item.data && item.data.id === surveyId) || 
-            (item.data && item.data._id === surveyId) || 
-            (item.id === surveyId) || 
+          const index = itemsList.findIndex(item =>
+            (item.data && item.data.id === surveyId) ||
+            (item.data && item.data._id === surveyId) ||
+            (item.id === surveyId) ||
             (item._id === surveyId)
           );
-          
+
           if (index !== -1) {
             let targetSurvey = itemsList[index].data || itemsList[index];
             targetSurvey.user_voted = true;
             targetSurvey.voted_option_id = optionId;
-            
+
             // Check if API only returned a "Vote recorded" message (no real stats)
             const isMessageOnly = data?.message === "Vote recorded" && !data?.options && typeof data?.totalVotes === 'undefined' && typeof data?.total_votes === 'undefined';
 
             if (!isMessageOnly) {
-               // Update completely if API returns the new values
-               if (data?.options) {
-                 targetSurvey.options = data.options;
-                 targetSurvey.totalVotes = data.totalVotes || data.total_votes || targetSurvey.totalVotes || targetSurvey.total_votes;
-                 targetSurvey.total_votes = targetSurvey.totalVotes; // Sync both keys just in case
-               } else {
-                 // Optimistic update locally
-                 targetSurvey.totalVotes = (targetSurvey.totalVotes || targetSurvey.total_votes || 0) + 1;
-                 targetSurvey.total_votes = targetSurvey.totalVotes;
-                 
-                 if (Array.isArray(targetSurvey.options) && targetSurvey.options[optionId]) {
-                    targetSurvey.options[optionId].votes = (targetSurvey.options[optionId].votes || 0) + 1;
-                 }
-               }
+              // Update completely if API returns the new values
+              if (data?.options) {
+                targetSurvey.options = data.options;
+                targetSurvey.totalVotes = data.totalVotes || data.total_votes || targetSurvey.totalVotes || targetSurvey.total_votes;
+                targetSurvey.total_votes = targetSurvey.totalVotes; // Sync both keys just in case
+              } else {
+                // Optimistic update locally
+                targetSurvey.totalVotes = (targetSurvey.totalVotes || targetSurvey.total_votes || 0) + 1;
+                targetSurvey.total_votes = targetSurvey.totalVotes;
+
+                if (Array.isArray(targetSurvey.options) && targetSurvey.options[optionId]) {
+                  targetSurvey.options[optionId].votes = (targetSurvey.options[optionId].votes || 0) + 1;
+                }
+              }
             }
           }
         };
@@ -904,13 +1043,13 @@ const newsSlice = createSlice({
   },
 });
 
-export const { 
-  setSelectedCategory, 
-  clearNews, 
-  setRefreshing, 
-  setMockNews, 
+export const {
+  setSelectedCategory,
+  clearNews,
+  setRefreshing,
+  setMockNews,
   resetNewsStatus,
-  resetFeedbackStatus 
+  resetFeedbackStatus
 } = newsSlice.actions;
 
 export default newsSlice.reducer;

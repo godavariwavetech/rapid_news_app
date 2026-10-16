@@ -1,5 +1,5 @@
-import React, {useEffect,useState} from 'react';
-import {Linking, LogBox, Alert, NativeModules, StatusBar, View, Platform} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {LogBox, InteractionManager, NativeModules, StatusBar} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -13,8 +13,8 @@ import {
   requestNotifications,
   RESULTS,
 } from 'react-native-permissions';
-import VersionCheck from 'react-native-version-check'; 
 import CustomModal from './src/components/CustomModal';
+import UpdateGate from './src/components/UpdateGate';
 import { getFCMToken } from './src/services/NotificationsService';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
@@ -35,42 +35,22 @@ function App() {
     }
   };
 
-  const checkForUpdate = async () => {
-    try {
-      const res = await VersionCheck.needUpdate();
-      if (res?.isNeeded) {
-        Alert.alert(
-          'Update Available',
-          'A new version of the app is available. Please update to continue using all features.',
-          [
-            {
-              text: 'Update Now',
-              onPress: async () => {
-                try {
-                  await Linking.openURL(res.storeUrl);
-                } catch (e) {
-                  console.log('Play Store link error:', e);
-                }
-              },
-            },
-          ],
-          { cancelable: false },
-        );
-      }
-    } catch (error) {
-      console.log('Error checking for updates:', error);
-    }
-  };
+  // Update checks now live in the <UpdateGate /> component (backend-driven gate +
+  // Play In-App Updates). The old VersionCheck.needUpdate() Alert was removed.
 
-  const handleUpdate = async () => {};
-
-  const getToken = async () => { 
+  const getToken = async () => {
     await getFCMToken();
   }
 
   useEffect(() => {
-    getToken();
-    checkForUpdate();
+    // checkAndRequestPermissions();
+    // #3: defer non-critical startup work off the first-paint path so it doesn't
+    // compete with the initial feed render. Runs after the first frame/interactions.
+    const task = InteractionManager.runAfterInteractions(() => {
+      getToken();
+      // notifee.requestPermission();
+    });
+    return () => task.cancel();
   }, []);
 
   useEffect(() => {
@@ -89,6 +69,7 @@ function App() {
             <TabBarProvider>
               <ThemeProvider>
                 <AppNavigator />
+                <UpdateGate />
               </ThemeProvider>
             </TabBarProvider>
           </PersistGate>

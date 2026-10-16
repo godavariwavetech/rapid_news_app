@@ -2,11 +2,18 @@ buildscript {
     ext {
         buildToolsVersion = "35.0.0"
         minSdkVersion = 24
-        compileSdkVersion = 35
-        targetSdkVersion = 35
+        compileSdkVersion = 36
+        targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.0.21"
         googlePlayServicesVersion = "21+"
+        // react-native-fast-image ships its own (empty) AppGlideModule purely so
+        // Glide's processor runs. Glide allows exactly one per app, so we drop
+        // theirs and supply RapidNewsGlideModule instead — same job, plus a disk
+        // cache cap. Their OkHttp progress module is a LibraryGlideModule and is
+        // still picked up automatically, so progress events are unaffected.
+        excludeAppGlideModule = true
+        glideVersion = "4.12.0"
     }
     repositories {
         google()
@@ -21,3 +28,14 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// This dependency's publishing-only Javadoc task omits its React Native and
+// Commons IO classpath. App builds do not need its documentation artifacts.
+// Keep the workaround here so it survives node_modules reinstalls.
+project(":react-native-create-thumbnail") {
+    tasks.withType(Javadoc).configureEach {
+        if (name == "androidJavadoc") {
+            enabled = false
+        }
+    }
+}

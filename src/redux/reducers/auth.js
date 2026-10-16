@@ -1,4 +1,5 @@
-import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
+import {createAsyncThunk, createSlice, nanoid} from '@reduxjs/toolkit';
+import { getUniqueId, getVersion, getModel } from 'react-native-device-info';
 import api from '../../utils/api';
 import { endpoints } from '../../config/config';
 import { fetchFCMToken } from '../../services/NotificationsService';
@@ -12,15 +13,26 @@ const initialState = {
   reporterToken: null,
   userToken: null,
   isActive: true,
-  guestLastActiveDate: null, // <--- ADDED: Store the last active date for guests
+  loading: false,
+  error: null,
+};
+
+const saveLogin = (state, {user, token}) => {
+  state.user = user;
+  state.userToken = token;
+  state.isAuthenticated = true;
+  state.isActive = user.is_active !== false;
+  const approved = user.reporter_profile?.status === 'APPROVED';
+  state.reporter = approved ? user : null;
+  state.reporterToken = approved ? token : null;
 };
 
 export const requestOTP = createAsyncThunk(
   'auth/requestOTP',
   async (payload, {getState, rejectWithValue}) => {
     try {
-      const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload);
-      return response;
+      const response = await api.post(endpoints.AUTH_REQUEST_OTP, payload, {skipAuth: true});
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -31,7 +43,16 @@ export const verifyOTP = createAsyncThunk(
   'auth/verifyOTP',
   async (payload, {getState, rejectWithValue}) => {
     try {
-      const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload);
+      // Send the guest device id so the backend can merge this device's read
+      // history onto the account (keeps the unread count from jumping at login).
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.AUTH_VERIFY_OTP, payload, {
+        headers: { 'x-device-id': deviceId },
+        skipAuth: true,
+      });
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Sign-in response is incomplete. Please try again.');
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -50,7 +71,7 @@ export const applyReporter = createAsyncThunk(
           Authorization: `Bearer ${token}`
         }
       };
-      const response = await api.post(endpoints.APPLY_REPORTER, payload, config);
+      const response = await api.post(endpoints.APPLY_REPORTER, data, token ? config : {});
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -87,7 +108,14 @@ export const userLogin = createAsyncThunk(
   'auth/userLogin',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.GOOGLE_LOGIN, payload);
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.GOOGLE_LOGIN, payload, {
+        skipAuth: true,
+        headers: {'x-device-id': deviceId},
+      });
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Sign-in response is incomplete. Please try again.');
+      }
       return response.data;
     } catch (error) {
       console.log(error,"ERROR Updating");
@@ -99,9 +127,14 @@ export const userLogin = createAsyncThunk(
 
 export const postToken = createAsyncThunk(
   'auth/postToken',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
+      const {userToken, reporterToken} = getState().auth;
+      if (!userToken && !reporterToken) return;
       const token = await fetchFCMToken()
+      if (!token) return;
+      const currentAuth = getState().auth;
+      if (!currentAuth.userToken && !currentAuth.reporterToken) return;
       const payload = {
         token: token,
         device_type: Platform.OS?.toUpperCase(),
@@ -110,6 +143,55 @@ export const postToken = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
+    }
+  },
+);
+
+// Fire-and-forget launch ping: records this device the moment the app opens,
+// independent of location selection, login, or FCM/push. Drives the "Total
+// Reach" metric (≈ activated installs), capturing devices that abandon onboarding
+// or deny notifications — which the feed-based tracking never saw. Never blocks
+// or surfaces errors; a failed ping must not affect app startup.
+export const registerDevice = createAsyncThunk(
+  'auth/registerDevice',
+  async (open, { getState }) => {
+    try {
+      const deviceId = await getUniqueId();
+      if (!deviceId) return;
+
+      const state = getState();
+      const currentLocation = state.location?.currentLocation;
+
+      const payload = {
+        open_id: open?.open_id || nanoid(),
+        platform: Platform.OS?.toUpperCase(),
+        app_version: getVersion(),
+        device_name: getModel(),
+        // Best-effort — absent on first launch before a location is picked.
+        ...(currentLocation && {
+          location: {
+            state_id: currentLocation?.state?._id,
+            district_id: currentLocation?.district?._id,
+            village_id: currentLocation?.village?._id,
+          },
+        }),
+      };
+
+      // auth.optional on the backend links user_id when a token is attached
+      // by the api interceptor; guests go through without one.
+      await api.post(endpoints.REGISTER_DEVICE, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
+      // Token lookup must not delay or prevent recording this app open.
+      const fcmToken = await fetchFCMToken();
+      if (fcmToken) {
+        await api.post(endpoints.REGISTER_DEVICE + '/token', { fcm_token: fcmToken }, {
+          headers: { 'x-device-id': deviceId },
+        });
+      }
+    } catch (error) {
+      // Swallow — launch ping is non-critical.
+      console.log('registerDevice ping failed:', error?.message);
     }
   },
 );
@@ -126,8 +208,12 @@ export const registerGuestFCM = createAsyncThunk(
       const fcm_token = await fetchFCMToken();
       if (!fcm_token) return;
 
-      const currentLocation = state.location?.currentLocation;
-      const preferred_language = state.settings?.language || 'te';
+      // Sign-in may have completed while Firebase was fetching the token.
+      const latestState = getState();
+      if (latestState.auth.userToken || latestState.auth.reporterToken) return;
+
+      const currentLocation = latestState.location?.currentLocation;
+      const preferred_language = latestState.settings?.language || 'te';
 
       const payload = {
         fcm_token,
@@ -141,9 +227,7 @@ export const registerGuestFCM = createAsyncThunk(
       };
 
 
-      console.log(payload,">>>>>>>>>>>>>>>GUUEST USER FCM");
       const response = await api.post(endpoints.REGISTER_GUEST, payload, { skipAuth: true });
-      console.log(response,">>>>>>>>>>>>>>>>> GUEST FCM REST");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -155,7 +239,13 @@ export const startActivity = createAsyncThunk(
   'auth/startActivity',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.START_ACTIVITY, payload);
+      // Send x-device-id so GUESTS (no auth token) also get a session created;
+      // the backend prefers the token's user when present, else falls back to
+      // device_id. Without this header guest startSession returns null (no doc).
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.START_ACTIVITY, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
       return response.data;
     } catch (error) {
       console.log(error, "ERROR Starting Activity");
@@ -169,7 +259,13 @@ export const endActivity = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       console.log(">>>>>>>>>>>Responseee>>>>>>>>>>>>>>>PAYLOAD",payload);
-      const response = await api.post(endpoints.END_ACTIVITY, payload);
+      // Match startActivity: send x-device-id so the guest end-session path
+      // resolves the same actor. endSession itself looks up by session_id, so
+      // this is for consistency.
+      const deviceId = await getUniqueId();
+      const response = await api.post(endpoints.END_ACTIVITY, payload, {
+        headers: { 'x-device-id': deviceId },
+      });
       console.log(response,">>>RESP");
       return response.data;
     } catch (error) {
@@ -192,21 +288,18 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.user = null;
-      state.token = null;
+      state.userToken = null;
       state.isAuthenticated = false;
       state.isActive = null;
       state.reporter = null;
       state.reporterToken = null;
+      state.loading = false;
+      state.error = null;
     },
     clearReporter:(state) => {
       state.reporter = null;
       state.reporterToken = null;
     },
-    // <--- ADDED: Reducer to update guest's last active date
-    updateGuestLastActiveDate: (state, action) => {
-      // If a specific date string is passed, use it. Otherwise, default to current time.
-      state.guestLastActiveDate = action.payload || new Date().toISOString();
-    }
   },
   extraReducers: builder => {
     builder
@@ -219,7 +312,7 @@ const authSlice = createSlice({
       })
       .addCase(requestOTP.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to send OTP';
+        state.error = action.payload?.message || action.payload || action.error.message || 'Failed to send OTP';
       })
       .addCase(verifyOTP.pending, state => {
         state.loading = true;
@@ -227,27 +320,51 @@ const authSlice = createSlice({
       })
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.loading = false;
-        if(action.payload?.user && action.payload?.user?.reporter_profile && action.payload?.user?.reporter_profile?.status=="APPROVED"){
-          state.reporter = action.payload?.user?.reporter_profile;
-          state.reporterToken = action.payload?.token;
-        }
+        saveLogin(state, action.payload);
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch news';
+        state.error = action.payload?.message || action.payload || action.error.message || 'Verification failed';
       })
       .addCase(getProfile.fulfilled, (state, action) => {
         state.loading = false;
         state.isActive = action.payload?.is_active;
         state.reporter = action.payload;
       })
+      // Merge, don't replace: the update response is a subset of the profile
+      // (no phone / is_active / createdAt). Without this the new avatar only
+      // appeared after the next getProfile.
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.user) {
+          state.reporter = { ...state.reporter, ...action.payload.user };
+        }
+      })
+      .addCase(userLogin.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(applyReporter.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(applyReporter.fulfilled, state => {
+        state.loading = false;
+      })
+      .addCase(applyReporter.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || action.payload || action.error.message || 'Application failed';
+      })
       .addCase(userLogin.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.userToken = action.payload.token;
+        saveLogin(state, action.payload);
+      })
+      .addCase(userLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || action.payload || action.error.message || 'Sign-in failed';
       });
   },
 });
 
-export const { completeOnboarding, setUser, logout, clearReporter, updateGuestLastActiveDate } = authSlice.actions; // <--- ADDED EXPORT
+export const { completeOnboarding, setUser, logout, clearReporter } = authSlice.actions;
 export default authSlice.reducer;

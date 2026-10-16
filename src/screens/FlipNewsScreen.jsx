@@ -1,3 +1,4 @@
+import {articleCounters, articleDayKey} from '../utils/articleCounters';
 import React, { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet, Dimensions, Platform, ToastAndroid, ActivityIndicator, AppState } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,12 +8,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { markNewsAsRead } from '../redux/reducers/news';
+import { markNewsAsRead, fetchUnreadNewsCount, viewNews } from '../redux/reducers/news';
 import Way2NewsCard from '../components/Way2NewsCard';
 import FastImage from 'react-native-fast-image';
-import { preloadVideos, cancelVideoPreloads } from '../utils/mediaPreloader';
+import { prefetchVideo } from '../utils/videoFileCache';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
+import ViralPostCard from '../components/ViralPostCard';
 import { lightTheme, darkTheme } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -20,6 +22,11 @@ const formatTimeAgo = (dateString, dayOffset) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' minutes ago';
 
   if (dayOffset != null && dayOffset > 0) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -34,15 +41,16 @@ const formatTimeAgo = (dateString, dayOffset) => {
     }
   }
 
-  const seconds = Math.floor((now - date) / 1000);
-  if (seconds < 60) return Math.floor(seconds) + ' seconds ago';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + ' minutes ago';
-  const hours = Math.floor(seconds / 3600);
-  if (hours < 24) return hours + ' hours ago';
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
   if (date >= yesterdayStart && date < todayStart) return 'Yesterday';
+
+  // Past the 1-hour mark, show the exact time it was posted (e.g. "4:01 AM")
+  // instead of relative hours; previous-day posts are labeled above.
+  if (date >= todayStart) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString('en-US', sameYear
     ? { month: 'short', day: 'numeric' }
@@ -77,33 +85,44 @@ const SPRING_CONFIG = {
   overshootClamping: true, restDisplacementThreshold: 0.01, restSpeedThreshold: 1,
 };
 
-const MemoizedCard = React.memo(({ newsItem, height, onPress, onCommentsPress, isActive = true, onAutoNext }) => {
+// 1. Memoized Card
+const MemoizedCard = React.memo(({ newsItem, height, fitToContainer = false, onPress, onCommentsPress, isActive = true, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
   if (!newsItem) return null;
   return (
-    <View style={{ height }}>
-      {newsItem.type === 'SURVEY'
-        ? <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
-        : <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} />}
+   <View style={{ height }}>
+      {newsItem.type === 'SURVEY' ? (
+        <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
+      ) : newsItem.type === 'VIRAL_POST' ? (
+        <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
+      ) : (
+        <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} onPressTag={onPressTag} />
+      )}
     </View>
   );
-}, (prev, next) => prev.newsItem?.id === next.newsItem?.id && prev.height === next.height && prev.isActive === next.isActive);
+}, (prev, next) => prev.newsItem === next.newsItem && prev.height === next.height && prev.fitToContainer === next.fitToContainer && prev.isActive === next.isActive && prev.viralSlideIndex === next.viralSlideIndex);
 
-const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress, isActive = true, theme, onAutoNext }) => {
+// 2. CardHalf
+const CardHalf = React.memo(({ newsItem, side, height, fitToContainer = false, onPress, onCommentsPress, isActive = true, theme, onAutoNext, viralSlideIndex, onViralSlideChange, viralPanX, onPressViral, onPressTag }) => {
   if (!newsItem) return null;
   const halfHeight = height / 2;
   const isTop = side === 'top';
   return (
     <View style={[styles.halfCardContainer, { backgroundColor: theme?.background || '#fff' }]}>
       <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: theme?.background || '#fff' }]}>
-        {newsItem.type === 'SURVEY'
-          ? <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
-          : <Way2NewsCard news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} />}
+        {newsItem.type === 'SURVEY' ? (
+          <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
+        ) : newsItem.type === 'VIRAL_POST' ? (
+          <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
+        ) : (
+          <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} onPressTag={onPressTag} />
+        )}
       </View>
     </View>
   );
 });
 
-const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main' }, ref) => {
+// WRAP WITH FORWARD REF
+const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main', onPressViral, onPressTag, overrideItems, onOverlayEndReached, overlayHasMore = false, overlayMoreLoading = false, fitToContainer = false, onSwipeUpAtEnd, onSwipeDownAtStart }, ref) => {
   const dispatch = useDispatch();
   const { articles, totalNews, todayTotalNews, currentDayOffset, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
   const { bookmarks } = useSelector(state => state.bookmarks);
@@ -114,15 +133,46 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const activeLoading = feedType === 'unread' ? isLoadingUnread : loading;
   const activeIsLoadingMore = feedType === 'unread' ? isLoadingMoreUnread : isLoadingMore;
   const activeHasMore = feedType === 'unread' ? unreadHasMore : hasMore;
-  const bookmarkedIds = useMemo(() => bookmarks?.map(item => item.news?._id), [bookmarks]);
 
-  // Change #5: nowTick for timeAgo freshness (60s interval)
+  const bookmarkedIds = useMemo(() => {
+    return bookmarks?.map(item => item.news?._id);
+  }, [bookmarks]);
+
+  // Declared here (not further below) because the preload/prefetch effects
+  // below reference currIndex in their dependency array, which is evaluated
+  // immediately when useEffect() is called — referencing it before this
+  // declaration ran threw "Cannot access 'currIndex' before initialization".
+  const [currIndex, setCurrIndex] = useState(0);
+  // A VIRAL_POST card is split into a separate top-half and bottom-half
+  // mount by CardHalf (see the render below) so the flip animation can
+  // clip/shift each half independently — fine for a static image, but a
+  // card-internal horizontal swipe (ViralPostCard's own image carousel)
+  // can't be a native FlatList's own scroll state per half: that would be
+  // TWO INDEPENDENT scroll positions, one per half, each only receiving the
+  // touches inside its own half of the screen, so a live drag started in
+  // the top half moves only the top half in real time while the bottom
+  // half sits frozen on the old slide until some later sync catches up —
+  // exactly the "half old image / half new image" split reported, visible
+  // WHILE dragging, not just after.
+  //
+  // viralPanX is a Reanimated shared value, not React state: passed as the
+  // SAME object to both halves, a mutation from either half's gesture
+  // handler is visible to both halves' useAnimatedStyle on the UI thread in
+  // the same frame, so they move in lockstep pixel-for-pixel during the
+  // drag itself, not just once it settles. viralSlideIndex is the settled
+  // integer index (JS state, for the dot indicator + caption text, which
+  // don't need per-frame updates).
+  const viralPanX = useSharedValue(0);
+  const [viralSlideIndex, setViralSlideIndex] = useState(0);
+  // Same reason: formattedNews (a useMemo, whose factory runs synchronously
+  // during render, unlike useEffect) reads nowTick — it must exist first.
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 60000);
     return () => clearInterval(id);
   }, []);
 
+  // Expose methods to parent
   useImperativeHandle(ref, () => ({
     scrollToTop: () => {
       if (formattedNews.length > 0) {
@@ -130,72 +180,122 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         scrollY.value = 0;
         swipeDirection.value = 0;
       }
+    },
+    getCurrentIndex: () => currIndex,
+    // Used to restore the exact card the reader was on before a temporary
+    // overlay (e.g. the viral posts rail) took over — see overrideItems.
+    jumpToIndex: (i) => {
+      const clamped = Math.max(0, Math.min(i, formattedNews.length - 1));
+      if (formattedNews.length > 0) {
+        setCurrIndex(clamped);
+        scrollY.value = 0;
+        swipeDirection.value = 0;
+      }
     }
   }));
 
   const formattedNews = useMemo(() => {
-    const rawItems = activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
-    // Day-based counters for itemIndex display
-    const dayCounters = {};
-    return rawItems.map((item, index) => {
+    const rawItems = overrideItems || activeArticles?.items || (Array.isArray(activeArticles) ? activeArticles : []);
+
+    const now = new Date(nowTick);
+
+    const counters = articleCounters(rawItems, {today: articleDayKey(now), unread: feedType === 'unread', unreadCount, overlay: Boolean(overrideItems)});
+
+    return rawItems.map((item) => {
       if (item.type === 'AD') {
         return {
-          id: item.data._id, type: 'AD', isAd: true,
-          image: item.data.image, redirectUrl: item.data.redirect_url,
-          label: item.data.label || 'Sponsored', title: item.data.label || 'Advertisement',
-          likes: 0, dislikes: 0, comments: 0, commentsEnabled: false, images: [],
-          itemIndex: index + 1, totalNews: todayTotalNews || totalNews || rawItems.length,
+          id: item.data._id,
+          type: 'AD',
+          isAd: true,
+          image: item.data.image,
+          video: item.data.video,
+          mediaType: item.data.media_type || 'image',
+          redirectUrl: item.data.redirect_url,
+          label: item.data.label || 'Sponsored',
+          title: item.data.label || 'Advertisement',
+          likes: 0,
+          dislikes: 0,
+          comments: 0,
+          commentsEnabled: false,
+          images: [],
+          itemIndex: null,
+          totalNews: null,
         };
       } else if (item.type === 'SURVEY') {
         return {
-          id: item.data._id, type: 'SURVEY',
-          question: item.data.question, options: item.data.options,
-          totalVotes: item.data.total_votes, voted_option_id: item.data.voted_option_id,
-          user_voted: item.data.user_voted, isAd: false,
-          itemIndex: index + 1, totalNews: todayTotalNews || totalNews || rawItems.length,
+          id: item.data._id,
+          type: 'SURVEY',
+          question: item.data.question,
+          options: item.data.options,
+          totalVotes: item.data.total_votes,
+          voted_option_id: item.data.voted_option_id,
+          user_voted: item.data.user_voted,
+          isAd: false,
+          itemIndex: null,
+          totalNews: null,
         };
-      } else {
+      }
+      else if (item.type === 'VIRAL_POST') {
+        // Passed straight through — ViralPostCard reads the magazine shape
+        // (title/cards/shares) directly, same as MagazineViralRail already does.
+        return {
+          id: item.data._id,
+          type: 'VIRAL_POST',
+          data: item.data,
+          isAd: false,
+          itemIndex: null,
+          totalNews: null,
+        };
+      }
+      else {
         const data = item.data || item;
         // Determine which day offset this item belongs to
         const publishedAt = data.published_at;
-        let itemDayOffset = 0;
-        if (publishedAt && currentDayOffset != null) {
-          const now = new Date();
-          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const pubDate = new Date(publishedAt);
-          const diffDays = Math.floor((todayStart - new Date(pubDate.getFullYear(), pubDate.getMonth(), pubDate.getDate())) / 86400000);
-          itemDayOffset = diffDays > 0 ? diffDays : 0;
-        }
-        // Per-day counter for itemIndex
-        const dayKey = itemDayOffset;
-        dayCounters[dayKey] = (dayCounters[dayKey] || 0) + 1;
-        const dayItemIndex = dayCounters[dayKey];
-        const dayTotal = itemDayOffset === 0
-          ? (todayTotalNews || totalNews || rawItems.length)
-          : (totalNews || rawItems.length);
+        const counter = counters.get(data._id);
+        const itemIndex = counter?.index || 1;
+        const dayTotal = counter?.total || 1;
+        const isToday = articleDayKey(publishedAt) === articleDayKey(now);
+        const itemDayOffset = isToday ? 0 : currentDayOffset > 0 ? currentDayOffset : null;
+
         return {
-          id: data._id, type: 'NEWS', isAd: false,
-          title: data.content?.title || '', body: data.content?.body || '',
+          id: data._id,
+          type: 'NEWS',
+          isAd: false,
+          title: data.content?.title || '',
+          body: data.content?.body || '',
           short: data.content?.short || '',
           image: data.images?.length > 0 ? data.images[0] : null,
-          images: data.images || [], videos: data.videos || [],
+          images: data.images || [],
+          videos: data.videos || [],
           external_links: data.external_links || [],
-          publishedAt: publishedAt,
+          article_links: data.article_links || null,
+          publishedAt,
+          _dayOffset: itemDayOffset, // #6: kept so the visible card can re-derive timeAgo without remapping the whole list
           timeAgo: formatTimeAgo(publishedAt, itemDayOffset),
-          likes: data?.reactions?.likes || 0, dislikes: data?.reactions?.dislikes || 0,
+          likes: data?.reactions?.likes || 0,
+          dislikes: data?.reactions?.dislikes || 0,
           comments: data?.comments?.count || 0,
           commentsEnabled: data?.comments?.enabled !== false,
-          reporter: data.reporter || { name: 'Reporter', imageUrl: 'https://via.placeholder.com/100', location: 'Andhra Pradesh' },
-          isLiked: data?.reactions?.my_reaction == "LIKE",
-          isDisliked: data?.reactions?.my_reaction == "DISLIKE",
+          // Backend sends { _id, name, role, photo, village } for reporter-authored
+          // stories and null for editor/admin ones — pass the null straight through,
+          // a synthesized "Reporter" here would put a byline on every admin story.
+          reporter: data.reporter || null,
+          tags: data.tags || [],
+          is_top_story: data.is_top_story === true,
+          is_trending: data.is_trending === true,
+          is_rapid_exclusive: data.is_rapid_exclusive === true,
+          isPinned: data.is_feed_pinned === true,
+          isLiked: data?.reactions?.my_reaction === 'LIKE',
+          isDisliked: data?.reactions?.my_reaction === 'DISLIKE',
           isBookmarked: bookmarkedIds.includes(data._id),
-          itemIndex: dayItemIndex, totalNews: dayTotal,
-          itemDayOffset,
+          itemIndex,
+          totalNews: dayTotal,
         };
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeArticles, bookmarkedIds, totalNews, todayTotalNews, currentDayOffset, nowTick]);
+    // #6: nowTick deliberately NOT a dep — the 60s tick no longer re-maps the
+    // whole list; only the visible card's timeAgo is refreshed (see currentNews).
+  }, [activeArticles, overrideItems, bookmarkedIds, currentDayOffset, feedType, unreadCount]);
 
   useEffect(() => {
     const adImages = formattedNews
@@ -206,25 +306,63 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
 
   // Change #8: Video + image window preloading
   useEffect(() => {
-    const window = formattedNews.slice(Math.max(0, currIndex - 2), currIndex + 11);
-    const imageUris = window.flatMap(item => {
-      const uris = [];
-      if (item.image) uris.push(item.image);
-      if (item.images?.length) uris.push(...item.images);
-      if (item.thumbnail) uris.push(item.thumbnail);
-      if (item.videos?.length) {
-        const ytMatch = item.videos[0]?.match(/(?:youtu\.be\/|v=)([^&?/]+)/);
-        if (ytMatch) uris.push(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
-      }
-      return uris;
-    }).filter(Boolean).map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
+    // #5: trim the initial preload window. On the very first paint (currIndex 0)
+    // only warm 3 ahead so the first visible card's image isn't fighting ~10
+    // high-priority preloads. Once the user swipes (currIndex > 0) the full
+    // 10-ahead window kicks back in — swipe-ahead images load a beat later.
+    const aheadCount = currIndex === 0 ? 3 : 10;
+    // 10 ahead + 2 behind covers fast swipers and back-swipes
+    const window = formattedNews.slice(
+      Math.max(0, currIndex - 2),
+      currIndex + 1 + aheadCount,
+    );
+
+    // Images via FastImage cache
+    const imageUris = window
+      .flatMap(item => {
+        const uris = [];
+        if (item.image) uris.push(item.image);
+        if (item.images?.length) uris.push(...item.images);
+        if (item.thumbnail) uris.push(item.thumbnail);
+        // YouTube thumbnail
+        if (item.videos?.length) {
+          const ytMatch = item.videos[0]?.match(/(?:youtu\.be\/|v=)([^&?/]+)/);
+          if (ytMatch) uris.push(`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`);
+        }
+        return uris;
+      })
+      .filter(Boolean)
+      .map(uri => ({ uri, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }));
+
     if (imageUris.length > 0) FastImage.preload(imageUris);
-    const videoUris = formattedNews.slice(currIndex + 1, currIndex + 4).flatMap(item => item.videos || []).filter(url => url && !url.includes('youtube') && !url.includes('youtu.be'));
-    if (videoUris.length > 0) preloadVideos(videoUris);
-    return () => cancelVideoPreloads(videoUris);
+
+    // Download upcoming videos to local disk so they play instantly (no buffering).
+    // News videos live on item.videos[]; ad videos on item.video. YouTube links are
+    // skipped inside prefetchVideo. Look a few cards ahead (and include the current
+    // one so it's cached for replay-on-return).
+    //
+    // The current card's download must NOT share bandwidth with the "ahead" ones —
+    // firing all 6 in parallel (the old behavior) meant the video the user is about
+    // to watch was competing with 5 they haven't scrolled to yet, which is what
+    // made first-play loading feel slow even though playback itself was smooth
+    // once buffered. So: kick off the current item alone, and only start the ahead
+    // batch once that download has settled (or failed).
+    const prefetchItem = (item) => {
+      if (!item) return Promise.resolve();
+      if (item.isAd) {
+        if (item.mediaType === 'video' && item.video) return prefetchVideo(item.video);
+      } else if (item.videos?.length) {
+        return prefetchVideo(item.videos[0]);
+      }
+      return Promise.resolve();
+    };
+
+    const [current, ...ahead] = formattedNews.slice(currIndex, currIndex + 6);
+    prefetchItem(current).finally(() => {
+      ahead.forEach(prefetchItem);
+    });
   }, [currIndex, formattedNews]);
 
-  const [currIndex, setCurrIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(Dimensions.get('window').height);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -241,23 +379,71 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   const hasNext = useSharedValue(formattedNews.length > 1);
   const hasPrev = useSharedValue(false);
 
-  const currentNews = useMemo(() => formattedNews[currIndex], [currIndex, formattedNews]);
-  const nextNews = useMemo(() => formattedNews[currIndex + 1] ?? null, [currIndex, formattedNews]);
-  const prevNews = useMemo(() => formattedNews[currIndex - 1] ?? null, [currIndex, formattedNews]);
+  // #6: live-refresh only the visible card's timeAgo on each 60s tick, instead of
+  // re-mapping the entire feed list (which also needlessly re-fired the preload
+  // effects keyed on `formattedNews`). Off-screen next/prev cards get a fresh
+  // label the moment they become current (currIndex change recomputes this memo).
+  const currentNews = useMemo(() => {
+    const item = formattedNews[currIndex];
+    if (!item || item.type !== 'NEWS') return item;
+    return { ...item, timeAgo: formatTimeAgo(item.publishedAt, item._dayOffset) };
+  }, [currIndex, formattedNews, nowTick]);
 
-  // Change #10: active news derived from isSwitching/overrideNews
-  const activeCurrentNews = isSwitching && overrideNews ? overrideNews.current : currentNews;
-  const activeNextNews = isSwitching && overrideNews ? overrideNews.next : nextNews;
-  const activePrevNews = isSwitching && overrideNews ? overrideNews.prev : prevNews;
+  const nextNews = useMemo(() => {
+    const nextIdx = currIndex + 1;
+    return nextIdx < formattedNews.length ? formattedNews[nextIdx] : null;
+  }, [currIndex, formattedNews]);
+
+  const prevNews = useMemo(() => {
+    const prevIdx = currIndex - 1;
+    return prevIdx >= 0 ? formattedNews[prevIdx] : null;
+  }, [currIndex, formattedNews]);
 
   useEffect(() => {
     hasNext.value = !!nextNews;
     hasPrev.value = !!prevNews;
   }, [nextNews, prevNews]);
 
+  const displayNews = overrideNews || currentNews;
+  const activeCurrentNews = isSwitching ? displayNews : currentNews;
+
+  // Fresh viral post -> back to its first slide, not wherever the previous
+  // viral post's carousel happened to be left.
+  useEffect(() => {
+    setViralSlideIndex(0);
+    viralPanX.value = 0;
+  }, [activeCurrentNews?.id]);
+  const activeNextNews = isSwitching ? displayNews : nextNews;
+  const activePrevNews = isSwitching ? displayNews : prevNews;
+
   useEffect(() => {
     if (onIndexChange) onIndexChange(currIndex);
   }, [currIndex, onIndexChange]);
+
+  useEffect(() => {
+    if (overrideItems && overlayHasMore && !overlayMoreLoading && formattedNews.length > 0 && currIndex >= formattedNews.length - 5) onOverlayEndReached?.();
+  }, [overrideItems, overlayHasMore, overlayMoreLoading, formattedNews.length, currIndex, onOverlayEndReached]);
+
+  // Pre-fetch next page when user lands on the second-to-last item
+  useEffect(() => {
+    // overrideItems is a fixed, unpaginated list (the viral posts rail) —
+    // activeHasMore/activeLoading still reflect whatever the underlying main
+    // feed was doing, so this must not act on them while overriding.
+    if (overrideItems || !activeHasMore || activeIsLoadingMore || activeLoading) return;
+    const total = formattedNews.length;
+    // Prefetch ~5 cards before the end (was 2) so the next page has time to
+    // arrive over the network (~2s) before the user reaches the last card —
+    // no stall for normal scrolling. Dedupe in the reducer prevents duplicates.
+    // currIndex > 0: never auto-fire page-2 while still on the freshly-loaded
+    // first card — otherwise a SHORT feed (total <= 5) would trigger a load-more
+    // the instant a fresh/tab-switch load lands, flashing the bottom toast.
+    if (total > 0 && currIndex > 0 && currIndex >= total - 5) {
+      if (!isLoadingMoreRef.current) {
+        isLoadingMoreRef.current = true;
+        if (onEndReached) onEndReached();
+      }
+    }
+  }, [currIndex, formattedNews.length, activeHasMore, activeIsLoadingMore, activeLoading]);
 
   useEffect(() => {
     if (currIndex >= formattedNews.length && formattedNews.length > 0) {
@@ -283,7 +469,12 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     if (readBatchRef.current.size === 0) return;
     const ids = Array.from(readBatchRef.current);
     readBatchRef.current.clear();
-    dispatch(markNewsAsRead(ids));
+    // Optimistic decrement happens in the reducer; reconcile the badge with the
+    // server once the read batch is persisted.
+    dispatch(markNewsAsRead(ids))
+      .unwrap()
+      .then(() => dispatch(fetchUnreadNewsCount()))
+      .catch(() => {});
   }, [dispatch]);
 
   // Change #13: scheduleFlush — debounced read tracking
@@ -312,22 +503,38 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     return () => clearInterval(flushTimerRef.current);
   }, [flushReadBatch]);
 
+  // Track impression: add ID immediately on swipe-away, or after 1s if still viewing.
+  // A viral post has no "read"/unread concept (it never feeds the unread badge or
+  // NewsRead), so it is routed to the standalone view counter instead of the news
+  // read-batch - same impression timing, different destination.
   useEffect(() => {
     if (impressionTimerRef.current) clearTimeout(impressionTimerRef.current);
-    if (!currentNews?.id || currentNews.isAd || feedType === 'unread') return;
-    impressionTimerRef.current = setTimeout(() => {
-      readBatchRef.current.add(currentNews.id);
-      if (readBatchRef.current.size >= 10) flushReadBatch();
-      else scheduleFlush();
-    }, 1000);
-    return () => clearTimeout(impressionTimerRef.current);
-  }, [currentNews?.id, currentNews?.isAd, feedType, flushReadBatch, scheduleFlush]);
+    if (!currentNews?.id || currentNews.isAd) return;
 
-  // Change #11: finishFlip — called after feed switch animation completes
-  const finishFlip = useCallback(() => {
-    setIsSwitching(false);
-    setOverrideNews(null);
-  }, []);
+    const newsId = currentNews.id;
+    const isViralPost = currentNews.type === 'VIRAL_POST';
+
+    const recordImpression = () => {
+      if (isViralPost) {
+        dispatch(viewNews(newsId)).catch(() => {});
+        return;
+      }
+      readBatchRef.current.add(newsId);
+      if (readBatchRef.current.size >= 10) {
+        flushReadBatch();
+      } else {
+        scheduleFlush();
+      }
+    };
+
+    impressionTimerRef.current = setTimeout(recordImpression, 1000);
+
+    return () => {
+      clearTimeout(impressionTimerRef.current);
+      // Always count the view/read on swipe-away, even if < 1s
+      recordImpression();
+    };
+  }, [currentNews?.id, currentNews?.isAd, currentNews?.type, dispatch, flushReadBatch, scheduleFlush]);
 
   // Change #12: isSwitching useEffect — resets scroll and clears switching state
   useEffect(() => {
@@ -379,18 +586,26 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   };
 
   const triggerRefresh = () => {
+    if (overrideItems) {
+      scrollY.value = withSpring(0, SPRING_CONFIG);
+      loaderY.value = withSpring(-60, SPRING_CONFIG);
+      return;
+    }
     setIsRefreshing(true);
     loaderY.value = withSpring(20, SPRING_CONFIG);
-    if (onRefresh) onRefresh();
+    // Pull-to-refresh re-fetches the main feed — meaningless (and confusing)
+    // while overrideItems has taken over the screen with the fixed viral rail.
+    if (onRefresh && !overrideItems) onRefresh();
     scrollY.value = withSpring(0, SPRING_CONFIG);
   };
 
   const isLoadingMoreRef = useRef(false);
   const triggerLoadMore = () => {
+    if (overrideItems) { if (overlayHasMore && !overlayMoreLoading) onOverlayEndReached?.(); return; }
+    scrollY.value = withSpring(0, SPRING_CONFIG);
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
     if (onEndReached) onEndReached();
-    scrollY.value = withSpring(0, SPRING_CONFIG);
   };
 
   useEffect(() => {
@@ -439,10 +654,29 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     .onUpdate((e) => {
       if (containerHeight === 0 || isAnimating.value) return;
       let position = -e.translationY / containerHeight;
-      if (!hasNext.value && position > 0) position = position / 3;
+
+      // Linked article dismissal is animated by the navigator as one whole
+      // screen. Rotating its card halves here leaves them cut during that slide.
+      const dismissingLinkedArticle =
+        (position > 0 && !hasNext.value && !!onSwipeUpAtEnd) ||
+        (position < 0 && !hasPrev.value && !!onSwipeDownAtStart);
+      if (dismissingLinkedArticle) {
+        scrollY.value = 0;
+        swipeDirection.value = 0;
+        loaderY.value = -60;
+        return;
+      }
+
+      if (!hasNext.value && position > 0) {
+        position = position / 3;
+      }
       else if (!hasPrev.value && position < 0) {
         position = position / 3;
-        if (!isRefreshing) loaderY.value = Math.min(-60 + (e.translationY * 0.4), 20);
+
+        if (!isRefreshing && !onSwipeDownAtStart) {
+          const dragY = e.translationY;
+          loaderY.value = Math.min(-60 + (dragY * 0.4), 20);
+        }
       }
       scrollY.value = position;
       if (swipeDirection.value === 0 && Math.abs(position) > 0.05)
@@ -453,7 +687,18 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
       const position = -e.translationY / containerHeight;
       if (position > 0.15 || -e.velocityY > 400) {
         if (!hasNext.value) {
-          if (!activeHasMore && Platform.OS === 'android') runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
+          // A linked article is an isolated screen above its source. Swiping
+          // past it should reveal that source, preserving its feed position.
+          if (onSwipeUpAtEnd) {
+            scrollY.value = 0;
+            swipeDirection.value = 0;
+            isAnimating.value = true;
+            runOnJS(onSwipeUpAtEnd)();
+            return;
+          }
+          if (!activeHasMore && Platform.OS === 'android') {
+            runOnJS(ToastAndroid.show)("మరింత సమాచారం లేదు", ToastAndroid.SHORT);
+          }
           runOnJS(setUserSwipedPastEnd)(true);
           runOnJS(triggerLoadMore)();
         } else {
@@ -465,6 +710,14 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
         }
       } else if (position < -0.15 || -e.velocityY < -400) {
         if (!hasPrev.value) {
+          if (onSwipeDownAtStart) {
+            scrollY.value = 0;
+            swipeDirection.value = 0;
+            loaderY.value = -60;
+            isAnimating.value = true;
+            runOnJS(onSwipeDownAtStart)();
+            return;
+          }
           if (!isRefreshing) runOnJS(triggerRefresh)();
           else scrollY.value = withSpring(0, SPRING_CONFIG);
         } else {
@@ -569,8 +822,7 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
     );
   }
 
-  const displayNews = activeCurrentNews;
-  if (!displayNews) {
+  if (!activeCurrentNews) {
     return <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout} />;
   }
 
@@ -583,7 +835,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <ActivityIndicator size="large" color="#4dabf5" />
           </Animated.View>
 
-          {isLoadingMore && !nextNews && (
+          {/* Bottom load-more indicator — shown whenever the next page is
+              loading (prefetch near the end OR a swipe past the last card), so
+              the network wait reads as "loading" instead of a frozen feed. */}
+          {activeIsLoadingMore && !activeLoading && (
             <View style={styles.bottomLoaderContainer}>
               <ActivityIndicator size="small" color="#4dabf5" />
               <Text style={styles.bottomLoaderText}>వార్తలు లోడ్ అవుతున్నాయి...</Text>
@@ -593,30 +848,45 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           {/* Next card bottom half sits behind — visible during swipe-next */}
           {activeNextNews && (
             <Animated.View style={[styles.absoluteFill, destinationNextStyle]}>
-              <MemoizedCard newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
+              <MemoizedCard fitToContainer={fitToContainer} newsItem={activeNextNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
             </Animated.View>
           )}
           {activePrevNews && (
             <Animated.View style={[styles.absoluteFill, destinationPrevStyle]}>
-              <MemoizedCard newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
+              <MemoizedCard fitToContainer={fitToContainer} newsItem={activePrevNews} height={containerHeight} onPress={()=>{}} onCommentsPress={()=>{}} isActive={false} onAutoNext={autoSwipeNext} />
             </Animated.View>
           )}
 
-          <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>            <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
-          </Animated.View>
+          {activeCurrentNews?.isAd && activeCurrentNews.mediaType === 'video' && !!activeCurrentNews.video && !isSwitching ? (
+            // Video ads render as ONE full card so
+            // the video isn't cut to the top half by the two-half flip split.
+            // While switching, fall through to the normal halves below so the
+            // flip animation is unchanged (it briefly shows the ad's poster).
+            // Image ads use the stationary halves below, which hide during
+            // the flip so the outgoing ad cannot cover the destination card.
+            <Animated.View style={styles.absoluteFill}>
+              <MemoizedCard fitToContainer={fitToContainer} newsItem={activeCurrentNews} height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+            </Animated.View>
+          ) : (
+            <>
+              <Animated.View style={[styles.halfWrapper, { top: 0, height: halfHeight }, staticTopStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+              </Animated.View>
 
-          <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
-            <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
-          </Animated.View>
+              <Animated.View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }, staticBottomStyle, isSwitching && { opacity: 1, zIndex: 100 }]}>
+                <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
+              </Animated.View>
+            </>
+          )}
 
           {activeNextNews && (
             <View style={[styles.halfWrapper, { bottom: 0, height: halfHeight }]}>
               <Animated.View style={[StyleSheet.absoluteFillObject, flipNextStyle]}>
                 <Animated.View style={[styles.face, nextFrontStyle]}>
-                  <CardHalf newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
+                  <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
                 </Animated.View>
                 <Animated.View style={[styles.face, nextBackStyle]}>
-                  <CardHalf newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
+                  <CardHalf fitToContainer={fitToContainer} newsItem={activeNextNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
                 </Animated.View>
                 <Animated.View style={[styles.shadow, shadowStyle]} />
               </Animated.View>
@@ -627,10 +897,10 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
             <View style={[styles.halfWrapper, { top: 0, height: halfHeight }]}>
               <Animated.View style={[StyleSheet.absoluteFillObject, flipPrevStyle]}>
                 <Animated.View style={[styles.face, prevFrontStyle]}>
-                  <CardHalf newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
+                  <CardHalf fitToContainer={fitToContainer} newsItem={activeCurrentNews} side="top" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
                 </Animated.View>
                 <Animated.View style={[styles.face, prevBackStyle]}>
-                  <CardHalf newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} />
+                  <CardHalf fitToContainer={fitToContainer} newsItem={activePrevNews} side="bottom" height={containerHeight} onPress={toggleUI} onCommentsPress={onCommentsPress} isActive={true} theme={theme} onAutoNext={autoSwipeNext} viralSlideIndex={viralSlideIndex} onViralSlideChange={setViralSlideIndex} viralPanX={viralPanX} onPressViral={onPressViral} onPressTag={onPressTag} />
                 </Animated.View>
                 <Animated.View style={[styles.shadow, shadowStyle]} />
               </Animated.View>

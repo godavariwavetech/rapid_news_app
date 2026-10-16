@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Alert,
   StyleSheet,
   StatusBar,
   Platform,
@@ -14,7 +15,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearReporter, requestOTP } from '../redux/reducers/auth';
+import { clearReporter, requestOTP, verifyOTP } from '../redux/reducers/auth';
 import { setReporterTempToken } from '../redux/reducers/location';
 import { useTheme } from '../context/ThemeContext';
 import { fonts } from '../config/theme';
@@ -29,26 +30,44 @@ const MobileLoginScreen = ({navigation}) => {
   
   const { loading } = useSelector(state => state.auth);
 
+  const handleLocalReporterLogin = async () => {
+    const phone = '7997753587';
+    setMobileNumber(phone);
+    dispatch(clearReporter());
+    dispatch(setReporterTempToken(null));
+
+    try {
+      await dispatch(requestOTP({ phone })).unwrap();
+      const { user } = await dispatch(verifyOTP({ phone, otp: '1234' })).unwrap();
+      if (user?.reporter_profile?.status !== 'APPROVED') {
+        throw new Error('The local backend did not approve the test reporter account.');
+      }
+      navigation.replace('ReporterApp');
+    } catch (error) {
+      Alert.alert(
+        'Local reporter login failed',
+        error?.message || 'Check that the local backend is running in development mode.',
+      );
+    }
+  };
+
   const handleProceed = async () => {
-    if (mobileNumber.length === 10) {
+    if (loading) return;
+    if (/^\d{10}$/.test(mobileNumber)) {
       const payload = { "phone": mobileNumber };
       
       try {
-        const response = await dispatch(requestOTP(payload));
-        if (response?.payload?.status === 200) {
-          dispatch(clearReporter())
-          dispatch(setReporterTempToken(null))
-          navigation.navigate('OTPVerification', {mobile: mobileNumber});
-        }
+        await dispatch(requestOTP(payload)).unwrap();
+        navigation.navigate('OTPVerification', {mobile: mobileNumber});
       } catch (error) {
-        console.error("Login Error:", error);
+        Alert.alert('Could not send OTP', error?.message || (typeof error === 'string' ? error : 'Please try again.'));
       }
     } else {
       alert('Please enter a valid 10-digit mobile number');
     }
   };
 
-  const isValid = mobileNumber.length === 10;
+  const isValid = /^\d{10}$/.test(mobileNumber);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -115,6 +134,18 @@ const MobileLoginScreen = ({navigation}) => {
             )}
           </TouchableOpacity>
 
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.localLoginButton}
+              onPress={handleLocalReporterLogin}
+              disabled={loading}
+              activeOpacity={0.8}>
+              <Text style={[styles.localLoginText, { color: theme.accentBlue }]}>
+                Local Reporter Login (DEV)
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.descriptionSection}>
             <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>
               ఇక్కడ ఫోన్‌ నంబర్‌ ఇచ్చి రాపిడ్‌ న్యూస్‌ నెట్‌వర్క్‌లో చేరండి. మీరు నచ్చే, మెచ్చే వార్తలను చదవడంతో పాటు.. మీరూ స్వయంగా వార్తలను పంపండి.
@@ -161,6 +192,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     textTransform: 'lowercase',
+  },
+  localLoginButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  localLoginText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   descriptionSection: { marginTop: 20, paddingTop: 4 },
   descriptionText: { fontSize: responsiveFontSize(2.5), lineHeight: 30, fontFamily: fonts.bold, includeFontPadding: false },

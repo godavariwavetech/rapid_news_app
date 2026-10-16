@@ -8,23 +8,46 @@ import {
   Image,
   Modal,
   Dimensions,
+  PanResponder,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Video from 'react-native-video';
 import { generateVideoThumbnail } from '../utils/FileHelpers';
+import ArticleLinks from './ArticleLinks';
+import LinkedArticleText from './LinkedArticleText';
 
 const { width } = Dimensions.get('window');
+const EMPTY_VIDEOS = [];
 
-const NewsDetailModal = ({ visible, newsItem, onClose }) => {
-  if (!newsItem) return null;
-
+const NewsDetailModalContent = ({ visible, newsItem, onClose }) => {
   const [videoPaused, setVideoPaused] = useState(true);
+  // The player isn't mounted until this flips true (see the tap handler below) —
+  // react-native-video starts loading/buffering as soon as it's mounted, even
+  // while paused, so mounting it eagerly meant the video started downloading the
+  // instant the modal opened instead of waiting for the user to tap play.
+  const [videoActivated, setVideoActivated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [thumbnail, setThumbnail] = useState(newsItem.thumbnail);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [seekBarWidth, setSeekBarWidth] = useState(0);
   const imageScrollRef = useRef(null);
+  const videoRef = useRef(null);
+  const wasPlayingBeforeScrub = useRef(false);
 
-  const hasVideo = newsItem.videos && newsItem.videos.length > 0;
-  const videoUri = hasVideo ? newsItem.videos[0] : null;
+  const videoUrls = Array.isArray(newsItem.videos) ? newsItem.videos : EMPTY_VIDEOS;
+  const hasVideo = videoUrls.length > 0;
+  const videoUri = hasVideo ? (videoUrls[activeVideoIndex] || videoUrls[0]) : null;
+
+  useEffect(() => {
+    setActiveVideoIndex(0);
+    setVideoPaused(true);
+    setVideoActivated(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
+    setThumbnail(newsItem.thumbnail || null);
+  }, [newsItem._id, newsItem.thumbnail, videoUrls]);
 
   useEffect(() => {
     if (hasVideo && !newsItem.thumbnail && videoUri) {
@@ -45,8 +68,67 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
   const handleClose = () => {
     setVideoPaused(true);
     setActiveIndex(0);
+    setActiveVideoIndex(0);
+    setVideoActivated(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
     onClose();
   };
+
+  const selectVideo = (index) => {
+    if (index < 0 || index >= videoUrls.length || index === activeVideoIndex) return;
+    setActiveVideoIndex(index);
+    setVideoPaused(true);
+    setVideoActivated(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
+    setThumbnail(newsItem.thumbnail || null);
+  };
+
+  const formatPlaybackTime = (seconds) => {
+    if (!seconds || !isFinite(seconds) || seconds < 0) seconds = 0;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // Dragging the red duration line: while scrubbing we only move the fill
+  // visually (setVideoCurrentTime) and pause playback, then seek the actual
+  // player once the finger lifts — seeking on every pixel of movement is
+  // what makes native scrubbers stutter. Before the video is activated there
+  // is nothing to seek yet, so a drag there just starts playback instead.
+  const scrubToLocationX = (x) => {
+    if (!seekBarWidth || !videoDuration) return;
+    const clampedX = Math.max(0, Math.min(seekBarWidth, x));
+    setVideoCurrentTime((clampedX / seekBarWidth) * videoDuration);
+  };
+
+  // Recreated every render (not memoized in a ref) so its callbacks always
+  // close over the current seekBarWidth/videoDuration/videoPaused — a
+  // useRef-memoized PanResponder would freeze those at their first-render
+  // values (seekBarWidth stuck at 0) and the drag would never move anything.
+  const seekPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderGrant: (evt) => {
+      if (!videoActivated) setVideoActivated(true);
+      wasPlayingBeforeScrub.current = !videoPaused;
+      setVideoPaused(true);
+      scrubToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderMove: (evt) => {
+      scrubToLocationX(evt.nativeEvent.locationX);
+    },
+    onPanResponderRelease: (evt) => {
+      const clampedX = Math.max(0, Math.min(seekBarWidth, evt.nativeEvent.locationX));
+      const target = seekBarWidth && videoDuration ? (clampedX / seekBarWidth) * videoDuration : videoCurrentTime;
+      setVideoCurrentTime(target);
+      videoRef.current?.seek(target);
+      if (wasPlayingBeforeScrub.current) setVideoPaused(false);
+    },
+  });
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -99,24 +181,92 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
             {/* Media: video takes priority, then image pager */}
             <View style={styles.mediaContainer}>
               {hasVideo ? (
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.videoWrapper}
-                  onPress={() => setVideoPaused(p => !p)}>
-                  <Video
-                    source={{ uri: videoUri }}
-                    style={styles.fullMedia}
-                    resizeMode="cover"
-                    paused={videoPaused}
-                    repeat={false}
-                    onEnd={() => setVideoPaused(true)}
-                  />
-                  {videoPaused && (
-                    <View style={styles.playOverlay}>
-                      <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
+                <>
+                  <View style={styles.videoStage}>
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      style={styles.videoWrapper}
+                      onPress={() => {
+                        if (!videoActivated) setVideoActivated(true);
+                        setVideoPaused(p => !p);
+                      }}>
+                      {videoActivated ? (
+                        <Video
+                          key={videoUri}
+                          ref={videoRef}
+                          source={{ uri: videoUri }}
+                          style={styles.fullMedia}
+                          resizeMode="cover"
+                          paused={videoPaused}
+                          repeat={false}
+                          onEnd={() => setVideoPaused(true)}
+                          onLoad={(data) => setVideoDuration(data.duration)}
+                          onProgress={(data) => setVideoCurrentTime(data.currentTime)}
+                        />
+                      ) : thumbnail ? (
+                        <Image source={{ uri: thumbnail }} style={styles.fullMedia} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.fullMedia, styles.placeholderImage]}>
+                          <Icon name="video" size={40} color="#C2C2C2" />
+                        </View>
+                      )}
+                      {videoPaused && (
+                        <View style={styles.playOverlay}>
+                          <Icon name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    {videoUrls.length > 1 && (
+                      <>
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Previous video"
+                          disabled={activeVideoIndex === 0}
+                          onPress={() => selectVideo(activeVideoIndex - 1)}
+                          style={[styles.videoNavButton, styles.videoNavPrevious, activeVideoIndex === 0 && styles.videoNavDisabled]}>
+                          <Icon name="chevron-left" size={30} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Next video"
+                          disabled={activeVideoIndex === videoUrls.length - 1}
+                          onPress={() => selectVideo(activeVideoIndex + 1)}
+                          style={[styles.videoNavButton, styles.videoNavNext, activeVideoIndex === videoUrls.length - 1 && styles.videoNavDisabled]}>
+                          <Icon name="chevron-right" size={30} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <View style={styles.videoNavCount} pointerEvents="none">
+                          <Text style={styles.videoNavCountText}>{activeVideoIndex + 1} / {videoUrls.length}</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                  {/* Red duration/seek line, directly under the video (matches the
+                      reference: not overlaid on the picture). Shown immediately —
+                      even before the video has been played — so the duration is
+                      visible on screen right away. Reads 00:00/--:-- until the
+                      player actually mounts and reports its real length; dragging
+                      before that point just starts playback. */}
+                  <View
+                    style={styles.seekBarHitArea}
+                    onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width)}
+                    {...seekPanResponder.panHandlers}>
+                    <View style={styles.seekBarTrack}>
+                      <View
+                        style={[
+                          styles.seekBarFill,
+                          {
+                            width: videoDuration
+                              ? `${Math.min(100, (videoCurrentTime / videoDuration) * 100)}%`
+                              : 0,
+                          },
+                        ]}
+                      />
                     </View>
-                  )}
-                </TouchableOpacity>
+                    <Text style={styles.durationText}>
+                      {formatPlaybackTime(videoCurrentTime)} / {videoDuration ? formatPlaybackTime(videoDuration) : '--:--'}
+                    </Text>
+                  </View>
+                </>
               ) : allImages.length > 0 ? (
                 <>
                   <ScrollView
@@ -164,15 +314,30 @@ const NewsDetailModal = ({ visible, newsItem, onClose }) => {
               <Text style={styles.dateText}>{formatTime(newsItem.createdAt)}</Text>
             </View>
 
+            {/* Why an editor rejected it. Absent for anything rejected before
+                the reason field existed, so render only when there is one. */}
+            {newsItem.status?.toUpperCase() === 'REJECTED' && newsItem.rejection_reason ? (
+              <View style={styles.rejectionBox}>
+                <Text style={styles.rejectionLabel}>తిరస్కరణ కారణం</Text>
+                <Text style={styles.rejectionText}>{newsItem.rejection_reason}</Text>
+              </View>
+            ) : null}
+
             {/* Full Body */}
             <View style={styles.bodyContainer}>
-              <Text style={styles.bodyText}>{body}</Text>
+              <LinkedArticleText style={styles.bodyText} text={body} links={newsItem.article_links} onNavigate={onClose} />
+              <ArticleLinks links={newsItem.article_links} onNavigate={onClose} />
             </View>
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
+};
+
+const NewsDetailModal = ({ visible, newsItem, onClose }) => {
+  if (!newsItem) return null;
+  return <NewsDetailModalContent visible={visible} newsItem={newsItem} onClose={onClose} />;
 };
 
 const styles = StyleSheet.create({
@@ -209,7 +374,6 @@ const styles = StyleSheet.create({
   },
   mediaContainer: {
     width: '100%',
-    height: 250,
     backgroundColor: '#000',
   },
   imagePager: {
@@ -218,13 +382,77 @@ const styles = StyleSheet.create({
   },
   videoWrapper: {
     width: '100%',
-    height: '100%',
+    height: 250,
+  },
+  videoStage: {
+    position: 'relative',
+    width: '100%',
+    height: 250,
+  },
+  videoNavButton: {
+    position: 'absolute',
+    top: 101,
+    zIndex: 10,
+    width: 42,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  videoNavPrevious: {
+    left: 10,
+  },
+  videoNavNext: {
+    right: 10,
+  },
+  videoNavDisabled: {
+    opacity: 0.35,
+  },
+  videoNavCount: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  videoNavCountText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  seekBarHitArea: {
+    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#000',
+  },
+  seekBarTrack: {
+    width: '100%',
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  seekBarFill: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#FF0000',
+  },
+  durationText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
   fullMedia: {
     width,
@@ -280,6 +508,26 @@ const styles = StyleSheet.create({
   dateText: {
     color: '#666',
     fontSize: 13,
+  },
+  rejectionBox: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FDECEC',
+    borderLeftWidth: 3,
+    borderLeftColor: '#DC3545',
+  },
+  rejectionLabel: {
+    color: '#DC3545',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  rejectionText: {
+    color: '#333',
+    fontSize: 14,
+    lineHeight: 20,
   },
   bodyContainer: {
     padding: 16,
