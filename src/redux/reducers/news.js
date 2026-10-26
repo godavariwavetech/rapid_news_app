@@ -213,18 +213,28 @@ export const searchNews = createAsyncThunk(
 export const fetchArticleById = createAsyncThunk(
   'news/fetchArticleById',
   async (request, { rejectWithValue }) => {
+    const id = typeof request === 'string' ? request : request.id;
+    const deviceId = await getUniqueId();
+    const headers = { 'x-device-id': deviceId };
     try {
-      const id = typeof request === 'string' ? request : request.id;
-      const deviceId = await getUniqueId();
       const url = endpoints.GET_ARTICLE.replace(':id', id);
-      const response = await api.get(url, {}, {
-        headers: {
-          'x-device-id': deviceId
-        }
-      });
+      const response = await api.get(url, {}, { headers });
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
+      // A shared link's id isn't always a News article - Viral Posts share
+      // the exact same /app/article/:id link shape (see ViralPostCard's
+      // share handlers, which reuse getNewsShareUrl) but live in the
+      // Magazine collection instead. A News miss here doesn't mean the link
+      // is dead, it means try the other collection before giving up -
+      // same reasoning as the backend's share-page fallback.
+      try {
+        const magazineUrl = endpoints.GET_MAGAZINE_BY_ID.replace(':id', id);
+        const magazineResponse = await api.get(magazineUrl, {}, { headers });
+        const data = magazineResponse.data?.data ?? magazineResponse.data;
+        return { type: 'VIRAL_POST', data };
+      } catch (magazineError) {
+        return rejectWithValue(error.response?.data || error.message);
+      }
     }
   }
 );

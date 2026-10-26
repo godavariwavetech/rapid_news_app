@@ -152,7 +152,7 @@ const ProfileScreen = ({navigation}) => {
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('LocationSelection')}>
             <View style={styles.settingIconContainer}><Icon name="map-marker" size={22} color={theme.primary} /></View>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎందుకున్న స్థానం</Text>
+              <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎంచుకున్న స్థానం</Text>
               <Text style={[styles.settingValue, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>{displayLocationName} (Change)</Text>
             </View>
             <View style={[styles.settingArrow, { backgroundColor: isDarkMode ? '#333' : '#666' }]}><Icon name="arrow-right" size={16} color="#FFFFFF" /></View>

@@ -99,6 +99,24 @@ const Step1LocationScreen = ({navigation}) => {
     }
   }, [districts]);
 
+  // Once villages load, resolve a plain village ID string the same way
+  // state/district do above. Missing this left the field locked (it has an
+  // assigned id, so locked={isReporter && !!assignedVillage} is true) but
+  // showing the empty "Select Village(s)" placeholder forever whenever the
+  // reporter's assigned village only ever arrives as a string, not a
+  // populated {_id, name} object - a reporter could never see or pick their
+  // own assigned village once this field stopped being tappable.
+  useEffect(() => {
+    if (!isReporter || !villages?.length) return;
+
+    if (typeof assignedVillage === 'string' && selectedVillages.length === 0) {
+      const match = villages.find(v => v._id === assignedVillage);
+      if (match) {
+        setSelectedVillages([match]);
+      }
+    }
+  }, [villages]);
+
   const handleStateSelect = (item) => {
     setSelectedState(item);
     setSelectedDistrict(null);
@@ -236,7 +254,7 @@ const Step1LocationScreen = ({navigation}) => {
             onPress={() => setShowVillagePicker(true)}
             disabled={!selectedDistrict}
             active={selectedVillages.length > 0}
-            locked={false}
+            locked={isReporter && !!assignedVillage}
           />
         </View>
       </ScrollView>

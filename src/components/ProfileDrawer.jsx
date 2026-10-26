@@ -93,7 +93,7 @@ const ProfileDrawer = ({visible, onClose}) => {
                   <Icon name="map-marker" size={28} color="#E74C3C" />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎందుకున్న స్థానం</Text>
+                  <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎంచుకున్న స్థానం</Text>
                   <Text style={[styles.settingValue, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>Rajamundry (Change)</Text>
                 </View>
                 <Icon name="chevron-right" size={24} color={theme.textSecondary} />

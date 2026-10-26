@@ -200,6 +200,36 @@ export const handleWhatsAppShare = async (title, newsId, base64Data, imageUrl) =
   }
 };
 
+// "Share this ad" from the Ad Center menu. Ads have no article page to link
+// to (they redirect to the advertiser's own URL), so this shares the ad
+// creative itself - the image if there is one, plus the advertiser link as
+// text - rather than reusing handleArticleLinkShare's news-article template.
+export const handleAdShare = async (label, imageUrl, redirectUrl) => {
+  const message = `${label || 'Advertisement'}${redirectUrl ? `\n\n${redirectUrl}` : ''}`;
+
+  if (imageUrl && imageUrl.startsWith('http')) {
+    const destPath = `${RNFetchBlob.fs.dirs.CacheDir}/share_ad_${Date.now()}.jpg`;
+    try {
+      await RNFetchBlob.config({ path: destPath, trusty: true }).fetch('GET', imageUrl);
+      const result = await RNShare.open({ title: label, message, url: `file://${destPath}`, type: 'image/jpeg', failOnCancel: false });
+      RNFetchBlob.fs.unlink(destPath).catch(() => {});
+      return !!result?.success;
+    } catch (err) {
+      // Falls through to the text-only share below.
+    }
+  }
+
+  try {
+    const result = await RNShare.open({ title: label, message, failOnCancel: false });
+    return !!result?.success;
+  } catch (error) {
+    if (!/cancel/i.test(error?.message || '')) {
+      Alert.alert('Share Failed', error?.message || 'Could not share this ad.');
+    }
+    return false;
+  }
+};
+
 export const downloadImageToGallery = async (imageUrl) => {
   if (!imageUrl) return;
   try {

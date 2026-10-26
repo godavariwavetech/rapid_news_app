@@ -53,7 +53,7 @@ const BottomTabBar = ({activeTab, onTabPress, locationName}) => {
     {
       id: 'CreateTab',
       icon: 'plus-circle',
-      label: 'క్రియేట్',
+      label: 'క్రియేట్ న్యూస్ ',
     },
     {
       id: 'LocationTab',

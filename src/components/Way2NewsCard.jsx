@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, Image, StyleSheet, Dimensions, Modal, Linking, Alert, Platform,
+  View, Text, Image, StyleSheet, useWindowDimensions, Modal, Linking, Alert, Platform,
   ActivityIndicator, Pressable, TouchableOpacity, TouchableWithoutFeedback, AppState, PanResponder,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
@@ -16,32 +16,19 @@ import ViewShot from 'react-native-view-shot';
 import { applogo } from '../assets';
 
 // Redux Actions
-import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
+import { getBookmarks, toggleBookmarkApi, toggleAdBookmarkApi } from '../redux/reducers/bookmarks';
 import { reactToNews, getComments, trackAdClick, shareNews } from '../redux/reducers/news';
 import { fonts, lightTheme, darkTheme } from '../config/theme';
 import ReportModal from './ReportModal';
 import ArticleLinks from './ArticleLinks';
 import LinkedArticleText from './LinkedArticleText';
 import { getNewsCommentCount } from '../utils/newsCommentCount';
-import { downloadImageToGallery, handleArticleLinkShare, generateVideoThumbnail } from '../utils/FileHelpers';
+import { downloadImageToGallery, handleArticleLinkShare, generateVideoThumbnail, handleAdShare } from '../utils/FileHelpers';
 import { getCachedVideo } from '../utils/videoFileCache';
 import ShimmerLoader from './ShimmerLoader';
 import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { getArticleImageDimensions } from '../utils/articleImageDimensions';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const ACTUAL_HEIGHT = SCREEN_HEIGHT;
-const { height: IMAGE_HEIGHT } = getArticleImageDimensions(SCREEN_WIDTH, ACTUAL_HEIGHT);
-const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
-// react-native-youtube-iframe hard-codes its internal HTML to a 16:9 box (padding-bottom: 56.25%)
-// that isn't vertically centered inside the WebView. Sizing the player to the true 16:9 height and
-// centering it ourselves (see imageSection/mediaLayer styles) avoids it being pinned to the top of
-// the media box with dead space below whenever mediaHeight isn't already 16:9.
-const YOUTUBE_PLAYER_HEIGHT = Math.round(SCREEN_WIDTH * 9 / 16);
-// Dark space reserved below the action bar so the last content lines clear the tabs (wide only).
-// Matches the shrunk BottomTabBar height on wide screens (~40px above the safe-area inset).
-const WIDE_TAB_BAR_CLEARANCE = IS_WIDE_SCREEN ? 42 : 0;
 
 const getYoutubeId = (url) => {
   if (!url) return null;
@@ -51,6 +38,18 @@ const getYoutubeId = (url) => {
 };
 
 const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag, cardHeight }, ref) => {
+  const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT, fontScale} = useWindowDimensions();
+  const ACTUAL_HEIGHT = SCREEN_HEIGHT;
+  const { height: IMAGE_HEIGHT } = getArticleImageDimensions(SCREEN_WIDTH, ACTUAL_HEIGHT);
+  // react-native-youtube-iframe hard-codes its internal HTML to a 16:9 box (padding-bottom: 56.25%)
+  // that isn't vertically centered inside the WebView. Sizing the player to the true 16:9 height and
+  // centering it ourselves (see imageSection/mediaLayer styles) avoids it being pinned to the top of
+  // the media box with dead space below whenever mediaHeight isn't already 16:9.
+  const YOUTUBE_PLAYER_HEIGHT = Math.round(SCREEN_WIDTH * 9 / 16);
+  const styles = useMemo(
+    () => createCardStyles(SCREEN_WIDTH, SCREEN_HEIGHT),
+    [SCREEN_WIDTH, SCREEN_HEIGHT, fontScale],
+  );
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { bookmarkIds } = useSelector(state => state.bookmarks);
@@ -82,6 +81,7 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const [activeSlide, setActiveSlide] = useState(0);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [adMenuVisible, setAdMenuVisible] = useState(false);
   const [generatedThumbnail, setGeneratedThumbnail] = useState(null);
   const [videoDurationSec, setVideoDurationSec] = useState(0);
   const [videoCurrentTimeSec, setVideoCurrentTimeSec] = useState(0);
@@ -335,6 +335,26 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   const handleAdPress = () => {
     if (news.id) dispatch(trackAdClick(news.id)); if (news.redirectUrl) Linking.openURL(news.redirectUrl).catch(err => console.log(err));
   };
+  const handleAdMenuAction = (action) => {
+    setAdMenuVisible(false);
+    switch (action) {
+      case 'share': handleAdShare(news.title, news.image, news.redirectUrl); break;
+      case 'save':
+        if (news.id) {
+          dispatch(toggleAdBookmarkApi({ adId: news.id, isCurrentlyBookmarked: false }))
+            .unwrap()
+            .then(() => Alert.alert('Saved', 'Ad saved to your bookmarks.'))
+            .catch(err => Alert.alert('Error', err?.message || 'Could not save this ad.'));
+        }
+        break;
+      case 'report': setReportModalVisible(true); break;
+      case 'advertise':
+        Linking.openURL(
+          'https://wa.me/919609602525?text=' + encodeURIComponent('Hi, I am interested on publishing ad on Rapid News')
+        ).catch(() => Alert.alert('Error', 'Could not open WhatsApp.'));
+        break;
+    }
+  };
   const handleCommentsPress = () => { dispatch(getComments(news.id)); if (onCommentsPress) onCommentsPress(news); };
 
   const displayTitle = news.title || news.content?.te?.title || news.content?.title || '';
@@ -431,6 +451,67 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
           )}
           <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']} style={[styles.reporterGradient, { height: 120 }]} />
         </Pressable>
+
+        {/* "Ad ⓘ" marker, top-right — opens the Ad Center sheet below instead of
+            the advertiser's redirect_url, so it needs its own touch target
+            outside the Pressable that covers the rest of the card. */}
+        <TouchableOpacity
+          style={[styles.adInfoBadge, { top: insets.top + 8 }]}
+          onPress={() => setAdMenuVisible(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.adInfoBadgeText}>Ad</Text>
+          <Icon name="information-outline" size={15} color="#7FD8E8" />
+        </TouchableOpacity>
+
+        <Modal visible={adMenuVisible} transparent animationType="fade" onRequestClose={() => setAdMenuVisible(false)}>
+          <TouchableWithoutFeedback onPress={() => setAdMenuVisible(false)}>
+            <View style={styles.adMenuOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={[styles.adMenuSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+                  <View style={styles.adMenuHeader}>
+                    <Text style={styles.adMenuTitle}>Ad Center</Text>
+                    <TouchableOpacity onPress={() => setAdMenuVisible(false)}>
+                      <Icon name="close" size={22} color="#000" />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity style={styles.adMenuItem} onPress={() => handleAdMenuAction('share')}>
+                    <Icon name="share-outline" size={22} color="#2196F3" />
+                    <View style={styles.adMenuItemText}>
+                      <Text style={styles.adMenuItemTitle}>Share this ad</Text>
+                      <Text style={styles.adMenuItemSubtitle}>Share ad to your friends</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.adMenuItem} onPress={() => handleAdMenuAction('save')}>
+                    <Icon name="bookmark-outline" size={22} color="#000" />
+                    <View style={styles.adMenuItemText}>
+                      <Text style={styles.adMenuItemTitle}>Save this ad</Text>
+                      <Text style={styles.adMenuItemSubtitle}>Save to your bookmarks</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.adMenuItem} onPress={() => handleAdMenuAction('report')}>
+                    <Icon name="alert-circle-outline" size={22} color="#000" />
+                    <View style={styles.adMenuItemText}>
+                      <Text style={styles.adMenuItemTitle}>Report Story</Text>
+                      <Text style={styles.adMenuItemSubtitle}>Help us improve better</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <View style={styles.adMenuDivider} />
+                  <TouchableOpacity style={styles.adMenuItem} onPress={() => handleAdMenuAction('advertise')}>
+                    <Icon name="bullhorn-outline" size={22} color="#000" />
+                    <View style={styles.adMenuItemText}>
+                      <Text style={styles.adMenuItemTitle}>Advertise on Rapid News</Text>
+                      <Text style={styles.adMenuItemSubtitle}>Grow your business with Rapid News</Text>
+                    </View>
+                    <Icon name="plus" size={20} color="#000" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        <ReportModal visible={reportModalVisible} onClose={() => setReportModalVisible(false)} newsId={news.id} />
       </ViewShot>
     );
   }
@@ -788,7 +869,12 @@ const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = tr
   );
 });
 
-const styles = StyleSheet.create({
+const createCardStyles = (SCREEN_WIDTH, SCREEN_HEIGHT) => {
+  const ACTUAL_HEIGHT = SCREEN_HEIGHT;
+  const {height: IMAGE_HEIGHT} = getArticleImageDimensions(SCREEN_WIDTH, SCREEN_HEIGHT);
+  const IS_WIDE_SCREEN = SCREEN_HEIGHT / SCREEN_WIDTH < 1.6;
+  const WIDE_TAB_BAR_CLEARANCE = IS_WIDE_SCREEN ? 42 : 0;
+  return StyleSheet.create({
   card: { width: SCREEN_WIDTH, height: ACTUAL_HEIGHT, backgroundColor: '#FFFFFF' },
   imageSection: { width: SCREEN_WIDTH, height: IMAGE_HEIGHT, position: 'relative', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   youtubePlayerLayer: { justifyContent: 'center', alignItems: 'center' },
@@ -799,6 +885,21 @@ const styles = StyleSheet.create({
   watermarkLogo: { position: 'absolute', bottom: -10, left: 15, width: 120, height: 60, resizeMode: 'contain', zIndex: 100000, opacity: 0.9, borderRadius: 16 },
   adBadgeContainer: { position: 'absolute', bottom: 40, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   adBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  adInfoBadge: {
+    position: 'absolute', right: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 7,
+  },
+  adInfoBadgeText: { color: '#7FD8E8', fontSize: 13, fontWeight: '700' },
+  adMenuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  adMenuSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30 },
+  adMenuHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  adMenuTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
+  adMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  adMenuDivider: { height: 1, backgroundColor: '#EEE', marginVertical: 4 },
+  adMenuItemText: { flex: 1 },
+  adMenuItemTitle: { fontSize: 15, fontWeight: '600', color: '#000' },
+  adMenuItemSubtitle: { fontSize: 12, color: '#888', marginTop: 2 },
   pinnedInlineText: { fontSize: responsiveFontSize(1.5), color: '#000000', fontWeight: '600' },
   adPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   adSpinnerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
@@ -824,7 +925,13 @@ const styles = StyleSheet.create({
   timestampRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
   timestampContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timestamp: { fontSize: responsiveFontSize(1.5), color: '#999', fontWeight: '500' },
-  actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 20, paddingHorizontal: 16 },
+  // backgroundColor is a fallback, not decoration: the gradient's own top
+  // stop is fully transparent (rgba(0,0,0,0)), so without this, whatever
+  // sits behind the bar during a card swap (the card's white base, before
+  // the next card's image has painted) shows through as a white flash. This
+  // keeps that moment black instead; once the image loads it covers this
+  // the same as before, so the normal fade-into-image look is unchanged.
+  actionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 20, paddingHorizontal: 16, backgroundColor: '#000000' },
   linkedActionBar: {minHeight: 48, paddingTop: 12, paddingBottom: 12, flexShrink: 0},
   actionLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   actionRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -859,5 +966,6 @@ const styles = StyleSheet.create({
   videoSeekBarTrack: { width: '100%', height: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
   videoSeekBarFill: { height: 3, backgroundColor: '#FF0000' },
 });
+};
 
 export default Way2NewsCard;

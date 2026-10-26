@@ -20,7 +20,7 @@ import { prefetchVideo } from '../utils/videoFileCache';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SurveyCard from '../components/SurveyCard';
 import ViralPostCard from '../components/ViralPostCard';
-import { lightTheme, darkTheme } from '../config/theme';
+import { lightTheme, darkTheme, chromeInk } from '../config/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // --- HELPER: TIME AGO CALCULATION ---
@@ -125,8 +125,16 @@ const CardHalf = React.memo(({ newsItem, side, height, fitToContainer = false, o
   const halfHeight = height / 2;
   const isTop = side === 'top';
   return (
-  <View style={[styles.halfCardContainer, { backgroundColor: theme?.background || '#fff' }]}>
-      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: theme?.background || '#fff' }]}>
+  <View style={[styles.halfCardContainer, { backgroundColor: chromeInk }]}>
+      {/* Hardcoded, not theme.background: this reader's chrome is always dark
+          (same rule the header/tab bar already follow - see the comment on
+          chromeInk in theme.ts) because it frames full-bleed imagery. This
+          used to read theme?.background, which in light mode resolves to a
+          real, defined '#FFFFFF' - so a fallback here never even ran. On a
+          slow manual drag the seam between the top/bottom halves is visible
+          for longer, long enough to show that white clearly before the
+          image/footer cover it again. */}
+      <View style={[styles.innerContainer, { height, top: isTop ? 0 : -halfHeight, backgroundColor: chromeInk }]}>
         {newsItem.type === 'SURVEY' ? (
           <SurveyCard survey={newsItem} onAutoNext={onAutoNext} />
         ) : newsItem.type === 'VIRAL_POST' ? (
@@ -845,13 +853,22 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
   }
 
   if (!displayNews) {
-    return <View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout} />;
+    return <View style={styles.container} onLayout={onLayout} />;
   }
 
+  // Deliberately NOT theme.background below (styles.container already has
+  // '#000', and a style array's later entry wins - theme.background used to
+  // win here, resolving to a real '#FFFFFF' in light mode, not an absence of
+  // color). This root container is what's actually behind the flip's "face"
+  // views (styles.face is transparent by design) at the edge-on midpoint of
+  // the 3D rotation, where the rotated card is nearly invisible from
+  // perspective - a slow drag holds that midpoint long enough to show
+  // whatever color sits back here. Same "always dark chrome" rule as
+  // CardHalf above and the header/tab bar (see chromeInk's comment).
   return (
-    <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.background }]}>
+    <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.container, { backgroundColor: theme.background }]} onLayout={onLayout}>
+        <Animated.View style={styles.container} onLayout={onLayout}>
           
           <Animated.View style={[styles.refreshLoaderContainer, topLoaderStyle]}>
             <ActivityIndicator size="large" color="#4dabf5" />

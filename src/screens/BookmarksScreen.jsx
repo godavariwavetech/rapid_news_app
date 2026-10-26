@@ -11,12 +11,13 @@ import {
   Platform,
   ToastAndroid,
   Dimensions,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import * as Animatable from 'react-native-animatable'; // Recommended for the 'Magic' feel
-import { getBookmarks, toggleBookmarkApi } from '../redux/reducers/bookmarks';
+import { getBookmarks, toggleBookmarkApi, toggleAdBookmarkApi } from '../redux/reducers/bookmarks';
 import { lightTheme, darkTheme } from '../utils/colors';
 
 const { width, height } = Dimensions.get('window');
@@ -46,24 +47,37 @@ const BookmarksScreen = ({ navigation }) => {
     }
   };
 
+  const handleRemoveAd = async (adId) => {
+    const response = await dispatch(toggleAdBookmarkApi({ adId, isCurrentlyBookmarked: true }));
+    if (response) {
+      fetchBookmarks();
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("Removed from collection", ToastAndroid.SHORT);
+      }
+    }
+  };
+
   const renderItem = ({ item, index }) => {
     const news = item.news;
-    if (!news) return null;
+    const ad = item.ad;
+    if (!news && !ad) return null;
 
     return (
-      <Animatable.View 
-        animation="fadeInUp" 
-        delay={index * 100} 
+      <Animatable.View
+        animation="fadeInUp"
+        delay={index * 100}
         duration={600}
         useNativeDriver
       >
         <TouchableOpacity
           style={styles.premiumCard}
-          onPress={() => navigation.navigate('NewsDetail', { news })}
+          onPress={() => ad
+            ? Linking.openURL(ad.redirect_url).catch(() => {})
+            : navigation.navigate('NewsDetail', { news })}
           activeOpacity={0.95}
         >
-          <Image source={{ uri: news.images?.[0] }} style={styles.cardImage} />
-          
+          <Image source={{ uri: ad ? ad.image : news.images?.[0] }} style={styles.cardImage} />
+
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.95)']}
             style={styles.cardGradient}
@@ -72,11 +86,11 @@ const BookmarksScreen = ({ navigation }) => {
           <View style={styles.cardContent}>
             <View style={styles.topRow}>
               <View style={styles.categoryTag}>
-                <Text style={styles.categoryText}>{news.reporter?.name || 'EDITORIAL'}</Text>
+                <Text style={styles.categoryText}>{ad ? 'SPONSORED' : (news.reporter?.name || 'EDITORIAL')}</Text>
               </View>
-              <TouchableOpacity 
-                style={styles.removeCircle} 
-                onPress={() => handleRemove(news._id)}
+              <TouchableOpacity
+                style={styles.removeCircle}
+                onPress={() => ad ? handleRemoveAd(ad._id) : handleRemove(news._id)}
               >
                 <Icon name="close" size={18} color="#FFF" />
               </TouchableOpacity>
@@ -84,15 +98,21 @@ const BookmarksScreen = ({ navigation }) => {
 
             <View style={styles.bottomInfo}>
               <Text style={styles.premiumTitle} numberOfLines={3}>
-                {news.content?.title}
+                {ad ? ad.title : news.content?.title}
               </Text>
               <View style={styles.metaRow}>
-                <Icon name="calendar-month-outline" size={14} color="rgba(255,255,255,0.6)" />
-                <Text style={styles.metaText}>
-                  {new Date(news.published_at).toLocaleDateString('te-IN', { month: 'short', day: 'numeric' })}
-                </Text>
-                <View style={styles.dot} />
-                <Text style={styles.metaText}>Saved Item</Text>
+                {ad ? (
+                  <Text style={styles.metaText}>Saved Ad</Text>
+                ) : (
+                  <>
+                    <Icon name="calendar-month-outline" size={14} color="rgba(255,255,255,0.6)" />
+                    <Text style={styles.metaText}>
+                      {new Date(news.published_at).toLocaleDateString('te-IN', { month: 'short', day: 'numeric' })}
+                    </Text>
+                    <View style={styles.dot} />
+                    <Text style={styles.metaText}>Saved Item</Text>
+                  </>
+                )}
               </View>
             </View>
           </View>
@@ -122,7 +142,7 @@ const BookmarksScreen = ({ navigation }) => {
       <FlatList
         data={bookmarks}
         renderItem={renderItem}
-        keyExtractor={item => item.news?._id}
+        keyExtractor={item => item.news?._id || item.ad?._id}
         contentContainerStyle={styles.scrollArea}
         showsVerticalScrollIndicator={false}
         refreshControl={
