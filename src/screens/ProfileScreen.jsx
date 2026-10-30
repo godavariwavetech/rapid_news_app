@@ -9,16 +9,23 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Platform,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { userLogin } from '../redux/reducers/auth';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
 import { useTheme } from '../context/ThemeContext';
+
+// Google Sign-In is only used on Android — iOS App Store requires Sign in with Apple
+// if any third-party login is offered, so we conditionally import on Android only.
+let GoogleSignin = null;
+if (Platform.OS === 'android') {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+}
 
 const ProfileScreen = ({navigation}) => {
   const dispatch = useDispatch();
@@ -81,23 +88,19 @@ const ProfileScreen = ({navigation}) => {
     navigation.goBack();
   };
 
-  const handleGoogleLogin =  async () =>{
- try {
-     await GoogleSignin.signOut();
-     await GoogleSignin.hasPlayServices();
-     const response = await GoogleSignin.signIn();
-     
-     const userInfo = response.data;
-     const payload = {
-      idToken:userInfo?.idToken
-     }
-
-     const resp = await dispatch(userLogin(payload))
-     
-   } catch (error) {
-    console.log(error,">>>>>>>>>>>>>>>>ERROR");
-   }
-  }
+  const handleGoogleLogin = async () => {
+    if (Platform.OS !== 'android' || !GoogleSignin) return;
+    try {
+      await GoogleSignin.signOut();
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const userInfo = response.data;
+      const payload = { idToken: userInfo?.idToken };
+      await dispatch(userLogin(payload));
+    } catch (error) {
+      console.log(error, '>>>>>>>>>>>>>>>>ERROR');
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -121,13 +124,18 @@ const ProfileScreen = ({navigation}) => {
         <Text style={[styles.pageTitle, { color: theme.text }]}>Profile</Text>
 
         {/* Profile Section */}
-        <TouchableOpacity onPress={handleGoogleLogin} style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
+        <TouchableOpacity
+          onPress={Platform.OS === 'android' ? handleGoogleLogin : () => navigation.navigate('Reporter')}
+          activeOpacity={0.7}
+          style={[styles.profileCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF', borderColor: isDarkMode ? '#333' : '#FFB6D9' }]}>
           <View style={styles.avatarContainer}>
           { ( user?.profile_image||reporter?.profile_image)? <Image source={{uri:user?.profile_image||reporter?.profile_image}}  style={{width:responsiveHeight(4), height:responsiveHeight(4),borderRadius:100}} />  :   <Icon name="account-circle" size={48} color={isDarkMode ? '#555' : '#CCC'} />}
           </View>
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || reporter?.reporter_profile?.username || "Guest"}</Text>
-             <Text style={[styles.profileLink, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>{user?.email|| reporter?.email||"Click here to select email id"}</Text>
+            <Text style={[styles.profileLink, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>
+              {user?.email || reporter?.email || 'Login'}
+            </Text>
           </View>
         </TouchableOpacity>
 

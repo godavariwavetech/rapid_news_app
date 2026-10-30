@@ -74,10 +74,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: '41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com',
-      offlineAccess: true, 
-    });
+    if (Platform.OS === 'android') {
+      GoogleSignin.configure({
+        webClientId: '41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com',
+        offlineAccess: true,
+      });
+    }
   }, []);
 
   return (

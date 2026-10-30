@@ -210,7 +210,7 @@ function HomeScreen({navigation}) {
           onCommentsPress={(item) => { setSelectedNews(item); setCommentsVisible(true); }}
           onRefresh={() => dispatch(fetchNews({currentLocation, category: selectedCategory, page: 1, current_day_offset: 0, isLocationMode: activeTab === 'LocationTab'}))}
           onEndReached={() => {
-            if (!loading && hasMore) {
+            if (!loading && !isLoadingMore && hasMore) {
               dispatch(fetchNews({
                 currentLocation, 
                 category: selectedCategory, 

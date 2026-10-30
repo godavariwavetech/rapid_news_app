@@ -24,6 +24,8 @@ const initialState = {
   currentDayOffset: 0,
   hasMore: true,
   isLocationMode: false,
+  // totalNews per day offset — key is dayOffset (0 = today, 1 = yesterday, etc.)
+  dayTotals: {},
 
   // --- Interaction State ---
   currentComments: [],
@@ -539,10 +541,12 @@ const newsSlice = createSlice({
         const arg = action.meta.arg;
         const page = typeof arg === 'object' ? arg.page : 1;
         const offset = typeof arg === 'object' ? (arg.current_day_offset ?? 0) : 0;
-        // Only a true refresh: page 1 with offset 0 (pull-to-refresh or initial load)
         const isRefresh = page === 1 && offset === 0;
 
-        if (isRefresh) state.loading = true;
+        if (isRefresh) {
+          state.loading = true;
+          state.dayTotals = {}; // reset per-day totals on fresh load
+        }
         else state.isLoadingMore = true;
         state.error = null;
       })
@@ -556,16 +560,35 @@ const newsSlice = createSlice({
         if (pagination) {
           if (pagination.today_total_news != null) {
             state.todayTotalNews = pagination.today_total_news;
+            // Store today's total against offset 0
+            state.dayTotals[0] = pagination.today_total_news;
           }
           if (pagination.total_news != null) {
             state.totalNews = pagination.total_news;
+            // Store this day's total against its offset
+            const offset = pagination.current_day_offset ?? current_day_offset ?? 0;
+            state.dayTotals[offset] = pagination.total_news;
           }
           if (pagination.current_day_offset != null) {
             state.currentDayOffset = pagination.current_day_offset;
           }
-          // Always store the page we actually fetched
           state.currentPage = page;
-          state.hasMore = true;
+          // Use explicit has_more from API if available
+          if (pagination.has_more != null) {
+            state.hasMore = pagination.has_more;
+          } else if (pagination.total_pages != null) {
+            state.hasMore = page < pagination.total_pages;
+          } else {
+            // Day-offset based pagination: more data exists as long as the API
+            // returned a pagination object (it will keep advancing current_day_offset).
+            // Only stop if the API explicitly signals no more data by returning
+            // 0 items AND the day offset didn't advance from what we requested.
+            const incomingCount = Array.isArray(data) ? data.length : (data.items || data.data || []).length;
+            const dayOffsetAdvanced = pagination.current_day_offset != null && pagination.current_day_offset !== current_day_offset;
+            // In location/village mode, if 0 items returned and offset didn't advance → no more data
+            // In normal mode, always has more via day-offset advancement
+            state.hasMore = incomingCount > 0 || dayOffsetAdvanced;
+          }
         } else {
           state.currentPage = page;
           state.hasMore = false;
@@ -605,10 +628,14 @@ const newsSlice = createSlice({
           if (Array.isArray(state.articles)) {
             const existingIds = new Set(state.articles.map(i => i.data?._id || i._id));
             const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            // If no new unique items were added on a load-more, there's nothing left
+            if (page > 1 && unique.length === 0) state.hasMore = false;
             state.articles = [...state.articles, ...unique];
           } else if (state.articles?.items) {
             const existingIds = new Set(state.articles.items.map(i => i.data?._id || i._id));
             const unique = incomingItems.filter(i => !existingIds.has(i.data?._id || i._id));
+            // If no new unique items were added on a load-more, there's nothing left
+            if (page > 1 && unique.length === 0) state.hasMore = false;
             state.articles.items = [...state.articles.items, ...unique];
           } else {
             // If articles was empty or null

@@ -82,7 +82,7 @@ const ReporterScreen = ({navigation}) => {
               <Text style={[styles.guestText, { color: theme.textSecondary }]}>{reporter?.username || "Guest"}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('Main')}>
             <Icon name="home-outline" size={30} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -108,7 +108,7 @@ const ReporterScreen = ({navigation}) => {
           <Icon name="chevron-right" size={26} color={theme.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionCard, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('AdFreeSubscription')}>
@@ -121,7 +121,7 @@ const ReporterScreen = ({navigation}) => {
             </Text>
           </View>
           <Icon name="chevron-right" size={26} color={theme.textSecondary} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Tabs Section */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>తరచుగా అడుగు ప్రశ్నలు</Text>

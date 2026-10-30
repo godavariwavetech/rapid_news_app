@@ -106,6 +106,7 @@ const CardHalf = React.memo(({ newsItem, side, height, onPress, onCommentsPress,
 const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefresh, onEndReached, onIndexChange, feedType = 'main' }, ref) => {
   const dispatch = useDispatch();
   const { articles, totalNews, todayTotalNews, currentDayOffset, unreadArticles, unreadCount, loading, isLoadingMore, isLoadingUnread, isLoadingMoreUnread, unreadHasMore, hasMore } = useSelector(state => state.news);
+  const dayTotals = useSelector(state => state.news.dayTotals || {});
   const { bookmarks } = useSelector(state => state.bookmarks);
   const isDarkMode = useSelector(state => state.settings.isDarkMode);
   const theme = isDarkMode ? darkTheme : lightTheme;
