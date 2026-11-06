@@ -39,8 +39,17 @@ platform :ios do
       try_repo_update_on_error: true
     )
 
+    # GITHUB_RUN_NUMBER doesn't know what's already in App Store Connect, so a
+    # re-run (or a build uploaded outside CI) can collide with an existing
+    # (version, build) pair there and upload_to_testflight fails with a 409 on
+    # CFBundleShortVersionString. Basing the next build number on TestFlight's
+    # own latest build for this version guarantees it's always higher.
+    latest_build_number = latest_testflight_build_number(
+      app_identifier: "com.rapidnews",
+      version: get_version_number(xcodeproj: "rapidnews.xcodeproj")
+    )
     increment_build_number(
-      build_number: ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M"),
+      build_number: latest_build_number + 1,
       xcodeproj: "rapidnews.xcodeproj"
     )
 
