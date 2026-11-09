@@ -19,6 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getComments, postComment } from '../redux/reducers/news';
 import { lightTheme, darkTheme } from '../config/theme';
+import { useGoogleLogin } from '../hooks/useGoogleLogin';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
@@ -40,7 +41,9 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
   const [commentText, setCommentText] = useState('');
   const [modalVisible, setModalVisible] = useState(visible);
-  
+
+  const { signingIn, handleGoogleLogin } = useGoogleLogin();
+
   // Logic to determine if the user is logged in
   const hasToken = !!(userToken || reporterToken || isAuthenticated);
 
@@ -204,12 +207,21 @@ const CommentsBottomSheet = ({visible, onClose, newsId, newsTitle}) => {
 
               {/* Guarded Input Container */}
               {!hasToken ? (
-                <View style={[styles.loginPromptContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 16) }]}>
-                  <Icon name="lock-outline" size={22} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                <TouchableOpacity
+                  style={[styles.loginPromptContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 16) }]}
+                  onPress={handleGoogleLogin}
+                  disabled={signingIn}
+                  accessibilityState={{busy: signingIn}}
+                  activeOpacity={0.7}>
+                  {signingIn ? (
+                    <ActivityIndicator size="small" color={theme.textSecondary} style={{ marginRight: 10 }} />
+                  ) : (
+                    <Icon name="lock-outline" size={22} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                  )}
                   <Text style={[styles.loginPromptText, { color: theme.textSecondary }]}>
-                    Please login to post a comment
+                    {signingIn ? 'Signing in...' : 'Please login to post a comment'}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ) : (
                 <View style={[styles.inputContainer, { backgroundColor: theme.background, borderTopColor: isDarkMode ? '#333' : '#E8EAED', paddingBottom: Math.max(insets.bottom, 12) }]}>
                   <TextInput

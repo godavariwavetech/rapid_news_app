@@ -111,7 +111,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
           <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{isEditing ? 'Review Update' : 'Review & Submit'}</Text>
-        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>3 / 3</Text>
+        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>4 / 4</Text>
       </View>
 
       {/* Content */}

@@ -1,391 +1,192 @@
-import React, {useState, useEffect} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {ActivityIndicator, Animated, Easing, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, {Circle, Path, Polygon} from 'react-native-svg';
+import api from '../../utils/api';
 
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
+const LEVELS = [
+  {id: 'high', color: '#00C995', text: 'మీరు ఎంచుకున్న ప్రాంతంలో పబ్లిష్ చేయడానికి ఎక్కువ అవకాశాలు ఉన్నాయి'},
+  {id: 'medium', color: '#F9A15D', text: 'మీరు ఎంచుకున్న ప్రాంతంలో పబ్లిష్ చేయడానికి మధ్యస్థ అవకాశాలు ఉన్నాయి'},
+  {id: 'low', color: '#F34E70', text: 'మీరు ఎంచుకున్న ప్రాంతంలో పబ్లిష్ చేయడానికి చాలా తక్కువ అవకాశాలు ఉన్నాయి'},
+];
 
-const Step2SelectionScreen = ({navigation, route}) => {
-  const { locationData } = route.params || {};
-  const insets = useSafeAreaInsets();
-  
-  // State for the calculated reach
-  const [calculatedReach, setCalculatedReach] = useState(null);
-  const [loading, setLoading] = useState(true);
+const displayName = value => typeof value?.name === 'string'
+  ? value.name : value?.name?.en || value?.name?.te || '';
 
-  // Construct location string from data
-  const locationString = locationData 
-    ? `${locationData.village.name.en}, ${locationData.district.name.en}` 
-    : 'Unknown Location';
+const pointOnArc = (percentage, radius = 104) => {
+  const angle = Math.PI * (1 - percentage / 100);
+  return {x: 160 + radius * Math.cos(angle), y: 150 - radius * Math.sin(angle)};
+};
 
-  // Telugu Options as per your request
-  const reachOptions = [
-    {
-      id: 'high',
-      label: 'ఎక్కువ అవకాశాలు', // High Chances
-      range: '80-100%',
-      description: 'మీరు ఎంచుకున్న పొంతం లో ఫిస్న్ చేయడానికి ఎక్కువ అవకాశాలు ఉన్నాయి',
-      color: '#4CAF50', // Green
-      barWidth: '90%'
-    },
-    {
-      id: 'medium',
-      label: 'మధ్యస్థ అవకాశాలు', // Medium Chances
-      range: '50-80%',
-      description: 'మీరు ఎంచుకున్న పొంతం లో ఫిస్న్ చేయడానికి మధ్యస్థంగా అవకాశాలు ఉన్నాయి',
-      color: '#FF9800', // Orange
-      barWidth: '65%'
-    },
-    {
-      id: 'low',
-      label: 'తక్కువ అవకాశాలు', // Low Chances
-      range: '< 50%',
-      description: 'మీరు ఎంచుకున్న పొంతం లో ఫిస్న్ చేయడానికి చాలా తక్కువ అవకాశాలు ఉన్నాయి',
-      color: '#F44336', // Red
-      barWidth: '40%'
-    },
-  ];
+const arcPath = (from, to) => {
+  const start = pointOnArc(from);
+  const end = pointOnArc(to);
+  return `M ${start.x} ${start.y} A 104 104 0 0 1 ${end.x} ${end.y}`;
+};
+
+const OpportunityGauge = ({rate}) => {
+  const available = Number.isFinite(rate);
+  const progress = useRef(new Animated.Value(0)).current;
+  const [needlePercent, setNeedlePercent] = useState(0);
 
   useEffect(() => {
-    const calculateReach = async () => {
-      setLoading(true);
-      // Simulate calculation/API call
-      setTimeout(() => {
-        // Mock Logic: defaulting to 'medium'
-        setCalculatedReach('medium'); 
-        setLoading(false);
-      }, 1000);
-    };
-
-    if (locationData) {
-      calculateReach();
+    if (!available) {
+      setNeedlePercent(0);
+      return undefined;
     }
-  }, [locationData]);
+    progress.setValue(0);
+    const listenerId = progress.addListener(({value}) => setNeedlePercent(value));
+    Animated.timing(progress, {
+      toValue: Math.max(0, Math.min(100, rate)),
+      duration: 1100,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    return () => {
+      progress.stopAnimation();
+      progress.removeListener(listenerId);
+    };
+  }, [available, progress, rate]);
 
-  const activeOption = reachOptions.find(o => o.id === calculatedReach) || reachOptions[1];
+  const needle = pointOnArc(needlePercent, 83);
+  const dx = needle.x - 160;
+  const dy = needle.y - 150;
+  const length = Math.hypot(dx, dy) || 1;
+  const offsetX = -dy / length * 9;
+  const offsetY = dx / length * 9;
+  return <View style={styles.gaugeWrap}>
+    <Svg width={320} height={174} viewBox="0 0 320 174">
+      <Path d={arcPath(0, 33.33)} stroke={LEVELS[2].color} strokeWidth={72} fill="none" />
+      <Path d={arcPath(33.33, 66.66)} stroke={LEVELS[1].color} strokeWidth={72} fill="none" />
+      <Path d={arcPath(66.66, 100)} stroke={LEVELS[0].color} strokeWidth={72} fill="none" />
+      {available && <Polygon points={`${needle.x},${needle.y} ${160 + offsetX},${150 + offsetY} ${160 - offsetX},${150 - offsetY}`} fill="white" />}
+      <Circle cx={160} cy={150} r={28} fill="white" />
+    </Svg>
+    <Text style={styles.gaugeValue}>{available ? `${rate}%` : '--'}</Text>
+  </View>;
+};
 
-  const handleNext = () => {
-    navigation.navigate('NewsSubmissionStep3', { 
-      locationData, 
-      reachData: activeOption 
-    });
-  };
+const Step2SelectionScreen = ({navigation, route}) => {
+  const {locationData} = route.params || {};
+  const villages = useMemo(() => locationData?.villages || (locationData?.village ? [locationData.village] : []), [locationData]);
+  const districtId = locationData?.district?._id;
+  const insets = useSafeAreaInsets();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [rates, setRates] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [showDemo, setShowDemo] = useState(false);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+  useEffect(() => {
+    let active = true;
+    if (!districtId || !villages.length) {
+      return undefined;
+    }
+    setLoading(true);
+    Promise.allSettled(villages.map(village => api.get('/news/submission-approval-rate', {
+      params: {district_id: districtId, village_id: village._id}, timeout: 8000,
+    }))).then(results => {
+      if (!active) {
+        return;
+      }
+      const nextRates = {};
+      results.forEach((result, index) => {
+        nextRates[villages[index]._id] = result.status === 'fulfilled' ? result.value.data : null;
+      });
+      setRates(nextRates);
+    }).finally(() => {if (active) {setLoading(false);}});
+    return () => {active = false;};
+  }, [villages, districtId, attempt]);
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        {/* Telugu Header Title */}
-        <Text style={styles.headerTitle}>లొకేషన్ ఎంచుకోండి</Text>
-        <Text style={styles.stepIndicator}>2 / 4</Text>
+  const selectedVillage = villages[selectedIndex];
+  const selectedRate = rates[selectedVillage?._id];
+  const rate = showDemo ? 80 : selectedRate?.approval_rate;
+  const available = Number.isFinite(rate);
+  const activeLevel = available ? (rate >= 70 ? 'high' : rate >= 40 ? 'medium' : 'low') : null;
+  const requestFailed = !loading && selectedRate === null;
+
+  return <View style={styles.container}>
+    <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.header, {paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : insets.top + 14}]}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityLabel="Go back">
+        <Icon name="arrow-left" size={26} color="#303030" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>లోకేషన్ ఎంచుకోండి</Text>
+      <Text style={styles.stepIndicator}>2/4</Text>
+    </View>
+
+    <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
+      <View style={styles.locationRow}>
+        <Icon name="map-marker-outline" size={29} color="#333" />
+        <Text style={styles.locationName}>{displayName(selectedVillage) || displayName(locationData?.district)}</Text>
       </View>
+      {villages.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.villageTabs}>
+        {villages.map((village, index) => <TouchableOpacity key={village._id} style={[styles.villageTab, selectedIndex === index && styles.villageTabSelected]} onPress={() => {setSelectedIndex(index); setShowDemo(false);}}>
+          <Text style={[styles.villageTabText, selectedIndex === index && styles.villageTabTextSelected]}>{displayName(village)}</Text>
+        </TouchableOpacity>)}
+      </ScrollView>}
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        
-        {/* Location Display */}
-        <View style={styles.locationCard}>
-          <View style={styles.locationIconContainer}>
-            <Icon name="map-marker-radius" size={28} color="#2196F3" />
-          </View>
-          <View style={styles.locationTextContainer}>
-            <Text style={styles.locationLabel}>Selected Location</Text>
-            <Text style={styles.locationName}>{locationString}</Text>
-          </View>
+      {loading ? <View style={styles.loading}><ActivityIndicator size="large" color="#2386F6" /><Text style={styles.note}>సమాచారం తెస్తున్నాం...</Text></View> : <>
+        <OpportunityGauge rate={rate} />
+        <Text style={styles.gaugeLocation}>{displayName(selectedVillage) || displayName(locationData?.district)}</Text>
+        <Text style={styles.gaugeSubtitle}>ప్రచురణకు ఉన్న అవకాశాలు</Text>
+        {!available && <View style={styles.unavailable}>
+          <Text style={styles.note}>{requestFailed ? 'ప్రస్తుతం అవకాశాల సమాచారం అందుబాటులో లేదు.' : 'శాతం చూపడానికి తగిన సమాచారం లేదు.'} వార్తను కొనసాగించవచ్చు.</Text>
+          {requestFailed && <TouchableOpacity style={styles.retryButton} onPress={() => setAttempt(value => value + 1)}><Text style={styles.retry}>మళ్లీ ప్రయత్నించండి</Text></TouchableOpacity>}
+          {__DEV__ && <TouchableOpacity style={styles.demoButton} onPress={() => setShowDemo(true)}><Text style={styles.demoButtonText}>80% నమూనా చూడండి</Text></TouchableOpacity>}
+        </View>}
+        <View style={styles.levels}>
+          {LEVELS.map(level => <View key={level.id} style={[styles.levelRow, activeLevel === level.id && {borderColor: level.color, backgroundColor: `${level.color}14`}]}>
+            <View style={[styles.levelDot, {backgroundColor: level.color}]} />
+            <Text style={[styles.levelText, activeLevel && activeLevel !== level.id && styles.levelTextInactive]}>{level.text}</Text>
+          </View>)}
         </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Analyzing...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Chart Section */}
-            <View style={styles.chartContainer}>
-              {/* Using location name as title as per previous design */}
-              <Text style={styles.chartTitle}>{locationString}</Text>
-              {/* Telugu Subtitle */}
-              <Text style={styles.chartSubtitle}>ప్రమాణానికి ఉన్న అవకాశాలు</Text>
-              
-              <View style={styles.barContainer}>
-                <View style={styles.barBackground}>
-                  <View 
-                    style={[
-                      styles.barFill, 
-                      { 
-                        width: activeOption.barWidth, 
-                        backgroundColor: activeOption.color 
-                      }
-                    ]} 
-                  />
-                </View>
-                <Text style={[styles.barValue, { color: activeOption.color }]}>
-                  {activeOption.range}
-                </Text>
-              </View>
-            </View>
-
-            {/* Reach Options List */}
-            <View style={styles.optionsContainer}>
-              {reachOptions.map((option) => {
-                const isActive = option.id === activeOption.id;
-                
-                return (
-                  <View
-                    key={option.id}
-                    style={[
-                      styles.optionCard,
-                      isActive ? styles.optionCardActive : styles.optionCardDisabled,
-                      { borderColor: isActive ? option.color : '#F0F0F0' }
-                    ]}
-                  >
-                    {/* Dot Indicator */}
-                    <View 
-                      style={[
-                        styles.optionDot, 
-                        { backgroundColor: isActive ? option.color : '#D0D0D0' }
-                      ]} 
-                    />
-                    
-                    {/* Text Content */}
-                    <View style={styles.optionContent}>
-                      {/* Using the Telugu Description provided */}
-                      <Text style={[
-                        styles.optionDescription,
-                        !isActive && styles.disabledText
-                      ]}>
-                        {option.description}
-                      </Text>
-                    </View>
-
-                    {/* Active Checkmark */}
-                    {isActive && (
-                      <Icon name="check-circle" size={24} color={option.color} />
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={[styles.footer, { marginBottom: insets.bottom }]}>
-        <TouchableOpacity
-          style={[styles.nextButton, loading && styles.nextButtonDisabled]}
-          onPress={handleNext}
-          disabled={loading}
-          activeOpacity={0.8}>
-          <Text style={styles.nextButtonText}>Next</Text>
-          <Icon name="arrow-right" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
+        {showDemo ? <View style={styles.unavailable}>
+          <Text style={styles.note}>DEMO · ఇది నమూనా మాత్రమే, నిజమైన అవకాశాల శాతం కాదు.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => setShowDemo(false)}><Text style={styles.retry}>వాస్తవ డేటా చూడండి</Text></TouchableOpacity>
+        </View> : available && <Text style={styles.note}>గత 30 రోజులలో {selectedRate.approved}/{selectedRate.sample_size} వార్తలు ఆమోదం పొందాయి{selectedRate.scope === 'district' ? ' (జిల్లా ఆధారంగా)' : ''}. ఇది కొత్త వార్త ఆమోదానికి హామీ కాదు.</Text>}
+      </>}
+    </ScrollView>
+    <TouchableOpacity style={[styles.nextButton, {paddingBottom: Math.max(insets.bottom, 14)}]} onPress={() => navigation.navigate('NewsSubmissionStep3', {locationData})} activeOpacity={0.8}>
+      <Text style={styles.nextText}>తరువాత</Text><Icon name="arrow-right" size={27} color="#FFF" />
+    </TouchableOpacity>
+  </View>;
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: STATUS_BAR_HEIGHT + 10,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 12,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  stepIndicator: {
-    fontSize: 16,
-    color: '#999',
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-  },
-  locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F9FF',
-    margin: 20,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E3F2FD',
-  },
-  locationIconContainer: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  locationTextContainer: {
-    flex: 1,
-  },
-  locationLabel: {
-    fontSize: 12,
-    color: '#666',
-    textTransform: 'uppercase',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  locationName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  chartContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  chartSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  barContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  barBackground: {
-    flex: 1,
-    height: 12,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  barValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    width: 80,
-    textAlign: 'right',
-  },
-  optionsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  optionCardActive: {
-    backgroundColor: '#FAFAFA',
-    borderWidth: 1.5,
-    opacity: 1,
-  },
-  optionCardDisabled: {
-    backgroundColor: '#FAFAFA',
-    opacity: 0.5,
-    borderWidth: 1,
-  },
-  disabledText: {
-    color: '#999',
-  },
-  optionDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 16,
-    marginTop: 4,
-  },
-  optionContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  optionDescription: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#666',
-    fontSize: 14,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
-    backgroundColor: '#FFF',
-  },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  nextButtonDisabled: {
-    backgroundColor: '#B0BEC5',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  container: {flex: 1, backgroundColor: '#F6F6F6'},
+  header: {backgroundColor: '#FFF', paddingHorizontal: 26, paddingBottom: 25, flexDirection: 'row', alignItems: 'center'},
+  backButton: {marginRight: 26, padding: 4},
+  headerTitle: {flex: 1, fontSize: 22, color: '#303030'},
+  stepIndicator: {fontSize: 24, color: '#111'},
+  content: {flex: 1},
+  contentInner: {paddingBottom: 100},
+  locationRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 33, marginHorizontal: 29},
+  locationName: {fontSize: 22, color: '#151515', borderBottomWidth: 2, borderStyle: 'dotted', borderBottomColor: '#333', paddingBottom: 5},
+  villageTabs: {marginTop: 16, paddingHorizontal: 28, maxHeight: 50},
+  villageTab: {borderRadius: 18, borderWidth: 1, borderColor: '#D2D8DC', paddingHorizontal: 14, paddingVertical: 8, marginRight: 8},
+  villageTabSelected: {borderColor: '#2386F6', backgroundColor: '#E9F3FF'},
+  villageTabText: {fontSize: 14, color: '#555'},
+  villageTabTextSelected: {color: '#1673D3', fontWeight: '700'},
+  loading: {alignItems: 'center', paddingTop: 80},
+  gaugeWrap: {width: 320, height: 174, alignSelf: 'center', marginTop: 32, alignItems: 'center'},
+  gaugeValue: {position: 'absolute', bottom: 10, fontSize: 16, color: '#737373'},
+  gaugeLocation: {fontSize: 23, color: '#323232', textAlign: 'center'},
+  gaugeSubtitle: {fontSize: 19, color: '#B0B0B0', textAlign: 'center', marginTop: 20},
+  levels: {marginTop: 36, marginHorizontal: 20},
+  levelRow: {minHeight: 76, borderWidth: 1, borderColor: 'transparent', borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 17, paddingVertical: 10, marginBottom: 10},
+  levelDot: {width: 29, height: 29, borderRadius: 15, marginRight: 19},
+  levelText: {flex: 1, fontSize: 17, lineHeight: 26, color: '#343434'},
+  levelTextInactive: {color: '#AFAFAF'},
+  note: {fontSize: 13, lineHeight: 20, color: '#757575', textAlign: 'center', marginHorizontal: 28, marginTop: 12},
+  unavailable: {alignItems: 'center', marginTop: 14},
+  retryButton: {paddingHorizontal: 18, paddingVertical: 10, marginTop: 4},
+  demoButton: {borderWidth: 1, borderColor: '#2386F6', borderRadius: 7, paddingHorizontal: 18, paddingVertical: 10, marginTop: 5},
+  demoButtonText: {fontSize: 14, fontWeight: '700', color: '#2386F6'},
+  retry: {fontSize: 14, fontWeight: '700', color: '#2386F6', marginTop: 10},
+  nextButton: {backgroundColor: '#2386F6', minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingTop: 14},
+  nextText: {color: '#FFF', fontSize: 19, fontWeight: '700'},
 });
 
 export default Step2SelectionScreen;

@@ -341,7 +341,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
           <Icon name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>News Details</Text>
-        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>2 / 3</Text>
+        <Text style={[styles.stepIndicator, { color: theme.textSecondary }]}>3 / 4</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
