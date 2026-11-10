@@ -39,16 +39,9 @@ platform :ios do
       try_repo_update_on_error: true
     )
 
-    # latest_testflight_build_number queries App Store Connect, which doesn't
-    # immediately reflect a build still "Processing" right after an upload -
-    # so right after a prior run, it can under-report and collide again
-    # ("must be higher than the previously uploaded version"). A timestamp is
-    # always bigger than any small build number and needs no ASC round trip,
-    # so it can't lag behind what Apple actually has on file.
-    increment_build_number(
-      build_number: Time.now.strftime("%Y%m%d%H%M"),
-      xcodeproj: "rapidnews.xcodeproj"
-    )
+    # Version 1.1 / build 1 is a fresh (version, build) pair Apple has never
+    # seen, so no auto-increment is needed here - just build what's committed
+    # in the Xcode project (MARKETING_VERSION 1.1, CURRENT_PROJECT_VERSION 1).
 
     build_app(
       workspace: "rapidnews.xcworkspace",
