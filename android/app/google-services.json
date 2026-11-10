@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "41246324898-62d0nfsloal4hiidm8pjje1hga7l11bi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rapidnews",
+            "certificate_hash": "645bfde38a8d61bbab11544b1b32c605c6007c99"
+          }
+        },
+        {
+          "client_id": "41246324898-cmj3s0imeoigqnfarpv2m63k6raeg8op.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rapidnews",
+            "certificate_hash": "a003b257b76de54cbe3762aa38898a8f040203dd"
+          }
+        },
+        {
           "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -37,6 +53,13 @@
             {
               "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "41246324898-5h9beot6q8jk47g0eapc9p3ebldd9vhr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rapidnews"
+              }
             }
           ]
         }

@@ -19,6 +19,24 @@ export const toggleBookmarkApi = createAsyncThunk(
   }
 );
 
+// "Save this ad" from the Ad Center menu — ads aren't News documents, so they
+// get their own bookmark endpoint (see bookmark.routes.js's /ad/:id), not
+// BOOKMARK_NEWS.
+export const toggleAdBookmarkApi = createAsyncThunk(
+  'bookmarks/toggleAdBookmarkApi',
+  async ({ adId, isCurrentlyBookmarked }, { rejectWithValue }) => {
+    try {
+      const url = endpoints.BOOKMARK_AD.replace(':id', adId);
+      const response = isCurrentlyBookmarked
+        ? await api.delete(url)
+        : await api.post(url);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 export const getBookmarks = createAsyncThunk(
   'bookmarks/getBookmarks',
   async (_, { rejectWithValue,dispatch, }) => {
@@ -53,7 +71,10 @@ const bookmarksSlice = createSlice({
     },
     listBootmarkIds:(state,action)=>{
       if(action.payload){
-        state.bookmarkIds = action.payload.map(item=>item.news._id)
+        // Only news items carry an _id this list is used for (the "is this
+        // article bookmarked" check elsewhere) — ad items have no `.news`,
+        // skip them instead of crashing on `.news._id`.
+        state.bookmarkIds = action.payload.filter(item=>item.news).map(item=>item.news._id)
       }
     }
   },
@@ -79,6 +100,12 @@ const bookmarksSlice = createSlice({
       .addCase(toggleBookmarkApi.rejected, (state, action) => {
         state.loading = false;
         // Revert local state here if an optimistic update failed
+      })
+      .addCase(toggleAdBookmarkApi.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(toggleAdBookmarkApi.rejected, (state) => {
+        state.loading = false;
       })
        .addCase(getBookmarks.fulfilled, (state, action) => {
         state.bookmarks = action.payload.items;

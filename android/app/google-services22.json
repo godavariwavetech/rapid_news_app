@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "41246324898",
+    "project_id": "rapidnews-project",
+    "storage_bucket": "rapidnews-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41246324898:android:ac98c6d6e784e88dcf3ffb",
+        "android_client_info": {
+          "package_name": "com.rapidnews"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "41246324898-26ph4sb5ovf0headlgobr73p4u3rh9p3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rapidnews",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "41246324898-62d0nfsloal4hiidm8pjje1hga7l11bi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rapidnews",
+            "certificate_hash": "645bfde38a8d61bbab11544b1b32c605c6007c99"
+          }
+        },
+        {
+          "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDF8yc8yk3PySIFfcsPg793nclUEowCJb8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "41246324898-qj2qc1jnrmasiluhdl0cf73cdgdb6rs1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "41246324898-5h9beot6q8jk47g0eapc9p3ebldd9vhr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rapidnews"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

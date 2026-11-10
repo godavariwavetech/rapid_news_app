@@ -9,26 +9,24 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  Alert,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSelectedCategory, getCategories} from '../redux/reducers/news';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { userLogin } from '../redux/reducers/auth';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
 import { useTheme } from '../context/ThemeContext';
+import { useGoogleLogin } from '../hooks/useGoogleLogin';
 
 const ProfileScreen = ({navigation}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { theme, isDarkMode } = useTheme();
-  
+  const { signingIn, handleGoogleLogin } = useGoogleLogin();
+
   // Coming Soon Modal State
   const [comingSoonVisible, setComingSoonVisible] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
 
   // Select data from Redux
   const {reporter,user} = useSelector(state => state.auth);
@@ -83,38 +81,6 @@ const ProfileScreen = ({navigation}) => {
     navigation.goBack();
   };
 
-  const handleGoogleLogin =  async () =>{
- if (signingIn) return;
- setSigningIn(true);
- try {
-     await GoogleSignin.signOut();
-     await GoogleSignin.hasPlayServices();
-     const response = await GoogleSignin.signIn();
-     if (response.type === 'cancelled') return;
-
-     const idToken = response.data?.idToken;
-     if (!idToken) throw new Error('Google returned no idToken');
-
-     // .unwrap() so a rejected backend call throws here instead of failing silently
-     await dispatch(userLogin({ idToken })).unwrap();
-
-   } catch (error) {
-    if (error?.code === statusCodes.SIGN_IN_CANCELLED) return;
-
-    const detail =
-      error?.code === statusCodes.DEVELOPER_ERROR
-        ? "DEVELOPER_ERROR (10) — this build's signing certificate isn't registered in the Google Cloud project."
-        : error?.code
-          ? `Google sign-in failed (code ${error.code})`
-          : error?.message || JSON.stringify(error);
-
-    console.log('[GoogleLogin]', detail, error);
-    Alert.alert('Sign-in failed', detail);
-   } finally {
-     setSigningIn(false);
-   }
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.statusBar} translucent={false} />
@@ -152,7 +118,7 @@ const ProfileScreen = ({navigation}) => {
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('LocationSelection')}>
             <View style={styles.settingIconContainer}><Icon name="map-marker" size={22} color={theme.primary} /></View>
             <View style={styles.settingContent}>
-              <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎందుకున్న స్థానం</Text>
+              <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>మీరు ఎంచుకున్న స్థానం</Text>
               <Text style={[styles.settingValue, { color: isDarkMode ? theme.primary : '#00BFFF' }]}>{displayLocationName} (Change)</Text>
             </View>
             <View style={[styles.settingArrow, { backgroundColor: isDarkMode ? '#333' : '#666' }]}><Icon name="arrow-right" size={16} color="#FFFFFF" /></View>

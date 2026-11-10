@@ -152,8 +152,16 @@ const locationSlice = createSlice({
       })
       .addCase(resolveLocation.fulfilled, (state, action) => {
         state.loading = false;
-        // Never let GPS auto-detection clobber a location the user picked themselves.
-        if (!state.isManuallySet) {
+        // Only the very FIRST resolve (no location at all yet) is allowed to
+        // set currentLocation. Gating on isManuallySet alone missed the
+        // common case: a user who never opened the location picker - their
+        // location was only ever GPS-auto-detected on first launch, so
+        // isManuallySet stayed false, and GPS kept re-winning on every later
+        // launch/travel ("I'm in Rajahmundry but it shows Vijayawada because
+        // I'm physically there today"). Once ANY location is showing -
+        // auto-detected or manually picked - it must stay put until the user
+        // explicitly changes it via the picker (setManualLocation).
+        if (!state.currentLocation) {
           state.currentLocation = action.payload;
         }
       })

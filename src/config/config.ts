@@ -1,6 +1,7 @@
-// export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms'; 
+// export const baseURL = 'https://lswhmhls-7777.inc1.devtunnels.ms';
 // export const baseURL = 'https://6pqk8p41-7777.inc1.devtunnels.ms';
-export const baseURL="https://godavariwave.in:7777"
+// export const baseURL="https://godavariwave.in:7777"
+export const baseURL = "https://api.rapidnewsnetwork.in" // PRODUCTION (from teammate's main)
 
 
 export const endpoints = {
@@ -24,6 +25,7 @@ export const endpoints = {
   GET_EXAMS: 'exams',
   GET_EXAM_RESULT: 'exams/:id/result',
   GET_ARTICLE: 'news/article/:id',
+  GET_MAGAZINE_BY_ID: 'magazines/:id',
   SHARE_NEWS: 'news/:id/share',
   GUEST_REACT_LIKE: 'reactions',
   VIEW_NEWS: 'views/news/:id',
@@ -50,6 +52,7 @@ export const endpoints = {
   TRACK_AD_CLICK: 'ads/:id/click',
 
   BOOKMARK_NEWS: 'bookmarks/news/:id',
+  BOOKMARK_AD: 'bookmarks/ad/:id',
   GET_BOOKMARKS: 'bookmarks',
 
   REPORT_NEWS: 'news-reports/news',

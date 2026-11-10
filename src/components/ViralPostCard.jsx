@@ -151,11 +151,11 @@ const ViralPostCard = ({ news, height, activeSlide: controlledSlide, onSlideChan
       </GestureDetector>
 
       {cards.length > 1 && (
-        <View style={[styles.paginationContainer, { bottom: 196 + insets.bottom }]} pointerEvents="none">
+        <View style={[styles.paginationContainer, { bottom: 100 + insets.bottom }]} pointerEvents="none">
           {cards.map((_, i) => (
             <View
               key={i}
-              style={[styles.paginationDot, { backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }]}
+              style={[styles.paginationDot, { backgroundColor: i === activeSlide ? '#FFFFFF' : 'rgba(255,255,255,0.75)' }]}
             />
           ))}
         </View>
@@ -246,7 +246,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  paginationDot: { width: 8, height: 8, borderRadius: 4 },
+  // Shadow (not just the scrim) keeps the dots legible even against a
+  // bright/busy part of the image, where a plain white dot washes out.
+  paginationDot: {
+    width: 8, height: 8, borderRadius: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.9, shadowRadius: 2,
+    elevation: 3,
+  },
   // Covers the title, the WhatsApp FAB and the footer bar so all three read
   // clearly over any image instead of relying on per-element backgrounds.
   bottomScrim: {
