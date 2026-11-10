@@ -95,7 +95,7 @@ const MemoizedCard = React.memo(({ newsItem, height, fitToContainer = false, onP
       ) : newsItem.type === 'VIRAL_POST' ? (
         <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
       ) : (
-        <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} onPressTag={onPressTag} />
+        <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} screenHeight={height} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} onPressTag={onPressTag} />
       )}
     </View>
   );
@@ -122,7 +122,7 @@ const CardHalf = React.memo(({ newsItem, side, height, fitToContainer = false, o
         ) : newsItem.type === 'VIRAL_POST' ? (
           <ViralPostCard news={newsItem} height={height} activeSlide={viralSlideIndex} onSlideChange={onViralSlideChange} panX={viralPanX} onPress={onPress} onPressViral={onPressViral} />
         ) : (
-          <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} onPressTag={onPressTag} />
+          <Way2NewsCard cardHeight={fitToContainer || newsItem.isAd ? height : undefined} screenHeight={height} news={newsItem} onPress={onPress} onCommentsPress={onCommentsPress} isActive={isActive} isBottomHalf={!isTop} onPressTag={onPressTag} />
         )}
       </View>
     </View>

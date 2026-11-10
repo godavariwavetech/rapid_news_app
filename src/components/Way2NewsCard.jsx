@@ -37,8 +37,14 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag, cardHeight }, ref) => {
-  const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT, fontScale} = useWindowDimensions();
+const Way2NewsCard = forwardRef(({ news, onPress, onCommentsPress, isActive = true, isBottomHalf = false, onPressTag, cardHeight, screenHeight }, ref) => {
+  const {width: SCREEN_WIDTH, height: WINDOW_HEIGHT, fontScale} = useWindowDimensions();
+  // iOS only: useWindowDimensions() can report a taller height than the space
+  // FlipNewsScreen actually measured and allotted this card (containerHeight,
+  // passed down as screenHeight) - the mismatch doesn't show on Android, but
+  // on iOS it renders the card taller than its parent's overflow:'hidden' box,
+  // silently clipping the bottom-most element (the like/share action bar).
+  const SCREEN_HEIGHT = (Platform.OS === 'ios' && screenHeight) ? screenHeight : WINDOW_HEIGHT;
   const ACTUAL_HEIGHT = SCREEN_HEIGHT;
   const { height: IMAGE_HEIGHT } = getArticleImageDimensions(SCREEN_WIDTH, ACTUAL_HEIGHT);
   // react-native-youtube-iframe hard-codes its internal HTML to a 16:9 box (padding-bottom: 56.25%)

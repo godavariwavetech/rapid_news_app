@@ -327,7 +327,7 @@ const CategoriesModal = ({visible, onClose, onSelectCategory}) => {
                                 colors={colors}
                                 start={{x: 0, y: 0}}
                                 end={{x: 1, y: 1}}
-                                style={[styles.bentoCard, isFullWidth && styles.bentoCardHorizontal, { height: cardHeight }]}
+                                style={[styles.bentoCard, isFullWidth && styles.bentoCardHorizontal, { minHeight: cardHeight }]}
                             >
                                 <View style={styles.bentoIconFloating}>
                                     {/* Vector icon renders instantly and stays underneath; the
