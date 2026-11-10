@@ -39,9 +39,17 @@ platform :ios do
       try_repo_update_on_error: true
     )
 
-    # Version 1.1 / build 1 is a fresh (version, build) pair Apple has never
-    # seen, so no auto-increment is needed here - just build what's committed
-    # in the Xcode project (MARKETING_VERSION 1.1, CURRENT_PROJECT_VERSION 1).
+    # The committed CURRENT_PROJECT_VERSION is static, so every CI run (a
+    # re-run, a retry, another push) would otherwise try to upload the exact
+    # same (version, build) pair as a prior successful run and get rejected
+    # with "must be higher than the previously uploaded version". A timestamp
+    # is always bigger than any prior build number and needs no round trip to
+    # App Store Connect (which can under-report a build still "Processing"
+    # right after an upload), so it can't collide or lag behind what's on file.
+    increment_build_number(
+      build_number: Time.now.strftime("%Y%m%d%H%M"),
+      xcodeproj: "rapidnews.xcodeproj"
+    )
 
     build_app(
       workspace: "rapidnews.xcworkspace",
