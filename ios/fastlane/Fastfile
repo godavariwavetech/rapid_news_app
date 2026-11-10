@@ -39,17 +39,14 @@ platform :ios do
       try_repo_update_on_error: true
     )
 
-    # GITHUB_RUN_NUMBER doesn't know what's already in App Store Connect, so a
-    # re-run (or a build uploaded outside CI) can collide with an existing
-    # (version, build) pair there and upload_to_testflight fails with a 409 on
-    # CFBundleShortVersionString. Basing the next build number on TestFlight's
-    # own latest build for this version guarantees it's always higher.
-    latest_build_number = latest_testflight_build_number(
-      app_identifier: "com.rapidnews",
-      version: get_version_number(xcodeproj: "rapidnews.xcodeproj")
-    )
+    # latest_testflight_build_number queries App Store Connect, which doesn't
+    # immediately reflect a build still "Processing" right after an upload -
+    # so right after a prior run, it can under-report and collide again
+    # ("must be higher than the previously uploaded version"). A timestamp is
+    # always bigger than any small build number and needs no ASC round trip,
+    # so it can't lag behind what Apple actually has on file.
     increment_build_number(
-      build_number: latest_build_number + 1,
+      build_number: Time.now.strftime("%Y%m%d%H%M"),
       xcodeproj: "rapidnews.xcodeproj"
     )
 
