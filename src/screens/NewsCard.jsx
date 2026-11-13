@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text, Image, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import FastImage from 'react-native-fast-image';
 import Animated, {
   useAnimatedStyle,
   interpolate,
@@ -76,7 +77,11 @@ const NewsCard = ({news, index, scrollY, onPress, theme}) => {
         style={[styles.card, {backgroundColor: theme.cardBackground}]}
         activeOpacity={0.95}
         onPress={onPress}>
-        <Image source={{uri: news.image}} style={styles.image} />
+        <FastImage
+          source={{uri: news.image}}
+          style={styles.image}
+          resizeMode={FastImage.resizeMode.cover}
+        />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.gradient}
@@ -157,7 +162,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '60%',
-    resizeMode: 'cover',
   },
   gradient: {
     position: 'absolute',

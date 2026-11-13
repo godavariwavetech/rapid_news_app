@@ -31,7 +31,7 @@ const Step4ReviewScreen = ({navigation, route}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Destructure params
-  const {location, headline, description, category, image, images, video, newsSource, isEditing, newsId, apiPayload} = route.params;
+  const {location, headline, description, category, image, images, video, thumbnail, newsSource, isEditing, newsId, apiPayload} = route.params;
 
   const uploadToS3 = (asset, mediaType = 'image') =>
     uploadMedia(asset, { reporterId: reporter?._id, mediaType });
@@ -62,6 +62,18 @@ const Step4ReviewScreen = ({navigation, route}) => {
         return;
       }
       finalPayload.videos = [videoUrl];
+
+      // Step3 blocks submission without one whenever a video is present, so
+      // this should always resolve - but if the upload itself fails, don't
+      // silently fall back to the server's auto-extracted frame (which is
+      // exactly the unreliable behavior this screen was added to avoid).
+      const thumbnailUrl = await uploadToS3(thumbnail, 'image');
+      if (!thumbnailUrl) {
+        setIsSubmitting(false);
+        Alert.alert('Upload Failed', 'Could not upload thumbnail. Please try again.');
+        return;
+      }
+      finalPayload.video_thumbnail = thumbnailUrl;
     }
 
     let response;
@@ -166,12 +178,17 @@ const Step4ReviewScreen = ({navigation, route}) => {
               Media {images && images.length > 1 ? `(${images.length} images)` : ''}
             </Text>
             {video ? (
-              <View style={[styles.videoPreview, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
-                <Icon name="video" size={28} color="#FF6B35" />
-                <Text style={[styles.infoText, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                  {video.fileName || 'video.mp4'}
-                </Text>
-              </View>
+              <>
+                <View style={[styles.videoPreview, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8' }]}>
+                  <Icon name="video" size={28} color="#FF6B35" />
+                  <Text style={[styles.infoText, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                    {video.fileName || 'video.mp4'}
+                  </Text>
+                </View>
+                {thumbnail ? (
+                  <Image source={{ uri: thumbnail.uri }} style={[styles.previewImage, { marginTop: 10 }]} />
+                ) : null}
+              </>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesRow}>
                 {(images && images.length > 0 ? images : [image]).map((img, i) => (

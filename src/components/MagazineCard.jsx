@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text, Image, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import FastImage from 'react-native-fast-image';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector} from 'react-redux';
 import {lightTheme, darkTheme} from '../utils/colors';
@@ -13,7 +14,11 @@ const MagazineCard = ({magazine, onPress}) => {
       style={[styles.container, {backgroundColor: theme.cardBackground}]}
       onPress={onPress}
       activeOpacity={0.9}>
-      <Image source={{uri: magazine.cover}} style={styles.cover} />
+      <FastImage
+        source={{uri: magazine.cover}}
+        style={styles.cover}
+        resizeMode={FastImage.resizeMode.cover}
+      />
       <View style={styles.content}>
         <Text style={[styles.title, {color: theme.text}]} numberOfLines={2}>
           {magazine.title}
@@ -44,7 +49,6 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: 200,
-    resizeMode: 'cover',
   },
   content: {
     padding: 12,

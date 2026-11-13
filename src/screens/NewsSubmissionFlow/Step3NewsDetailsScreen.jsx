@@ -54,6 +54,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
   const [selectedCategoryObj, setSelectedCategoryObj] = useState(null);
   const [images, setImages] = useState([]); // array of image assets
   const [video, setVideo] = useState(null); // single video asset
+  const [thumbnail, setThumbnail] = useState(null); // required cover image when video is set
 
   // Transliteration State
   const [headlineTranslitEnabled, setHeadlineTranslitEnabled] = useState(false);
@@ -263,11 +264,41 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
     });
   };
 
+  // Reporters picking a video get no auto-generated preview frame here (that
+  // only happens server-side, after submit, and can silently fail) - this is
+  // the one guaranteed thumbnail, required before a video story can submit.
+  const handlePickThumbnail = async () => {
+    let pickedImage;
+    try {
+      pickedImage = await ImageCropPicker.openPicker({ mediaType: 'photo', multiple: false });
+    } catch (error) {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
+        console.error('Thumbnail picker failed:', error);
+        Alert.alert('Unable to Select Thumbnail', 'Could not open the photo library. Please try again.');
+      }
+      return;
+    }
+
+    try {
+      setThumbnail(await cropImage(pickedImage.path));
+    } catch (error) {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
+        console.error('Thumbnail crop failed:', error);
+        Alert.alert('Crop Failed', 'Could not crop this thumbnail. Please try again.');
+      }
+    }
+  };
+
   const removeImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleNext = async () => {
+    if (video && !thumbnail) {
+      Alert.alert('Thumbnail Required', 'Please add a thumbnail for your video.');
+      return;
+    }
+
     if (headline && description && selectedCategoryObj && (images.length > 0 || video)) {
       const districtId = locationData?.district?._id || existingNews?.district_id || currentLocation?.district?._id;
       const stateId = locationData?.state?._id || existingNews?.state_id || currentLocation?.state?._id;
@@ -317,6 +348,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
         image: images[0] || null,
         images,
         video,
+        thumbnail,
         newsSource: newsSource.trim(),
         apiPayload: payload,
         location: locationData
@@ -330,7 +362,7 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
     }
   };
 
-  const isValid = headline.trim() && description.trim() && selectedCategoryObj && (images.length > 0 || video);
+  const isValid = headline.trim() && description.trim() && selectedCategoryObj && (images.length > 0 || (video && thumbnail));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -483,10 +515,30 @@ const Step3NewsDetailsScreen = ({navigation, route}) => {
             <Text style={[styles.videoName, { color: theme.text }]} numberOfLines={1}>
               {video.fileName || 'video.mp4'}
             </Text>
-            <TouchableOpacity onPress={() => setVideo(null)}>
+            <TouchableOpacity onPress={() => { setVideo(null); setThumbnail(null); }}>
               <Icon name="close-circle" size={24} color="#FF3B30" />
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Thumbnail — required once a video is selected; the server can't be
+            trusted to always auto-extract one (see handlePickThumbnail). */}
+        {video && (
+          thumbnail ? (
+            <View style={styles.thumbnailPreviewContainer}>
+              <Image source={{ uri: thumbnail.uri }} style={styles.thumbnailPreview} />
+              <TouchableOpacity style={styles.removeThumbButton} onPress={() => setThumbnail(null)}>
+                <Icon name="close-circle" size={22} color="#FF3B30" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.thumbnailUploadButton, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F6F8', borderColor: isDarkMode ? '#333' : '#E0E0E0' }]}
+              onPress={handlePickThumbnail}>
+              <Icon name="image-plus" size={22} color="#FF6B35" />
+              <Text style={[styles.uploadText, { color: theme.textSecondary }]}>Add Thumbnail *</Text>
+            </TouchableOpacity>
+          )
         )}
 
         {/* Upload button — shown when nothing selected yet */}
@@ -623,6 +675,9 @@ const styles = StyleSheet.create({
   addMoreButton: { width: 90, height: 90, borderRadius: 10, borderStyle: 'dashed', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   videoPreview: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, gap: 12, marginBottom: 16 },
   videoName: { flex: 1, fontSize: 14 },
+  thumbnailUploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: 16, borderStyle: 'dashed', borderWidth: 1, gap: 10, marginBottom: 16 },
+  thumbnailPreviewContainer: { position: 'relative', width: 120, height: 120, marginBottom: 16 },
+  thumbnailPreview: { width: 120, height: 120, borderRadius: 10, resizeMode: 'cover' },
   footer: { padding: 20, borderTopWidth: 1 },
   submitButton: { paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   submitButtonActive: { },

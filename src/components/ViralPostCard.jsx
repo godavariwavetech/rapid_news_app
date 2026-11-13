@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { useDispatch } from 'react-redux';
@@ -139,9 +140,9 @@ const ViralPostCard = ({ news, height, activeSlide: controlledSlide, onSlideChan
           {cards.map((card, i) => (
             <View key={i} style={[styles.slide, { width, height }]}>
               {card.image ? (
-                <Image source={{ uri: card.image }}
+                <FastImage source={{ uri: card.image }}
                   style={[styles.image, {bottom: FOOTER_HEIGHT + insets.bottom}]}
-                  resizeMode="stretch" />
+                  resizeMode={FastImage.resizeMode.stretch} />
               ) : (
                 <View style={[styles.image, styles.placeholder]} />
               )}

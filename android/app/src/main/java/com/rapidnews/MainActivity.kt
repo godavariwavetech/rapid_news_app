@@ -20,7 +20,10 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
+    // Discard any restored state: React Native / react-native-screens can't reliably
+    // rebuild their fragment state from a saved Bundle, and Android restores it often
+    // on low-RAM devices after killing the backgrounded app, which crashed on reopen.
+    super.onCreate(null)
     applyNavigationBarAppearance()
 
     // Android 15+ draws content behind system bars. Paint only the navigation

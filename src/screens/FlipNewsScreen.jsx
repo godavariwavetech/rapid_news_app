@@ -299,6 +299,11 @@ const FlipNewsScreen = forwardRef(({ toggleUI, hideUI, onCommentsPress, onRefres
           image: data.images?.length > 0 ? data.images[0] : null,
           images: data.images || [],
           videos: data.videos || [],
+          // Way2NewsCard's thumbnailUri falls back to this when there's no
+          // attached image - without it, a video-only article always falls
+          // through to generating a poster frame on-device instead of using
+          // the one the reporter/admin picked (or the server auto-extracted).
+          thumbnail: data.video_thumbnail || null,
           external_links: data.external_links || [],
           article_links: data.article_links || null,
           publishedAt,
